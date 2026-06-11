@@ -1,0 +1,26 @@
+{
+  "name": "Pick A Side",
+  "short_name": "Pick A Side",
+  "description": "Strategic football prediction challenges with point budgets and live tournament tracking.",
+  "start_url": "./index.html#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12131a",
+  "theme_color": "#12131a",
+  "categories": ["sports", "games", "social"],
+  "icons": [
+    {
+      "src": "assets/logo-dark.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/logo-dark.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

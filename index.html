@@ -1,0 +1,49 @@
+﻿<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#12131a">
+    <meta name="color-scheme" content="dark light">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pick A Side">
+    <meta name="application-name" content="Pick A Side">
+    <meta name="format-detection" content="telephone=no">
+    <title>Pick A Side</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="assets/logo-dark.png">
+    <link rel="stylesheet" href="styles.css?v=20260611-prod1">
+  </head>
+  <body>
+    <div class="app-shell">
+      <main id="app" class="page" aria-live="polite"></main>
+      <nav class="bottom-nav" aria-label="Main navigation">
+        <a href="#/live" data-route="/live" class="nav-btn" title="Live" aria-label="Live">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 8-8m8 8a8 8 0 0 0-8-8m-5 8a5 5 0 0 1 5-5m5 5a5 5 0 0 0-5-5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 14.5v5"/></svg>
+          </span>
+        </a>
+        <a href="#/search" data-route="/search" class="nav-btn" title="Search" aria-label="Search">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+          </span>
+        </a>
+        <a href="#/create-tournament" data-route="/create-tournament" class="nav-btn" title="Championships" aria-label="Championships">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a4 4 0 0 0 4 4"/><path d="M17 6h3v2a4 4 0 0 1-4 4"/><path d="M12 7v5"/><path d="M9.5 9.5h5"/></svg>
+          </span>
+        </a>
+        <a href="#/" data-route="/" class="nav-btn active" title="Home" aria-label="Home">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 10.8 12 3l9 7.8"/><path d="M5.5 10.5V21h13V10.5"/><path d="M9.5 21v-6h5v6"/></svg>
+          </span>
+        </a>
+      </nav>
+    </div>
+
+    <div id="modal-root"></div>
+    <script src="app.js?v=20260611-prod1"></script>
+  </body>
+</html>

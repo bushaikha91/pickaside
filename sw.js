@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260611-prod1";
+const CACHE_NAME = "pick-a-side-20260620-api-proxy1";
 const APP_SHELL = [
   "./",
   "./index.html",

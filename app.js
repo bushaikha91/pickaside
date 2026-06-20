@@ -1,9 +1,23 @@
 ﻿const app = document.querySelector("#app");
 const modalRoot = document.querySelector("#modal-root");
+let mainChromeScrollHandler = null;
 
 const state = {
-  selectedChampionshipsTab: "mine",
+  selectedChampionshipsTab: "active",
   selectedPointRuleRound: "",
+  editingPointRuleRound: "",
+  selectedPredictionViewer: "",
+  selectedVotingRound: "",
+  predictionPlayerQuery: "",
+  playerInviteQuery: "",
+  searchFocused: false,
+  searchHistory: ["دوري الأبطال", "@noura", "CL2026"],
+  publicTournamentFilter: "all",
+  pendingCreateCoverImage: null,
+  createFormDraft: {},
+  showExtraPrizeForm: false,
+  routeHistory: [],
+  isHistoryNavigation: false,
   currentUser: {
     name: "Salem Al Mansoori",
     handle: "@salem",
@@ -258,7 +272,7 @@ const state = {
   competitionSearchQuery: "",
   selectedCompetitionId: "",
   liveApi: {
-    endpoint: "https://v3.football.api-sports.io/odds/live",
+    endpoint: "/api/live-results",
     lastFetchAt: 0,
     lastStatus: "لم يتم الربط بعد",
     lastError: "",
@@ -366,7 +380,7 @@ const translations = {
     "إنشاء بطولة": "Create Tournament",
     "إنشاء بطولة جديدة": "Create New Tournament",
     "البطولات": "Championships",
-    "بطولاتي": "My championships",
+    "إدارة البطولات": "Manage championships",
     "البطولات التي تشارك فيها حالياً": "Championships you currently participate in",
     "بطولات من أتابعهم": "Championships from people I follow",
     "بطولات عامة أنشأها الأشخاص الذين تتابعهم": "Public championships created by people you follow",
@@ -462,6 +476,64 @@ const translations = {
     "المظهر": "Theme",
     "داكن": "Dark",
     "فاتح": "Light",
+    "تصويت مطلوب": "Required predictions",
+    "مباراة": "matches",
+    "لا توجد مباريات تحتاج تصويت حالياً.": "No matches require predictions right now.",
+    "النقاط": "Points",
+    "نقطة": "points",
+    "الترتيب": "Rank",
+    "الأخيرة": "Recent",
+    "حذف الكل": "Clear all",
+    "لا يوجد تاريخ بحث حتى الآن.": "No recent searches yet.",
+    "بحث سابق": "Recent search",
+    "حساب مستخدم": "User account",
+    "بطولة عامة": "Public championship",
+    "بدون كود": "No code",
+    "الأشخاص": "People",
+    "البطولات": "Championships",
+    "لا توجد بطولات مطابقة لهذا الفلتر.": "No championships match this filter.",
+    "لا يوجد مستخدمون مطابقون.": "No matching users.",
+    "لا توجد بطولات عامة مطابقة.": "No matching public championships.",
+    "Public championship": "Public championship",
+    "No results found": "No results found",
+    "JOINED": "JOINED",
+    "Go to Search": "Go to Search",
+    "تحتاج تصويتك": "Needs your prediction",
+    "مكتمل": "Completed",
+    "ينتهي التصويت": "Voting closes",
+    "انضمام": "Join",
+    "منضم": "Joined",
+    "إدارة البطولات": "Manage championships",
+    "البطولات النشطة": "Active championships",
+    "بطولات جديدة": "New championships",
+    "لا توجد بطولات مشارك فيها حالياً.": "You are not participating in any championships yet.",
+    "لا توجد بطولات أنشأتها حالياً.": "You have not created any championships yet.",
+    "لا توجد بطولات جديدة حالياً.": "No new championships right now.",
+    "فتح": "Open",
+    "تعديل الملف": "Edit Profile",
+    "مشاركة الملف": "Share Profile",
+    "حفظ التغييرات": "Save Changes",
+    "نسخ الرابط": "Copy Link",
+    "تم نسخ رابط الملف.": "Profile link copied.",
+    "انسخ رابط هذا الملف.": "Copy this profile link.",
+    "إعدادات الملف": "Profile Settings",
+    "إعدادات التنبيهات": "Notification Settings",
+    "الأرشيف": "History",
+    "لا توجد أسماء حالياً.": "No names yet.",
+    "إغلاق": "Close",
+    "حالة المباراة": "Match status",
+    "الدقيقة": "Minute",
+    "بدأت المباراة": "Match started",
+    "نتيجة المباراة": "Match result",
+    "بانتظار النتيجة": "Waiting for result",
+    "تم اعتماد النتيجة من الربط الرياضي.": "Result confirmed from the sports feed.",
+    "بانتظار النتيجة النهائية من الربط الرياضي.": "Waiting for the final result from the sports feed.",
+    "ترشيحات الجوائز": "Award Nominations",
+    "جوائز اختيارية": "Optional awards",
+    "تم اختيار جوائز": "awards picked",
+    "مفتاح API": "API Key",
+    "رابط المباشر": "Live endpoint",
+    "ضد": "VS",
     "English": "English"
   },
   ar: {
@@ -534,7 +606,7 @@ const translations = {
     "Create Tournament": "إنشاء بطولة",
     "Create New Tournament": "إنشاء بطولة جديدة",
     "Championships": "البطولات",
-    "My championships": "بطولاتي",
+    "Manage championships": "إدارة البطولات",
     "Championships you currently participate in": "البطولات التي تشارك فيها حالياً",
     "Championships from people I follow": "بطولات من أتابعهم",
     "Public championships created by people you follow": "بطولات عامة أنشأها الأشخاص الذين تتابعهم",
@@ -618,7 +690,53 @@ const translations = {
     "Arabic": "العربية",
     "Theme": "المظهر",
     "Dark": "داكن",
-    "Light": "فاتح"
+    "Light": "فاتح",
+    "Required predictions": "تصويت مطلوب",
+    "matches": "مباراة",
+    "Points": "النقاط",
+    "points": "نقطة",
+    "Rank": "الترتيب",
+    "Recent": "الأخيرة",
+    "Clear all": "حذف الكل",
+    "No recent searches yet.": "لا يوجد تاريخ بحث حتى الآن.",
+    "Recent search": "بحث سابق",
+    "User account": "حساب مستخدم",
+    "Public championship": "بطولة عامة",
+    "No code": "بدون كود",
+    "No matching users.": "لا يوجد مستخدمون مطابقون.",
+    "No matching public championships.": "لا توجد بطولات عامة مطابقة.",
+    "No championships match this filter.": "لا توجد بطولات مطابقة لهذا الفلتر.",
+    "No results found": "لا توجد نتائج",
+    "JOINED": "منضم",
+    "Go to Search": "اذهب إلى البحث",
+    "Needs your prediction": "تحتاج تصويتك",
+    "Completed": "مكتمل",
+    "Voting closes": "ينتهي التصويت",
+    "Active championships": "البطولات النشطة",
+    "New championships": "بطولات جديدة",
+    "You are not participating in any championships yet.": "لا توجد بطولات مشارك فيها حالياً.",
+    "You have not created any championships yet.": "لا توجد بطولات أنشأتها حالياً.",
+    "No new championships right now.": "لا توجد بطولات جديدة حالياً.",
+    "Open": "فتح",
+    "Save Changes": "حفظ التغييرات",
+    "Copy Link": "نسخ الرابط",
+    "Profile link copied.": "تم نسخ رابط الملف.",
+    "Copy this profile link.": "انسخ رابط هذا الملف.",
+    "Notification Settings": "إعدادات التنبيهات",
+    "Close": "إغلاق",
+    "Match status": "حالة المباراة",
+    "Minute": "الدقيقة",
+    "Match started": "بدأت المباراة",
+    "Match result": "نتيجة المباراة",
+    "Waiting for result": "بانتظار النتيجة",
+    "Result confirmed from the sports feed.": "تم اعتماد النتيجة من الربط الرياضي.",
+    "Waiting for the final result from the sports feed.": "بانتظار النتيجة النهائية من الربط الرياضي.",
+    "Award Nominations": "ترشيحات الجوائز",
+    "Optional awards": "جوائز اختيارية",
+    "awards picked": "تم اختيار جوائز",
+    "API Key": "مفتاح API",
+    "Live endpoint": "رابط المباشر",
+    "VS": "ضد"
   }
 };
 
@@ -676,8 +794,17 @@ const awardOptions = [
   { id: "top-scorer", label: "هداف البطولة" },
   { id: "best-goalkeeper", label: "أفضل حارس مرمى" },
   { id: "best-young-player", label: "أفضل لاعب صاعد" },
+  { id: "best-playmaker", label: "أفضل صانع ألعاب في البطولة" },
   { id: "champion-pick", label: "ترشيح بطل البطولة الفعلي", target: "team" },
   { id: "runner-up-pick", label: "ترشيح وصيف البطولة الفعلي", target: "team" }
+];
+
+const extraPrizeOptions = [
+  { id: "top-scorer", label: "هداف البطولة" },
+  { id: "prediction-runner-up", label: "وصيف ملك التوقعات" },
+  { id: "best-player", label: "أفضل لاعب في البطولة" },
+  { id: "best-young-player", label: "أفضل لاعب صاعد في البطولة" },
+  { id: "best-playmaker", label: "أفضل صانع ألعاب في البطولة" }
 ];
 
 const officialCompetitions = [
@@ -723,6 +850,10 @@ const sportsApiTeamDirectory = {
 };
 
 function navigate(path) {
+  if (path !== state.route) {
+    state.routeHistory.push(state.route || getInitialRoute());
+    if (state.routeHistory.length > 40) state.routeHistory.shift();
+  }
   state.route = path;
   window.location.hash = path;
   render();
@@ -837,7 +968,13 @@ window.addEventListener("popstate", () => {
 });
 
 window.addEventListener("hashchange", () => {
-  state.route = getInitialRoute();
+  const nextRoute = getInitialRoute();
+  if (!state.isHistoryNavigation && nextRoute !== state.route) {
+    state.routeHistory.push(state.route || "/");
+    if (state.routeHistory.length > 40) state.routeHistory.shift();
+  }
+  state.isHistoryNavigation = false;
+  state.route = nextRoute;
   render();
 });
 
@@ -846,6 +983,15 @@ document.body.addEventListener("click", (event) => {
   if (backButton) {
     event.preventDefault();
     goBack();
+    return;
+  }
+
+  const extraPrizeButton = closestElement(event.target, "[data-show-extra-prize-form]");
+  if (extraPrizeButton) {
+    event.preventDefault();
+    const match = state.route.match(/^\/tournament\/([^/]+)\/manage\/prizes$/);
+    const tournament = match ? getTournamentById(match[1]) : null;
+    if (tournament) prizeEditorModal(tournament);
     return;
   }
 
@@ -892,6 +1038,14 @@ document.body.addEventListener("click", (event) => {
     return;
   }
 
+  const cardInfoButton = closestElement(event.target, "[data-card-info]");
+  if (cardInfoButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    openTournamentCardInfo(cardInfoButton.dataset.tournamentId, cardInfoButton.dataset.cardInfo);
+    return;
+  }
+
   const awardPlayerButton = closestElement(event.target, "[data-award-player]");
   if (awardPlayerButton) {
     event.preventDefault();
@@ -917,12 +1071,42 @@ document.body.addEventListener("click", (event) => {
     return;
   }
 
+  const editRulesRoundButton = closestElement(event.target, "[data-edit-rules-round]");
+  if (editRulesRoundButton) {
+    event.preventDefault();
+    const match = state.route.match(/^\/tournament\/([^/]+)\/manage\/rules$/);
+    const tournamentId = match ? match[1] : editRulesRoundButton.dataset.tournamentId;
+    const tournament = getTournamentById(tournamentId);
+    const roundId = editRulesRoundButton.dataset.editRulesRound;
+    if (tournament && isPointRuleRoundLocked(tournament, roundId)) return;
+    state.selectedPointRuleRound = roundId;
+    state.editingPointRuleRound = roundId;
+    if (tournament) renderTournamentManageSection(tournament, "rules");
+    return;
+  }
+
   const routeButton = closestElement(event.target, "[data-route]");
   if (routeButton) {
     if (routeButton.tagName === "A" && routeButton.getAttribute("href")?.startsWith("#/")) return;
     event.preventDefault();
     navigate(routeButton.dataset.route);
+    return;
   }
+
+  const cardRoute = closestElement(event.target, "[data-card-route]");
+  if (cardRoute) {
+    if (isInteractiveTarget(event.target)) return;
+    event.preventDefault();
+    navigate(cardRoute.dataset.cardRoute);
+  }
+});
+
+document.body.addEventListener("keydown", (event) => {
+  if (!["Enter", " "].includes(event.key)) return;
+  const cardRoute = closestElement(event.target, "[data-card-route]");
+  if (!cardRoute || isInteractiveTarget(event.target)) return;
+  event.preventDefault();
+  navigate(cardRoute.dataset.cardRoute);
 });
 
 function closestElement(target, selector) {
@@ -934,21 +1118,54 @@ function closestElement(target, selector) {
   return null;
 }
 
+function isInteractiveTarget(target) {
+  return Boolean(closestElement(target, "button, a, input, textarea, select, label"));
+}
+
 function goBack() {
+  const previousRoute = state.routeHistory.pop();
+  if (previousRoute && previousRoute !== state.route) {
+    replaceRoute(previousRoute);
+    return;
+  }
+
   if (window.history.length > 1 && window.location.protocol !== "file:") {
+    state.isHistoryNavigation = true;
     window.history.back();
     return;
   }
 
-  if (window.location.protocol === "file:" && window.location.hash && window.location.hash !== "#/") {
-    navigate("/");
-    return;
-  }
-
-  navigate("/");
+  replaceRoute(getFallbackBackRoute(state.route));
 }
 
-function templateTopbar(title = "Pick A Side") {
+function replaceRoute(route) {
+  state.isHistoryNavigation = true;
+  state.route = route;
+  window.location.hash = route;
+  render();
+}
+
+function getFallbackBackRoute(route = state.route) {
+  const manageSectionMatch = route.match(/^\/tournament\/([^/]+)\/manage\/[^/]+$/);
+  if (manageSectionMatch) return `/tournament/${manageSectionMatch[1]}/manage`;
+
+  const manageMatch = route.match(/^\/tournament\/([^/]+)\/manage$/);
+  if (manageMatch) return `/tournament/${manageMatch[1]}`;
+
+  const tournamentPlayerMatch = route.match(/^\/tournament\/([^/]+)\/player$/);
+  if (tournamentPlayerMatch) return "/create-tournament";
+
+  const tournamentMatch = route.match(/^\/tournament\/([^/]+)$/);
+  if (tournamentMatch) return "/create-tournament";
+
+  const userMatch = route.match(/^\/user\/[^/]+$/);
+  if (userMatch) return "/search";
+
+  if (route.startsWith("/challenges/")) return "/";
+  return "/";
+}
+
+function templateTopbar(title = "Pick A Side", actionHtml = "") {
   const showBack = shouldShowBackButton(state.route);
   const titleContent = title === "Pick A Side" ? appLogoHtml("topbar-logo") : `<span>${title}</span>`;
   return `
@@ -959,7 +1176,7 @@ function templateTopbar(title = "Pick A Side") {
       <button class="page-title-btn" data-route="/">
         ${titleContent}
       </button>
-      <div class="topbar-side"></div>
+      <div class="topbar-side">${actionHtml}</div>
     </header>
   `;
 }
@@ -1159,15 +1376,27 @@ function unfollowFromNotification(notification) {
 function approveJoinRequest(notification) {
   const tournament = state.tournaments.find((item) => item.id === notification.tournamentId);
   if (tournament) {
+    if (isTournamentAtCapacity(tournament)) {
+      notification.title = "لم يتم قبول الطلب";
+      notification.body = `اكتمل عدد المشاركين في ${notification.tournamentName}`;
+      notification.status = "declined";
+      return;
+    }
     tournament.joinRequests = (tournament.joinRequests || []).filter((name) => name !== notification.requesterName);
     tournament.participants = [...new Set([...(tournament.participants || []), notification.requesterName])];
-    tournament.friends = Math.max(tournament.friends || 0, tournament.participants.length + 1);
+    tournament.friends = Math.max(tournament.friends || 0, tournament.participants.length);
   }
 }
 
 function acceptTournamentInvite(notification) {
   const tournament = state.tournaments.find((item) => item.id === notification.tournamentId);
   if (!tournament) return;
+  if (isTournamentAtCapacity(tournament)) {
+    notification.title = "لم يتم قبول الدعوة";
+    notification.body = `اكتمل عدد المشاركين في ${notification.tournamentName}`;
+    notification.status = "declined";
+    return;
+  }
   tournament.joined = true;
   tournament.active = true;
   tournament.friends = (tournament.friends || 0) + 1;
@@ -1206,6 +1435,7 @@ function render() {
   if (route === "/live") return renderLive();
   if (route.startsWith("/tournament/")) {
     const parts = route.split("/").filter(Boolean);
+    if (parts[2] === "player") return renderTournament(parts[1], { forcePlayer: true });
     if (parts[2] === "manage") return renderTournamentManage(parts[1], parts[3] || "");
     return renderTournament(parts[1]);
   }
@@ -1274,9 +1504,10 @@ function renderHome() {
   const user = state.currentUser;
   const efficiency = Math.round((user.correctPredictions / user.totalPredictions) * 100);
   const activeTournaments = state.tournaments.filter((item) => item.active && item.joined);
+  const pendingVoteTasks = getHomePendingVoteTasks();
   app.innerHTML = `
     <section class="home-stack">
-      <header class="home-header page-topbar">
+      <header class="home-header page-topbar main-auto-hide-chrome">
         <div class="topbar-side">
           ${notificationBell()}
         </div>
@@ -1299,30 +1530,40 @@ function renderHome() {
             </div>
           </div>
           <div class="profile-summary">
-            <div class="stats-row">
-              <div class="stat-column">
-                <strong class="highlight">${efficiency}%</strong>
-                <span>Accuracy</span>
-              </div>
-              <button class="stat-column" id="followers-btn">
-                <strong>${user.followers.length}</strong>
-                <span>Followers</span>
-              </button>
-              <button class="stat-column" id="following-btn">
-                <strong>${user.following.length}</strong>
-                <span>Following</span>
-              </button>
+            <div class="profile-bio">
+              <h1 class="profile-name">${user.name}</h1>
+              <div class="muted">${user.handle}</div>
+              <div class="muted">${tr("Favorite team")}: ${user.favoriteTeam || tr("Not set")}</div>
             </div>
           </div>
         </div>
-        <div class="profile-bio">
-          <h1 class="profile-name">${user.name}</h1>
-          <div class="muted">${user.handle}</div>
-          <div class="muted">Favorite team: ${user.favoriteTeam || "Not set"}</div>
+        <div class="stats-row profile-stats-row">
+          <div class="stat-column">
+            <strong class="highlight">${efficiency}%</strong>
+            <span>Accuracy</span>
+          </div>
+          <button class="stat-column" id="followers-btn">
+            <strong>${user.followers.length}</strong>
+            <span>Followers</span>
+          </button>
+          <button class="stat-column" id="following-btn">
+            <strong>${user.following.length}</strong>
+            <span>Following</span>
+          </button>
         </div>
         <div class="profile-actions">
           <button class="btn ghost compact-btn" id="edit-profile-btn">Edit Profile</button>
           <button class="btn ghost compact-btn" id="share-profile-btn">Share Profile</button>
+        </div>
+      </section>
+
+      <section class="panel home-vote-shell">
+        <div class="carousel-label">
+          <h2 class="section-title">تصويت مطلوب</h2>
+          <span class="muted">${pendingVoteTasks.length} مباراة</span>
+        </div>
+        <div class="home-vote-list">
+          ${pendingVoteTasks.length ? pendingVoteTasks.map(homeVoteTaskCard).join("") : `<p class="muted empty-row">لا توجد مباريات تحتاج تصويت حالياً.</p>`}
         </div>
       </section>
 
@@ -1336,12 +1577,6 @@ function renderHome() {
         ${carouselDots(activeTournaments.length)}
       </section>
 
-      <section class="action-grid">
-        <button class="action-tile" data-route="/challenges/created"><strong>Created Challenges</strong><span class="muted">Tournaments you founded</span></button>
-        <button class="action-tile" data-route="/challenges/joined"><strong>Joined Challenges</strong><span class="muted">Active competitions</span></button>
-        <button class="action-tile" data-route="/challenges/drafts"><strong>Draft</strong><span class="muted">Unpublished setups</span></button>
-        <button class="action-tile" data-route="/challenges/history"><strong>History</strong><span class="muted">Settled tournaments</span></button>
-      </section>
     </section>
   `;
 
@@ -1350,23 +1585,71 @@ function renderHome() {
   document.querySelector("#edit-profile-btn").addEventListener("click", editProfileModal);
   document.querySelector("#share-profile-btn").addEventListener("click", shareProfile);
   document.querySelector("#home-menu-btn").addEventListener("click", profileSettingsModal);
+  document.querySelectorAll("[data-home-vote-task]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedRound = button.dataset.homeVoteRound;
+      navigate(`/tournament/${button.dataset.homeVoteTask}/player`);
+    });
+  });
   setupCarouselDots();
+  setupMainChromeAutoHide(".home-header");
+  startMatchCountdowns();
 }
 
 function tournamentCard(tournament) {
-  const rankLabel = state.language === "ar" ? "الترتيب" : "Rank";
+  const rankLabel = tr("Rank");
   return `
-    <button class="result-card" data-route="/tournament/${tournament.id}">
+    <button class="result-card" data-route="/tournament/${tournament.id}/player">
       <div class="result-card-head">
         <h3>${tournament.name}</h3>
         <span class="rank-badge">${rankLabel} #${tournament.rank || "-"}</span>
       </div>
-      <div class="stat-line"><span class="muted">Points</span><strong>${tournament.points}</strong></div>
+      <div class="stat-line"><span class="muted">${tr("Points")}</span><strong>${tournament.points}</strong></div>
       <div class="prediction-counters">
         <span class="correct">● C: ${tournament.correct}</span>
         <span class="wrong">● W: ${tournament.wrong}</span>
       </div>
     </button>
+  `;
+}
+
+function getHomePendingVoteTasks() {
+  return state.tournaments
+    .filter((tournament) => tournament.active && tournament.joined && !tournament.draft)
+    .flatMap((tournament) => {
+      const round = tournament.currentRound || tournament.startingRound || "round16";
+      const roundLabel = rounds.find((item) => item.id === round)?.label || "الدور الحالي";
+      const matches = state.matches[round] || [];
+      return matches
+        .filter((match) => !isPredictionComplete(tournament.id, round, match.id))
+        .map((match) => {
+          const kickoff = new Date(match.kickoff).getTime();
+          const lockAt = kickoff - PREDICTION_LOCK_MINUTES * 60 * 1000;
+          return { tournament, round, roundLabel, match, lockAt, kickoff };
+        })
+        .filter((task) => Date.now() < task.lockAt);
+    })
+    .sort((a, b) => a.lockAt - b.lockAt)
+    .slice(0, 6);
+}
+
+function homeVoteTaskCard(task) {
+  return `
+    <article class="home-vote-card">
+      <div class="home-vote-copy">
+        <strong>${task.tournament.name}</strong>
+        <small>${task.roundLabel}</small>
+        <div class="home-vote-match">${matchIdentityHtml(task.match)}</div>
+      </div>
+      <div class="home-vote-side">
+        <span class="match-countdown mini-vote-countdown" data-match-countdown data-countdown-mode="match" data-kickoff="${new Date(task.kickoff).toISOString()}" data-lock-at="${task.lockAt}">
+          <small data-countdown-label>يغلق التصويت</small>
+          <b data-countdown-value>--:--:--</b>
+          <small data-countdown-lock></small>
+        </span>
+        <button class="btn accent compact-btn" type="button" data-home-vote-task="${task.tournament.id}" data-home-vote-round="${task.round}">تصويت</button>
+      </div>
+    </article>
   `;
 }
 
@@ -1392,6 +1675,7 @@ function setupCarouselDots() {
   let startScrollLeft = 0;
   let moved = false;
   let suppressClick = false;
+  let pressedRoute = "";
 
   const setActiveDot = () => {
     const carouselBox = carousel.getBoundingClientRect();
@@ -1411,6 +1695,7 @@ function setupCarouselDots() {
     if (event.button !== 0 && event.pointerType === "mouse") return;
     isDragging = true;
     moved = false;
+    pressedRoute = event.target.closest("[data-route]")?.dataset.route || "";
     startX = event.clientX;
     startScrollLeft = carousel.scrollLeft;
     carousel.classList.add("dragging");
@@ -1422,10 +1707,22 @@ function setupCarouselDots() {
     if (Math.abs(delta) > 4) moved = true;
     carousel.scrollLeft = startScrollLeft - delta;
   });
-  carousel.addEventListener("pointerup", () => {
+  carousel.addEventListener("pointerup", (event) => {
     if (!isDragging) return;
     isDragging = false;
     carousel.classList.remove("dragging");
+    if (!moved && pressedRoute) {
+      event.preventDefault();
+      suppressClick = true;
+      const targetRoute = pressedRoute;
+      pressedRoute = "";
+      navigate(targetRoute);
+      window.setTimeout(() => {
+        suppressClick = false;
+      }, 0);
+      return;
+    }
+    pressedRoute = "";
     suppressClick = moved;
     window.requestAnimationFrame(setActiveDot);
     window.setTimeout(() => {
@@ -1434,6 +1731,7 @@ function setupCarouselDots() {
   });
   carousel.addEventListener("pointercancel", () => {
     isDragging = false;
+    pressedRoute = "";
     carousel.classList.remove("dragging");
   });
   carousel.addEventListener("click", (event) => {
@@ -1467,58 +1765,92 @@ function handleSearch(event) {
       if (item.username) {
         return `<button class="search-result" data-route="/user/${item.username}"><strong>${item.name}</strong><div class="muted">${item.handle}</div></button>`;
       }
-      return `<button class="search-result" data-route="/tournament/${item.id}"><strong>${item.name}</strong><div class="muted">Public championship</div></button>`;
+      return `<button class="search-result" data-route="/tournament/${item.id}"><strong>${item.name}</strong><div class="muted">${tr("Public championship")}</div></button>`;
     }).join("")
-    : `<div class="search-result">No results found</div>`;
+    : `<div class="search-result">${tr("No results found")}</div>`;
 }
 
 function renderSearch() {
   const query = state.searchQuery || "";
+  const isFocused = Boolean(state.searchFocused);
   const people = searchPeople(query);
-  const tournaments = searchPublicTournaments(query);
-  const showExplore = !query.trim();
+  const allTournaments = searchPublicTournaments(query);
+  const tournaments = filterPublicTournamentsByStatus(allTournaments);
+  const hasQuery = Boolean(query.trim());
+  const showExplore = !isFocused && !hasQuery;
+  const showRecent = isFocused && !hasQuery;
+  const showResults = isFocused && hasQuery;
 
   app.innerHTML = `
-    ${templateTopbar("Search")}
-    <section class="search-page">
-      <div class="search-sticky panel">
-        <input class="input search-page-input" id="search-page-input" value="${query}" placeholder="Search users, championships, or invite code">
+    <section class="search-page search-compact-page ${isFocused ? "search-focused-page" : ""}">
+      <div class="search-sticky ${isFocused ? "search-sticky-focused" : ""}">
+        <div class="search-entry-row">
+          <div class="search-bar-shell">
+            <span class="search-bar-icon" aria-hidden="true">⌕</span>
+            <input class="input search-page-input" id="search-page-input" value="${query}" placeholder="${tr("Search")}">
+          </div>
+          ${isFocused ? `<button class="search-cancel-btn" type="button" id="search-cancel-btn">${tr("Cancel")}</button>` : ""}
+        </div>
+        ${showExplore ? publicTournamentFilterHtml(allTournaments) : ""}
       </div>
 
       ${showExplore ? `
         <section class="search-section">
-          <div class="section-row">
-            <h2 class="section-title">Public Championships</h2>
-            <span class="muted">Explore open challenges</span>
+          <div class="search-list championship-card-list">
+            ${tournaments.length ? tournaments.map(searchTournamentCard).join("") : `<div class="muted empty-row">${tr("No championships match this filter.")}</div>`}
           </div>
-          <div class="explore-grid">
-            ${tournaments.map(searchTournamentCard).join("")}
+        </section>
+      ` : showRecent ? `
+        ${searchHistoryHtml()}
+      ` : showResults ? `
+        <section class="search-section">
+          <h2 class="section-title">${tr("People")}</h2>
+          <div class="search-list">
+            ${people.length ? people.map(searchUserRow).join("") : `<div class="muted empty-row">${tr("No matching users.")}</div>`}
+          </div>
+        </section>
+        <section class="search-section">
+          <h2 class="section-title">${tr("Championships")}</h2>
+          <div class="search-list championship-card-list">
+            ${tournaments.length ? tournaments.map(searchTournamentRow).join("") : `<div class="muted empty-row">${tr("No matching public championships.")}</div>`}
           </div>
         </section>
       ` : `
-        <section class="search-section">
-          <h2 class="section-title">People</h2>
-          <div class="search-list">
-            ${people.length ? people.map(searchUserRow).join("") : `<div class="muted empty-row">No users found</div>`}
-          </div>
-        </section>
-        <section class="search-section">
-          <h2 class="section-title">Championships</h2>
-          <div class="search-list">
-            ${tournaments.length ? tournaments.map(searchTournamentRow).join("") : `<div class="muted empty-row">No public championships found</div>`}
-          </div>
-        </section>
+        ${searchHistoryHtml()}
       `}
     </section>
   `;
 
   const input = document.querySelector("#search-page-input");
-  input.addEventListener("input", () => {
-    state.searchQuery = input.value;
+  input.addEventListener("focus", () => {
+    if (state.searchFocused) return;
+    state.searchFocused = true;
     renderSearch();
   });
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
+  input.addEventListener("input", () => {
+    state.searchQuery = input.value;
+    state.searchFocused = true;
+    renderSearch();
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    saveSearchHistory(input.value);
+    renderSearch();
+  });
+  if (isFocused) {
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+  setupMainChromeAutoHide(".search-sticky");
+
+  const cancelButton = document.querySelector("#search-cancel-btn");
+  if (cancelButton) {
+    cancelButton.addEventListener("click", () => {
+      state.searchFocused = false;
+      state.searchQuery = "";
+      renderSearch();
+    });
+  }
 
   document.querySelectorAll("[data-follow-user]").forEach((button) => {
     button.addEventListener("click", () => toggleFollowUser(button.dataset.followUser));
@@ -1526,6 +1858,128 @@ function renderSearch() {
   document.querySelectorAll("[data-join-tournament]").forEach((button) => {
     button.addEventListener("click", () => joinTournament(button.dataset.joinTournament));
   });
+  document.querySelectorAll("[data-hub-join-tournament]").forEach((button) => {
+    button.addEventListener("click", () => joinTournament(button.dataset.hubJoinTournament));
+  });
+  document.querySelectorAll("[data-public-tournament-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.publicTournamentFilter = button.dataset.publicTournamentFilter;
+      renderSearch();
+    });
+  });
+  document.querySelectorAll("[data-search-history-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.searchQuery = state.searchHistory[Number(button.dataset.searchHistoryIndex)] || "";
+      state.searchFocused = true;
+      saveSearchHistory(state.searchQuery);
+      renderSearch();
+    });
+  });
+  document.querySelectorAll("[data-delete-search-history]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteSearchHistoryItem(Number(button.dataset.deleteSearchHistory));
+      renderSearch();
+    });
+  });
+  const clearSearchHistoryButton = document.querySelector("#clear-search-history");
+  if (clearSearchHistoryButton) {
+    clearSearchHistoryButton.addEventListener("click", () => {
+      state.searchHistory = [];
+      renderSearch();
+    });
+  }
+}
+
+function searchHistoryHtml() {
+  if (!state.searchHistory.length) {
+    return `<section class="search-history-panel search-history-empty"><p class="muted">${tr("No recent searches yet.")}</p></section>`;
+  }
+  return `
+    <section class="search-history-panel">
+      <div class="search-history-head">
+        <strong>${tr("Recent")}</strong>
+        <button type="button" id="clear-search-history">${tr("Clear all")}</button>
+      </div>
+      <div class="search-history-list">
+        ${state.searchHistory.map((item, index) => {
+          const details = searchHistoryDetails(item);
+          return `
+          <div class="search-history-row">
+            <button type="button" data-search-history-index="${index}">
+              <span class="search-history-avatar">${details.avatar}</span>
+              <span class="search-history-copy">
+                <strong>${details.title}</strong>
+                <small>${details.subtitle}</small>
+              </span>
+            </button>
+            <button class="search-history-delete" type="button" data-delete-search-history="${index}" aria-label="حذف ${item}">×</button>
+          </div>
+        `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function searchHistoryDetails(item) {
+  const normalized = item.trim();
+  if (normalized.startsWith("@")) {
+    const username = normalized.slice(1).toLowerCase();
+    const user = state.users.find((person) => person.username.toLowerCase() === username || person.handle.toLowerCase() === normalized.toLowerCase());
+    return {
+      avatar: user?.name?.charAt(0) || "@",
+      title: user?.handle || normalized,
+      subtitle: user?.name || tr("User account")
+    };
+  }
+  const tournament = state.tournaments.find((entry) => {
+    return entry.name.toLowerCase() === normalized.toLowerCase()
+      || (entry.publicCode || "").toLowerCase() === normalized.toLowerCase();
+  });
+  return {
+    avatar: tournament ? "🏆" : "⌕",
+    title: tournament?.name || normalized,
+    subtitle: tournament ? `${tr("Public championship")} · ${tournament.publicCode || tr("No code")}` : tr("Recent search")
+  };
+}
+
+function saveSearchHistory(query) {
+  const value = query.trim();
+  if (!value) return;
+  state.searchHistory = [value, ...state.searchHistory.filter((item) => item !== value)].slice(0, 6);
+}
+
+function deleteSearchHistoryItem(index) {
+  state.searchHistory = state.searchHistory.filter((_, itemIndex) => itemIndex !== index);
+}
+
+function setupMainChromeAutoHide(selector = ".main-auto-hide-chrome") {
+  if (mainChromeScrollHandler) {
+    window.removeEventListener("scroll", mainChromeScrollHandler);
+  }
+  const chrome = document.querySelector(selector);
+  if (!chrome) return;
+  let lastY = window.scrollY;
+  mainChromeScrollHandler = () => {
+    const currentRoute = state.route || getInitialRoute();
+    if (!["/", "/home", "/search", "/live", "/create-tournament"].includes(currentRoute)) {
+      window.removeEventListener("scroll", mainChromeScrollHandler);
+      mainChromeScrollHandler = null;
+      return;
+    }
+    const currentY = window.scrollY;
+    const delta = currentY - lastY;
+    if (currentY < 24) {
+      chrome.classList.remove("is-hidden");
+    } else if (delta > 6) {
+      chrome.classList.add("is-hidden");
+    } else if (delta < -6) {
+      chrome.classList.remove("is-hidden");
+    }
+    lastY = currentY;
+  };
+  window.addEventListener("scroll", mainChromeScrollHandler, { passive: true });
 }
 
 function searchPeople(query) {
@@ -1566,35 +2020,11 @@ function searchUserRow(user) {
 }
 
 function searchTournamentRow(tournament) {
-  return `
-    <article class="instagram-row">
-      <button class="user-row-main" data-route="/tournament/${tournament.id}">
-        <span class="mini-avatar trophy-avatar">P</span>
-        <span>
-          <strong>${tournament.name}</strong>
-          <small>Code ${tournament.publicCode || "PUBLIC"} · ${tournament.friends || 0} players</small>
-        </span>
-      </button>
-      <button class="btn compact-btn ${tournament.joined ? "ghost" : "accent"}" data-join-tournament="${tournament.id}">
-        ${tournament.joined ? "Joined" : "Join"}
-      </button>
-    </article>
-  `;
+  return participantTournamentCard(tournament, "following");
 }
 
 function searchTournamentCard(tournament) {
-  return `
-    <article class="explore-card">
-      <button class="explore-card-main" data-route="/tournament/${tournament.id}">
-        <span class="rank-badge">${tournament.publicCode || "PUBLIC"}</span>
-        <h3>${tournament.name}</h3>
-        <p>${tournament.friends || 0} players · ${tournament.budget || 0} point budget</p>
-      </button>
-      <button class="btn compact-btn ${tournament.joined ? "ghost" : "accent"}" data-join-tournament="${tournament.id}">
-        ${tournament.joined ? "Joined" : "Join Championship"}
-      </button>
-    </article>
-  `;
+  return participantTournamentCard(tournament, "following");
 }
 
 function toggleFollowUser(username, rerenderSearch = true) {
@@ -1611,8 +2041,7 @@ function toggleFollowUser(username, rerenderSearch = true) {
 }
 
 function joinTournament(tournamentId) {
-  joinTournamentSilently(tournamentId);
-  renderSearch();
+  if (joinTournamentSilently(tournamentId)) renderSearch();
 }
 
 function searchOfficialCompetitions(query) {
@@ -1701,36 +2130,45 @@ function validateCompetitionSelection() {
 }
 
 function renderChampionshipsPage() {
-  const joinedTournaments = state.tournaments.filter((tournament) => tournament.joined && !tournament.draft);
+  const activeTournaments = state.tournaments.filter((tournament) => tournament.joined === true && !tournament.draft);
+  const ownedTournaments = state.tournaments.filter((tournament) => isTournamentOwner(tournament) && !tournament.draft);
   const followingTournaments = followedPublicTournaments();
-  const activeTab = state.selectedChampionshipsTab === "following" ? "following" : "mine";
-  const activeIndex = activeTab === "following" ? 1 : 0;
+  const championshipTabs = [
+    { id: "active", label: "البطولات النشطة", tournaments: activeTournaments, empty: "لا توجد بطولات مشارك فيها حالياً." },
+    { id: "mine", label: "إدارة البطولات", tournaments: ownedTournaments, empty: "لا توجد بطولات أنشأتها حالياً." },
+    { id: "following", label: "بطولات جديدة", tournaments: followingTournaments, empty: "لا توجد بطولات جديدة حالياً." }
+  ];
+  const activeTab = championshipTabs.some((tab) => tab.id === state.selectedChampionshipsTab)
+    ? state.selectedChampionshipsTab
+    : "active";
+  const activeIndex = Math.max(0, championshipTabs.findIndex((tab) => tab.id === activeTab));
   app.innerHTML = `
-    ${tournamentsTopbar()}
-    <section class="grid championships-page">
-      <div class="championship-segment" role="tablist" aria-label="Championship categories">
-        <button class="championship-segment-btn ${activeTab === "mine" ? "active" : ""}" type="button" data-championship-tab="mine" role="tab" aria-selected="${activeTab === "mine"}">
-          <strong>بطولاتي (${joinedTournaments.length})</strong>
-        </button>
-        <button class="championship-segment-btn ${activeTab === "following" ? "active" : ""}" type="button" data-championship-tab="following" role="tab" aria-selected="${activeTab === "following"}">
-          <strong>بطولات من أتابعهم (${followingTournaments.length})</strong>
-        </button>
+    <div class="main-auto-hide-chrome main-tabs-chrome">
+      ${tournamentsTopbar()}
+      <div class="championship-segment" role="tablist" aria-label="Championship categories" style="--tab-count: ${championshipTabs.length}; --active-index: ${activeIndex};">
+        ${championshipTabs.map((tab) => `
+          <button class="championship-segment-btn ${activeTab === tab.id ? "active" : ""}" type="button" data-championship-tab="${tab.id}" role="tab" aria-selected="${activeTab === tab.id}">
+            <strong>${tab.label} (${tab.tournaments.length})</strong>
+          </button>
+        `).join("")}
+        <span class="championship-segment-indicator" aria-hidden="true"></span>
       </div>
-
+    </div>
+    <section class="grid championships-page">
       <div class="card panel stack championships-switch-shell">
-        <div class="championship-page-slider" id="championship-page-slider" style="--championship-index: ${activeIndex}">
+        <div class="championship-page-slider" id="championship-page-slider" style="--championship-index: ${activeIndex}; --tab-count: ${championshipTabs.length};">
           <div class="championship-page-track">
-            <section class="championship-slide" aria-label="بطولاتي">
-              <div class="list-grid championship-card-list">
-                ${joinedTournaments.length ? joinedTournaments.map((tournament) => championshipLiveCard(tournament, "joined")).join("") : `<p class="muted">لا توجد بطولات هنا حالياً.</p>`}
-              </div>
-            </section>
-
-            <section class="championship-slide" aria-label="بطولات من أتابعهم">
-              <div class="list-grid championship-card-list">
-                ${followingTournaments.length ? followingTournaments.map((tournament) => championshipLiveCard(tournament, "following")).join("") : `<p class="muted">لا توجد بطولات هنا حالياً.</p>`}
-              </div>
-            </section>
+            ${championshipTabs.map((tab) => `
+              <section class="championship-slide" aria-label="${tab.label}">
+                <div class="list-grid championship-card-list">
+                  ${tab.tournaments.length ? tab.tournaments.map((tournament) => {
+                    if (tab.id === "mine") return ownerManagementCard(tournament);
+                    if (tab.id === "active") return activeChampionshipCard(tournament);
+                    return participantTournamentCard(tournament, "following");
+                  }).join("") : `<p class="muted">${tab.empty}</p>`}
+                </div>
+              </section>
+            `).join("")}
           </div>
         </div>
       </div>
@@ -1742,18 +2180,30 @@ function renderChampionshipsPage() {
   });
 
   setupChampionshipsSwipe();
+  setupMainChromeAutoHide(".main-auto-hide-chrome");
 
   document.querySelectorAll("[data-hub-join-tournament]").forEach((button) => {
     button.addEventListener("click", () => {
-      joinTournamentSilently(button.dataset.hubJoinTournament);
-      renderChampionshipsPage();
+      if (joinTournamentSilently(button.dataset.hubJoinTournament)) {
+        state.selectedChampionshipsTab = "active";
+        renderChampionshipsPage();
+      }
     });
   });
+
+  startMatchCountdowns();
 }
 
 function setChampionshipsTab(tab) {
-  state.selectedChampionshipsTab = tab === "following" ? "following" : "mine";
+  state.selectedChampionshipsTab = ["active", "mine", "following"].includes(tab) ? tab : "active";
   renderChampionshipsPage();
+}
+
+function getAdjacentChampionshipTab(direction) {
+  const tabs = ["active", "mine", "following"];
+  const currentIndex = Math.max(0, tabs.indexOf(state.selectedChampionshipsTab));
+  const nextIndex = Math.min(tabs.length - 1, Math.max(0, currentIndex + direction));
+  return tabs[nextIndex];
 }
 
 function setupChampionshipsSwipe() {
@@ -1762,9 +2212,13 @@ function setupChampionshipsSwipe() {
   let startX = 0;
   let startY = 0;
   let isDragging = false;
+  let pressedCardRoute = "";
+  let pressedInteractive = false;
 
   slider.addEventListener("pointerdown", (event) => {
-    if (event.target.closest("button, a, input, textarea, select")) return;
+    pressedInteractive = isInteractiveTarget(event.target);
+    pressedCardRoute = pressedInteractive ? "" : event.target.closest("[data-card-route]")?.dataset.cardRoute || "";
+    if (pressedInteractive) return;
     isDragging = true;
     startX = event.clientX;
     startY = event.clientY;
@@ -1776,19 +2230,39 @@ function setupChampionshipsSwipe() {
     isDragging = false;
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12 && pressedCardRoute) {
+      event.preventDefault();
+      navigate(pressedCardRoute);
+      pressedCardRoute = "";
+      return;
+    }
+    pressedCardRoute = "";
     if (Math.abs(deltaX) < 54 || Math.abs(deltaX) < Math.abs(deltaY)) return;
-    setChampionshipsTab(deltaX < 0 ? "following" : "mine");
+    const direction = deltaX < 0 ? 1 : -1;
+    setChampionshipsTab(getAdjacentChampionshipTab(direction));
   });
 
   slider.addEventListener("pointercancel", () => {
     isDragging = false;
+    pressedCardRoute = "";
+    pressedInteractive = false;
   });
 }
 
 function tournamentsTopbar() {
+  const draftsCount = state.tournaments.filter((tournament) => tournament.draft).length;
   return `
     <header class="topbar page-topbar tournaments-topbar">
-      <div class="topbar-side"></div>
+      <div class="topbar-side">
+        <button class="drafts-icon-btn" type="button" data-route="/challenges/drafts" aria-label="المسودات" title="المسودات">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 4.5h6.2L18 8.3V19.5H8z"></path>
+            <path d="M14 4.5v4h4"></path>
+            <path d="M10.8 12.2h4.4M10.8 15.2h3.1"></path>
+          </svg>
+          ${draftsCount ? `<span class="drafts-count-badge">${draftsCount}</span>` : ""}
+        </button>
+      </div>
       <button class="page-title-btn" data-route="/create-tournament">
         <span>البطولات</span>
       </button>
@@ -1796,6 +2270,50 @@ function tournamentsTopbar() {
         <button class="create-plus-btn" type="button" data-route="/create-tournament/new" aria-label="Create Tournament" title="Create Tournament">+</button>
       </div>
     </header>
+  `;
+}
+
+function tournamentNeedsUserVote(tournament) {
+  if (!tournament.joined || tournament.draft) return false;
+  const round = tournament.currentRound || tournament.startingRound || "round16";
+  const matches = state.matches[round] || [];
+  if (!matches.length || isPredictionLocked(matches)) return false;
+  return matches.some((match) => !isPredictionComplete(tournament.id, round, match.id));
+}
+
+function activeChampionshipCard(tournament) {
+  return tournamentNeedsUserVote(tournament)
+    ? activeVoteTaskCard(tournament)
+    : participantTournamentCard(tournament, "joined");
+}
+
+function activeVoteTaskCard(tournament) {
+  const round = tournament.currentRound || tournament.startingRound || "round16";
+  const matches = sortPredictionMatches(tournament.id, round, state.matches[round] || []);
+  const roundLabel = rounds.find((item) => item.id === round)?.label || "الجولة الحالية";
+  const completedCount = matches.filter((match) => isPredictionComplete(tournament.id, round, match.id)).length;
+  const pendingCount = Math.max(0, matches.length - completedCount);
+  const lockAt = getRoundPredictionLockAt(round);
+  return `
+    <article class="active-vote-card" data-card-route="/tournament/${tournament.id}/player" role="button" tabindex="0" aria-label="فتح تصويت ${tournament.name}">
+      <div class="active-vote-main">
+        <span class="active-vote-kicker">تحتاج تصويتك</span>
+        <strong>${tournament.name}</strong>
+        <small>${roundLabel}</small>
+      </div>
+      <div class="active-vote-stats">
+        <span><b>${pendingCount}</b><small>مباريات متبقية</small></span>
+        <span><b>${completedCount}/${matches.length}</b><small>مكتمل</small></span>
+      </div>
+      <div class="active-vote-footer">
+        <span class="match-countdown mini-vote-countdown" data-match-countdown data-countdown-mode="round" data-kickoff="${matches[0] ? new Date(matches[0].kickoff).toISOString() : ""}" data-lock-at="${lockAt}">
+          <small data-countdown-label>يغلق التصويت</small>
+          <b data-countdown-value>--:--:--</b>
+          <small data-countdown-lock></small>
+        </span>
+        <button class="btn accent compact-btn" type="button" data-route="/tournament/${tournament.id}/player">صوّت الآن</button>
+      </div>
+    </article>
   `;
 }
 
@@ -1815,6 +2333,51 @@ function isFollowingTournamentOwner(tournament) {
   const matchingUser = state.users.find((user) => user.username === ownerUsername || user.name.split(" ")[0] === ownerFirstName);
   return state.currentUser.following.includes(ownerFirstName)
     || (matchingUser && matchingUser.relation === "Unfollow");
+}
+
+function participantTournamentCard(tournament, source) {
+  return championshipLiveCard(tournament, source);
+}
+
+function ownerManagementCard(tournament) {
+  const participants = getTournamentParticipants(tournament);
+  const participantCount = tournament.friends || participants.length || 0;
+  const requestCount = getJoinRequestCount(tournament);
+  const activeRound = tournament.currentRound || tournament.startingRound || "round16";
+  const roundLabel = rounds.find((item) => item.id === activeRound)?.label || "الدور الحالي";
+  const incompleteSections = ["voting", "prediction-results", "leaderboard", "rules", "prizes"].filter((section) => isSectionIncomplete(tournament, section));
+  const isIncomplete = Boolean(tournament.setupIncomplete || incompleteSections.length);
+  const phaseLabel = tournament.active && !isIncomplete ? roundLabel : "مرحلة إدخال التفاصيل";
+  const statusLabel = isIncomplete ? "غير مكتملة" : tournament.active ? "مفعلة" : "جاهزة للتفعيل";
+  return `
+    <article class="owner-management-card" data-card-route="/tournament/${tournament.id}" role="button" tabindex="0" aria-label="إدارة بطولة ${tournament.name}">
+      <div class="owner-management-head">
+        <span class="owner-management-title">
+          <strong>${tournament.name}</strong>
+          <small>${phaseLabel}</small>
+        </span>
+        <span class="owner-management-status ${isIncomplete ? "is-incomplete" : "is-ready"}">${statusLabel}</span>
+      </div>
+      <div class="owner-management-stats">
+        <span>
+          <b>${participantCount}</b>
+          <small>المشاركون</small>
+        </span>
+        <span>
+          <b>${requestCount}</b>
+          <small>طلبات الدخول</small>
+        </span>
+        <span>
+          <b>${tournament.public ? "عام" : "خاص"}</b>
+          <small>الظهور</small>
+        </span>
+      </div>
+      <div class="owner-management-foot">
+        <small>${isIncomplete ? `استكمل ${incompleteSections.length || 1} قسم قبل التفعيل` : "كل البيانات الأساسية جاهزة"}</small>
+        <span>إدارة ›</span>
+      </div>
+    </article>
+  `;
 }
 
 function championshipHubCard(tournament, source) {
@@ -1849,28 +2412,152 @@ function championshipHubCard(tournament, source) {
 function championshipLiveCard(tournament, source) {
   const hasStarted = tournament.active;
   const leader = getTournamentLeaderName(tournament);
-  const participants = tournament.participants || [];
-  const participantCount = tournament.friends || participants.length || 0;
-  const canJoin = source === "following" && !hasStarted && !tournament.joined;
+  const participantCount = getTournamentParticipantCount(tournament);
+  const maxPlayers = Number.isFinite(getTournamentCapacity(tournament)) ? getTournamentCapacity(tournament) : null;
+  const full = isTournamentAtCapacity(tournament);
+  const canJoin = source === "following" && !hasStarted && !tournament.joined && !full;
+  const showPlayerStats = source === "joined";
   const ownerUsername = getTournamentOwnerUsername(tournament);
+  const prizesLabel = tournamentPrizeStatusLabel(tournament);
+  const coverClass = tournament.coverImageUrl ? "has-cover-image" : "has-default-cover";
+  const participantRoute = `/tournament/${tournament.id}/player`;
   return `
-    <article class="live-tournament-tab championship-live-card">
-      <div class="championship-live-head">
-        <strong>${tournament.name}</strong>
-        <span class="championship-status-text">${hasStarted ? "بدأت" : "لم تبدأ"}</span>
-      </div>
-      <span>${tournament.publicCode || "PUBLIC"} · ${participantCount} مشارك</span>
-      <span>المنشئ: <button class="inline-profile-link" type="button" data-route="/user/${ownerUsername}">@${ownerUsername}</button></span>
-      <span>المتصدر: ${hasStarted ? leader : "يظهر بعد البداية"}</span>
-      <div class="championship-live-actions">
-        ${canJoin ? `
-          <button class="btn accent compact-btn" type="button" data-hub-join-tournament="${tournament.id}">المشاركة</button>
-        ` : `
-          <button class="btn ghost compact-btn" type="button" data-route="/tournament/${tournament.id}">عرض التفاصيل</button>
-        `}
+    <article class="live-tournament-tab championship-live-card ${coverClass} ${canJoin ? "can-join" : ""}"${tournamentCoverStyle(tournament)} data-card-route="${participantRoute}" role="button" tabindex="0" aria-label="فتح بطولة ${tournament.name}">
+      <div class="championship-live-content">
+        <div class="championship-live-head">
+          <span class="championship-title-stack">
+            <strong>${tournament.name}</strong>
+            <small>منشئ البطولة <button class="inline-profile-link" type="button" data-route="/user/${ownerUsername}">@${ownerUsername}</button></small>
+          </span>
+          <span class="championship-status-text">${hasStarted ? "بدأت" : "لم تبدأ"}</span>
+        </div>
+        <div class="championship-live-meta">
+          <button class="championship-meta-chip" type="button" data-card-info="participants" data-tournament-id="${tournament.id}">${maxPlayers ? `${participantCount}/${maxPlayers}` : participantCount} مشارك</button>
+          <button class="championship-meta-chip" type="button" data-card-info="leaderboard" data-tournament-id="${tournament.id}">المتصدر: ${hasStarted ? leader : "بعد البداية"}</button>
+          ${showPlayerStats ? `<span class="championship-meta-chip static-chip">${tournament.points || 0} نقطة</span>` : ""}
+          ${showPlayerStats ? `<span class="championship-meta-chip static-chip">ترتيبي #${tournament.rank || "-"}</span>` : ""}
+          <button class="championship-meta-chip" type="button" data-card-info="prizes" data-tournament-id="${tournament.id}">${prizesLabel}</button>
+        </div>
+        ${source === "following" && !hasStarted && !tournament.joined ? `
+          ${full ? `<button class="btn ghost compact-btn championship-join-pill" type="button" disabled>مكتملة</button>` : `
+          <button class="btn accent compact-btn championship-join-pill" type="button" data-hub-join-tournament="${tournament.id}">المشاركة</button>
+          `}
+        ` : ""}
       </div>
     </article>
   `;
+}
+
+function tournamentPrizeStatusLabel(tournament) {
+  const hasPrizeDetails = Array.isArray(tournament.prizes) && tournament.prizes.some((prize) => getPrizeDetail(prize));
+  return tournament.hasPrizes || hasPrizeDetails ? "فيها جوائز" : "بدون جوائز";
+}
+
+function openTournamentCardInfo(tournamentId, infoType) {
+  const tournament = getTournamentById(tournamentId);
+  if (!tournament) return;
+  if (infoType === "participants") {
+    tournamentParticipantsModal(tournament);
+    return;
+  }
+  if (infoType === "leaderboard") {
+    tournamentLeaderboardTableModal(tournament);
+    return;
+  }
+  if (infoType === "prizes") {
+    tournamentPrizesModal(tournament);
+  }
+}
+
+function tournamentParticipantsModal(tournament) {
+  const participants = getTournamentParticipants(tournament);
+  openModal(`
+    <section class="card modal compact-info-modal stack">
+      <div class="modal-title-row">
+        <h2 class="section-title">المشاركون</h2>
+        <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
+      </div>
+      <div class="compact-info-list">
+        ${participants.map((name, index) => `
+          <div class="compact-info-row">
+            <span class="mini-avatar">${name.charAt(0)}</span>
+            <strong>${name}</strong>
+            <small>#${index + 1}</small>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+}
+
+function tournamentLeaderboardTableModal(tournament) {
+  const rows = leaderboardData(tournament);
+  openModal(`
+    <section class="card modal compact-info-modal stack">
+      <div class="modal-title-row">
+        <h2 class="section-title">ترتيب اللاعبين</h2>
+        <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
+      </div>
+      <div class="compact-table-wrap">
+        <table class="compact-leaderboard-table">
+          <thead>
+            <tr>
+              <th>المركز</th>
+              <th>اللاعب</th>
+              <th>النقاط</th>
+              <th>صحيح</th>
+              <th>خاطئ</th>
+              <th>الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row, index) => `
+              <tr class="${row.name === state.currentUser.name ? "current-user-row" : ""}">
+                <td>#${index + 1}</td>
+                <td>${row.name}</td>
+                <td>${row.points}</td>
+                <td><span class="correct">${row.correct}</span></td>
+                <td><span class="wrong">${row.wrong}</span></td>
+                <td>${row.total}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+}
+
+function tournamentPrizesModal(tournament) {
+  const prizes = getTournamentPrizes(tournament).filter((prize) => getPrizeDetail(prize));
+  openModal(`
+    <section class="card modal compact-info-modal stack">
+      <div class="modal-title-row">
+        <h2 class="section-title">جوائز البطولة</h2>
+        <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
+      </div>
+      ${tournament.hasPrizes || prizes.length ? `
+        <div class="compact-info-list">
+          ${prizes.length ? prizes.map((prize) => `
+            <div class="compact-info-row">
+              <span class="prize-rank">${prize.rank || prize.title}</span>
+              <strong>${prize.title}</strong>
+              <small>${prizeValueText(prize)}</small>
+            </div>
+          `).join("") : `<p class="muted">تم تفعيل الجوائز، ولم يتم إدخال تفاصيلها بعد.</p>`}
+        </div>
+      ` : `<p class="muted">هذه البطولة بدون جوائز حالياً.</p>`}
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+}
+
+function tournamentCoverStyle(tournament) {
+  const coverUrl = String(tournament.coverImageUrl || "").trim();
+  if (!coverUrl) return "";
+  return ` style="--tournament-cover-image: url('${coverUrl.replace(/'/g, "%27")}')"`;
 }
 
 function getTournamentOwnerUsername(tournament) {
@@ -1898,18 +2585,25 @@ function getTournamentLeaderName(tournament) {
 
 function joinTournamentSilently(tournamentId) {
   const tournament = state.tournaments.find((item) => item.id === tournamentId);
-  if (!tournament || tournament.joined) return;
+  if (!tournament || tournament.joined) return false;
+  if (isTournamentAtCapacity(tournament)) {
+    capacityReachedModal(tournament);
+    return false;
+  }
   tournament.joined = true;
+  tournament.participants = [...new Set([...(tournament.participants || []), state.currentUser.name])];
   tournament.friends = (tournament.friends || 0) + 1;
   tournament.rank = tournament.friends;
+  return true;
 }
 
 function renderCreateTournament() {
-  const invite = generateInviteCode();
   const selectedCompetition = getSelectedCompetition();
   const initialRoundId = selectedCompetition?.defaultStart || "group";
   const initialRoundLabel = rounds.find((round) => round.id === initialRoundId)?.label || "دور المجموعات";
   const today = new Date().toISOString().slice(0, 10);
+  const draft = state.createFormDraft || {};
+  const selectedRoundValue = draft.startingRound || initialRoundId;
   app.innerHTML = `
     ${templateTopbar("بطولة جديدة")}
     <form class="card panel stack" id="create-form">
@@ -1931,11 +2625,22 @@ function renderCreateTournament() {
         </div>
         <div class="field wide">
           <label>اسم البطولة</label>
-          <input class="input" id="tournament-name" required maxlength="40" value="${selectedCompetition?.name || ""}" placeholder="مثال: بطولة الأصدقاء">
+          <input class="input" id="tournament-name" required maxlength="40" value="${draft.name || selectedCompetition?.name || ""}" placeholder="مثال: بطولة الأصدقاء">
         </div>
-        <div class="field">
-          <label>الشعار</label>
-          <input class="input" id="tournament-logo" type="file" accept="image/*">
+        <div class="field wide">
+          <label>صورة بوست البطولة</label>
+          <div class="post-image-setting create-post-image-setting">
+            <div class="post-image-preview ${state.pendingCreateCoverImage?.url ? "has-image" : ""}">
+              ${state.pendingCreateCoverImage?.url ? `<img src="${state.pendingCreateCoverImage.url}" alt="">` : `<span>تصميم الملعب الافتراضي</span>`}
+            </div>
+            <div>
+              <strong>${state.pendingCreateCoverImage?.url ? "تم اختيار صورة" : "اختياري"}</strong>
+              <p class="muted">هذه هي صورة البوست التي تظهر أعلى صفحة البطولة. إذا لم تضف صورة، يظهر تصميم الملعب الافتراضي.</p>
+              <input class="sr-only-file" id="tournament-logo" type="file" accept="image/*">
+              <button class="btn ghost compact-btn" type="button" id="choose-create-post-image">${state.pendingCreateCoverImage?.url ? "تعديل الصورة" : "اختيار صورة"}</button>
+              ${state.pendingCreateCoverImage?.url ? `<button class="btn ghost compact-btn" type="button" id="remove-create-post-image">إزالة الصورة</button>` : ""}
+            </div>
+          </div>
         </div>
         <div class="toggle-row wide">
           <div>
@@ -1944,23 +2649,19 @@ function renderCreateTournament() {
           </div>
           <button type="button" class="switch" id="privacy-switch" aria-pressed="false"><span></span></button>
         </div>
-        <div class="field" id="invite-field" hidden>
-          <label>كود الدعوة</label>
-          <input class="input" id="invite-code" readonly value="${invite}">
-        </div>
         <div class="field">
           <label>الحد الأقصى للمشاركين</label>
-          <input class="input" id="max-players" type="number" min="2" value="16">
+          <input class="input" id="max-players" type="number" min="2" value="${draft.maxPlayers || 16}">
         </div>
         <div class="field">
           <label>نقطة الانطلاق</label>
           <select class="select" id="starting-round">
-            ${rounds.map((round) => `<option value="${round.id}" ${round.id === initialRoundId ? "selected" : ""}>${round.label}</option>`).join("")}
+            ${rounds.map((round) => `<option value="${round.id}" ${round.id === selectedRoundValue ? "selected" : ""}>${round.label}</option>`).join("")}
           </select>
         </div>
         <div class="field">
           <label>تاريخ بداية البطولة</label>
-          <input class="input" id="tournament-start-date" type="date" min="${today}" value="${today}" required>
+          <input class="input" id="tournament-start-date" type="date" min="${today}" value="${draft.startDate || today}" required>
         </div>
         <div class="toggle-row wide">
           <div>
@@ -1981,6 +2682,10 @@ function renderCreateTournament() {
 
   const privacy = document.querySelector("#privacy-switch");
   const prizesSwitch = document.querySelector("#prizes-switch");
+  privacy.classList.toggle("on", Boolean(draft.isPrivate));
+  privacy.setAttribute("aria-pressed", String(Boolean(draft.isPrivate)));
+  prizesSwitch.classList.toggle("on", Boolean(draft.hasPrizes));
+  prizesSwitch.setAttribute("aria-pressed", String(Boolean(draft.hasPrizes)));
   document.querySelector("#competition-search").addEventListener("input", (event) => {
     state.competitionSearchQuery = event.target.value;
     state.selectedCompetitionId = "";
@@ -1993,13 +2698,29 @@ function renderCreateTournament() {
     const isOn = !privacy.classList.contains("on");
     privacy.classList.toggle("on", isOn);
     privacy.setAttribute("aria-pressed", String(isOn));
-    document.querySelector("#invite-field").hidden = !isOn;
   });
   prizesSwitch.addEventListener("click", () => {
     const isOn = !prizesSwitch.classList.contains("on");
     prizesSwitch.classList.toggle("on", isOn);
     prizesSwitch.setAttribute("aria-pressed", String(isOn));
   });
+  const createPostImageInput = document.querySelector("#tournament-logo");
+  const chooseCreatePostImage = document.querySelector("#choose-create-post-image");
+  if (createPostImageInput && chooseCreatePostImage) {
+    chooseCreatePostImage.addEventListener("click", () => {
+      captureCreateFormDraft();
+      createPostImageInput.click();
+    });
+    createPostImageInput.addEventListener("change", () => handleCreateTournamentPostImageSelection(createPostImageInput));
+  }
+  const removeCreatePostImage = document.querySelector("#remove-create-post-image");
+  if (removeCreatePostImage) {
+    removeCreatePostImage.addEventListener("click", () => {
+      captureCreateFormDraft();
+      state.pendingCreateCoverImage = null;
+      renderCreateTournament();
+    });
+  }
   document.querySelector("#starting-round").addEventListener("change", (event) => {
     const label = rounds.find((round) => round.id === event.target.value).label;
     document.querySelector("#api-preview").textContent = `مرحلة البداية: سيتم جلب مباريات ${label}، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.`;
@@ -2011,7 +2732,99 @@ function renderCreateTournament() {
   document.querySelector("#create-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const id = saveTournament(false);
-    if (id) navigate(`/tournament/${id}/manage`);
+    if (id) {
+      state.selectedChampionshipsTab = "mine";
+      tournamentCreatedModal(id);
+    }
+  });
+}
+
+function captureCreateFormDraft() {
+  const nameInput = document.querySelector("#tournament-name");
+  if (!nameInput) return;
+  state.createFormDraft = {
+    name: nameInput.value,
+    maxPlayers: document.querySelector("#max-players")?.value || "16",
+    startingRound: document.querySelector("#starting-round")?.value || "",
+    startDate: document.querySelector("#tournament-start-date")?.value || "",
+    isPrivate: document.querySelector("#privacy-switch")?.classList.contains("on") || false,
+    hasPrizes: document.querySelector("#prizes-switch")?.classList.contains("on") || false
+  };
+}
+
+function filterPublicTournamentsByStatus(tournaments) {
+  if (state.publicTournamentFilter === "started") return tournaments.filter((tournament) => tournament.active);
+  if (state.publicTournamentFilter === "upcoming") return tournaments.filter((tournament) => !tournament.active);
+  return tournaments;
+}
+
+function publicTournamentFilterHtml(tournaments) {
+  const filters = [
+    { id: "all", label: "الكل", count: tournaments.length },
+    { id: "started", label: "بدأت", count: tournaments.filter((tournament) => tournament.active).length },
+    { id: "upcoming", label: "لم تبدأ", count: tournaments.filter((tournament) => !tournament.active).length }
+  ];
+  const activeIndex = Math.max(0, filters.findIndex((filter) => filter.id === state.publicTournamentFilter));
+  return `
+    <div class="championship-segment public-filter-segment" role="tablist" aria-label="فلترة البطولات العامة" style="--tab-count:${filters.length}; --active-index:${activeIndex}">
+      ${filters.map((filter) => `
+        <button class="championship-segment-btn public-filter-btn ${state.publicTournamentFilter === filter.id ? "active" : ""}" type="button" role="tab" aria-selected="${state.publicTournamentFilter === filter.id}" data-public-tournament-filter="${filter.id}">
+          <span>${filter.label}</span>
+          <strong>${filter.count}</strong>
+        </button>
+      `).join("")}
+      <span class="championship-segment-indicator public-filter-indicator" aria-hidden="true"></span>
+    </div>
+  `;
+}
+
+function tournamentCreatedModal(tournamentId) {
+  openModal(`
+    <section class="card modal stack">
+      <div class="topbar">
+        <h2 class="section-title">تم حفظ البطولة</h2>
+        ${modalCloseButton()}
+      </div>
+      <p class="muted">تم حفظ البطولة في صفحة إدارة البطولات. يرجى الدخول عليها لاستكمال بيانات البطولة قبل التفعيل.</p>
+      <button class="btn accent" type="button" id="go-to-my-tournaments">الانتقال إلى إدارة البطولات</button>
+    </section>
+  `);
+  document.querySelector("#close-modal")?.addEventListener("click", closeModal);
+  document.querySelector("#go-to-my-tournaments")?.addEventListener("click", () => {
+    closeModal();
+    state.selectedChampionshipsTab = "mine";
+    navigate("/create-tournament");
+  });
+}
+
+function handleCreateTournamentPostImageSelection(input) {
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    openModal(`
+      <section class="card modal stack">
+        <div class="topbar">
+          <h2 class="section-title">اختيار صورة</h2>
+          ${modalCloseButton()}
+        </div>
+        <p class="muted">يرجى اختيار ملف صورة.</p>
+      </section>
+    `);
+    document.querySelector("#close-modal").addEventListener("click", closeModal);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => createTournamentPostImageCropModal(String(reader.result || ""), file.name);
+  reader.readAsDataURL(file);
+}
+
+function createTournamentPostImageCropModal(imageUrl, fileName) {
+  openPostImageCropModal(imageUrl, fileName, (croppedUrl) => {
+    captureCreateFormDraft();
+    state.pendingCreateCoverImage = { url: croppedUrl, fileName };
+    closeModal();
+    renderCreateTournament();
   });
 }
 
@@ -2031,14 +2844,15 @@ function saveTournament(draft = false) {
   const selectedCompetition = getSelectedCompetition();
   const isPrivate = document.querySelector("#privacy-switch").classList.contains("on");
   const hasPrizes = document.querySelector("#prizes-switch").classList.contains("on");
-  const logoInput = document.querySelector("#tournament-logo");
   state.tournaments.unshift({
     id,
     name: tournamentName,
     officialCompetitionId: selectedCompetition.id,
     officialCompetitionCode: selectedCompetition.code,
     officialCompetitionName: selectedCompetition.name,
-    logoFileName: logoInput?.files?.[0]?.name || "",
+    logoFileName: "",
+    coverImageUrl: state.pendingCreateCoverImage?.url || "",
+    postImageFileName: state.pendingCreateCoverImage?.fileName || "",
     public: !isPrivate,
     publicCode: isPrivate ? "" : selectedCompetition.code,
     active: false,
@@ -2054,59 +2868,69 @@ function saveTournament(draft = false) {
     friends: 1,
     maxPlayers: Number(document.querySelector("#max-players").value) || 16,
     participants: [state.currentUser.name],
-    points: 400,
+    points: 0,
     correct: 0,
     wrong: 0,
-    budget: 400,
-    minPoints: 20,
+    budget: null,
+    minPoints: null,
+    rulesConfigured: false,
     startingRound: document.querySelector("#starting-round").value,
     currentRound: document.querySelector("#starting-round").value,
-    inviteCode: isPrivate ? document.querySelector("#invite-code").value : null,
+    inviteCode: isPrivate ? generateInviteCode() : null,
     awardCategories: [],
     prizes: [],
     joinRequests: []
   });
+  state.pendingCreateCoverImage = null;
+  state.createFormDraft = {};
   return id;
 }
 
-function renderTournament(id) {
+function renderTournament(id, options = {}) {
   const tournament = getTournamentById(id);
-  if (isTournamentOwner(tournament)) return renderOwnerTournament(tournament);
+  const forcePlayerView = options.forcePlayer || state.route.endsWith("/player");
+  if (isTournamentOwner(tournament) && !forcePlayerView) return renderOwnerTournament(tournament);
   const activeRound = tournament.currentRound || tournament.startingRound || "round16";
   const tournamentRounds = getTournamentRounds(tournament);
-  const selectedRound = tournamentRounds.some((round) => round.id === state.selectedRound) ? state.selectedRound : activeRound;
+  const awardTabId = "pre-tournament-awards";
+  const hasAwardTab = Boolean((tournament.awardCategories || []).length);
+  const tournamentTabs = [
+    ...(hasAwardTab ? [{ id: awardTabId, label: "ترشيحات البطولة", locked: false, type: "awards" }] : []),
+    ...tournamentRounds.map((round) => {
+      const roundIndex = rounds.findIndex((item) => item.id === round.id);
+      const activeRoundIndexForTab = rounds.findIndex((item) => item.id === activeRound);
+      return { ...round, locked: roundIndex > activeRoundIndexForTab, type: "round" };
+    })
+  ];
+  const selectedView = tournamentTabs.some((tab) => tab.id === state.selectedRound) ? state.selectedRound : activeRound;
+  const showingAwards = selectedView === awardTabId;
+  const selectedRound = showingAwards ? activeRound : selectedView;
   const selectedRoundIndex = rounds.findIndex((round) => round.id === selectedRound);
   const activeRoundIndex = rounds.findIndex((round) => round.id === activeRound);
+  const selectedTournamentRoundIndex = Math.max(0, tournamentTabs.findIndex((tab) => tab.id === selectedView));
   const isLocked = selectedRoundIndex > activeRoundIndex;
-  const matches = isLocked ? [] : (state.matches[selectedRound] || []);
+  const matches = showingAwards || isLocked ? [] : (state.matches[selectedRound] || []);
   const used = getUsedBudget(tournament.id, selectedRound);
-  const pct = Math.min(100, Math.round((used / tournament.budget) * 100));
   const nextRound = getNextRound(tournament);
+  const tournamentFinished = isTournamentFinished(tournament);
+  const selectedRule = getTournamentPointRules(tournament)[selectedRound] || {};
 
   app.innerHTML = `
     ${templateTopbar(tournament.name)}
     <section class="grid">
+      ${playerTournamentSummaryCard(tournament, activeRound)}
       <div class="card panel stack">
-        <div class="topbar">
-          <div>
-            <h1 class="section-title">${tournament.name}</h1>
-            <p class="muted">ميزانية الجولة: ${tournament.budget} نقطة · الحد الأدنى للفريق: ${tournament.minPoints} · ${tournament.public ? "بطولة عامة" : `بطولة خاصة ${tournament.inviteCode || ""}`}</p>
-          </div>
-        </div>
-        <div class="tabs">
-          ${tournamentRounds.map((round) => {
-            const roundIndex = rounds.findIndex((item) => item.id === round.id);
-            const locked = roundIndex > activeRoundIndex;
+        <div class="championship-segment round-segment" role="tablist" aria-label="أدوار البطولة" style="--tab-count: ${tournamentTabs.length}; --active-index: ${selectedTournamentRoundIndex};">
+          ${tournamentTabs.map((round) => {
+            const locked = Boolean(round.locked);
             return `
-            <button class="btn tab ${round.id === selectedRound ? "active" : ""} ${locked ? "locked" : ""}" data-round="${round.id}" ${locked ? "disabled" : ""}>
+            <button class="championship-segment-btn round-segment-btn ${round.id === selectedView ? "active" : ""} ${locked ? "locked" : ""}" type="button" data-round="${round.id}" role="tab" aria-selected="${round.id === selectedView}" ${locked ? "disabled" : ""}>
               ${locked ? "🔒 " : ""}${round.label}
             </button>
           `}).join("")}
+          <span class="championship-segment-indicator" aria-hidden="true"></span>
         </div>
-        <div>
-          <div class="stat-line"><span>المستخدم من ميزانية الجولة</span><strong>${used} / ${tournament.budget}</strong></div>
-          <div class="budget-bar" style="--pct: ${pct}%"><span></span></div>
-        </div>
+        ${showingAwards ? "" : playerRoundRulesBox(tournament, selectedRound, selectedRule)}
         <div class="round-lifecycle">
           <div>
             <strong>الدور الحالي: ${rounds.find((round) => round.id === activeRound).label}</strong>
@@ -2116,29 +2940,10 @@ function renderTournament(id) {
         </div>
         ${isPredictionLocked(matches) ? `<div class="notice danger-notice">تم قفل توقعات هذا الدور. اللاعبون بدون توقعات مكتملة يعتبرون خاسرين لنقاط الجولة عند التسوية.</div>` : ""}
       </div>
-      ${matches.length ? "" : `<div class="card panel">هذا الدور مغلق حتى يؤكد الـ API الفرق المتأهلة من الدور السابق.</div>`}
-      ${pickBoardWorkflow(tournament, selectedRound, matches)}
-      ${awardNominationWorkflow(tournament)}
-      <div class="card panel leaderboard-card" data-live-leaderboard="${tournament.id}" data-live-round="${selectedRound}">
-        <div class="section-head compact-section-head">
-          <div>
-            <h2 class="section-title">المتصدرون</h2>
-            <p class="muted live-leaderboard-note">يتحدث عند وصول نتيجة أو نهاية شوط من API</p>
-          </div>
-          <span class="live-pill">مباشر</span>
-          <button class="btn ghost compact-btn" type="button" data-full-leaderboard="${tournament.id}">عرض الكل</button>
-        </div>
-        ${isDeveloperMode() ? `<div class="live-api-bar">
-          <span>${liveApiStatusText()}</span>
-          <div class="live-api-actions">
-            <button class="btn ghost compact-btn" type="button" data-live-api-key>مفتاح API</button>
-            <button class="btn warn compact-btn" type="button" data-live-api-refresh="${tournament.id}" data-live-api-round="${selectedRound}">تحديث النتائج</button>
-          </div>
-        </div>` : ""}
-        <div class="leaderboard-list" data-leaderboard-list>
-          ${leaderboardRows(tournament, { limit: 3, live: true, round: selectedRound }).join("")}
-        </div>
-      </div>
+      ${tournamentFinished ? tournamentFinalAwardResults(tournament) : showingAwards ? awardNominationWorkflow(tournament) : `
+        ${matches.length ? "" : `<div class="card panel">هذا الدور مغلق حتى يؤكد الـ API الفرق المتأهلة من الدور السابق.</div>`}
+        ${pickBoardWorkflow(tournament, selectedRound, matches, { used })}
+      `}
     </section>
   `;
 
@@ -2148,6 +2953,7 @@ function renderTournament(id) {
       renderTournament(tournament.id);
     });
   });
+  setupTournamentRoundSwipe(tournament, tournamentTabs, selectedView, activeRoundIndex);
   document.querySelectorAll("[data-predict]").forEach((button) => {
     button.addEventListener("click", () => predictionModal(tournament, selectedRound, button.dataset.predict));
   });
@@ -2195,6 +3001,136 @@ function renderTournament(id) {
   startMatchCountdowns();
 }
 
+function playerTournamentSummaryCard(tournament, activeRound) {
+  const rows = leaderboardData(tournament);
+  const currentRowIndex = rows.findIndex((row) => row.name === state.currentUser.name);
+  const currentRow = currentRowIndex >= 0 ? rows[currentRowIndex] : null;
+  const points = currentRow?.points ?? tournament.points ?? 0;
+  const correct = currentRow?.correct ?? tournament.correct ?? 0;
+  const wrong = currentRow?.wrong ?? tournament.wrong ?? 0;
+  const total = currentRow?.total ?? (correct + wrong);
+  const rank = currentRowIndex >= 0 ? currentRowIndex + 1 : tournament.rank || "-";
+  const roundLabel = rounds.find((round) => round.id === activeRound)?.label || "الدور الحالي";
+  const prizesLabel = tournamentPrizeStatusLabel(tournament);
+  return `
+    <section class="player-tournament-summary">
+      <div class="player-summary-cover">
+        ${tournament.coverImageUrl ? `<img class="owner-cover-image" src="${tournament.coverImageUrl}" alt="">` : `<img class="owner-tournament-logo" src="${currentLogoSrc()}" alt="">`}
+      </div>
+      <div class="player-summary-body">
+        <div class="player-summary-title">
+          <div>
+            <h1>${tournament.name}</h1>
+            <p>${roundLabel} · ${tournament.public ? "بطولة عامة" : "بطولة خاصة"}</p>
+          </div>
+        </div>
+        <div class="player-summary-grid">
+          <div>
+            <span>إجمالي الترشيحات</span>
+            <strong>${total}</strong>
+          </div>
+          <div>
+            <span>صحيحة</span>
+            <strong class="success-text">${correct}</strong>
+          </div>
+          <div>
+            <span>خاطئة</span>
+            <strong class="danger-text">${wrong}</strong>
+          </div>
+          <div>
+            <span>إجمالي النقاط</span>
+            <strong>${points}</strong>
+          </div>
+          <button type="button" data-card-info="leaderboard" data-tournament-id="${tournament.id}">
+            <span>الترتيب</span>
+            <strong>#${rank}</strong>
+          </button>
+          <button type="button" data-card-info="prizes" data-tournament-id="${tournament.id}">
+            <span>الجوائز</span>
+            <strong>${prizesLabel}</strong>
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function playerRoundRulesBox(tournament, roundId, rule) {
+  const roundLabel = rounds.find((round) => round.id === roundId)?.label || "الدور الحالي";
+  const hasRule = isPointRuleRoundSaved(tournament, roundId);
+  const ruleTitle = hasRule ? pointRuleTypeLabel(rule) : "قوانين غير مكتملة";
+  const details = hasRule
+    ? [
+      pointRuleDescription(rule),
+      `التوقعات تقفل قبل ${PREDICTION_LOCK_MINUTES} دقيقة من بداية أول مباراة في الدور.`,
+      `أي لاعب يقل رصيده عن الحد الأدنى للتصويت لكل فريق يتم إقصاؤه تلقائياً.`
+    ]
+    : ["لم يتم اعتماد قوانين هذا الدور بعد من صاحب البطولة."];
+  return `
+    <section class="player-round-rules">
+      <div class="section-row">
+        <div>
+          <h2 class="section-title">شروط وقوانين ${roundLabel}</h2>
+          <p class="muted">${ruleTitle}</p>
+        </div>
+      </div>
+      <div class="player-round-rule-list">
+        ${details.map((item) => `<span>${item}</span>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function setupTournamentRoundSwipe(tournament, tournamentRounds, selectedRound, activeRoundIndex) {
+  const segment = document.querySelector(".round-segment");
+  if (!segment) return;
+  let startX = 0;
+  let startY = 0;
+  let isDragging = false;
+  let pressedRound = "";
+
+  segment.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+    const button = event.target.closest("[data-round]");
+    pressedRound = button && !button.disabled ? button.dataset.round : "";
+    isDragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    segment.setPointerCapture(event.pointerId);
+  });
+
+  segment.addEventListener("pointerup", (event) => {
+    if (!isDragging) return;
+    isDragging = false;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && pressedRound) {
+      event.preventDefault();
+      state.selectedRound = pressedRound;
+      pressedRound = "";
+      renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
+      return;
+    }
+    pressedRound = "";
+    if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+
+    const currentIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === selectedRound));
+    const direction = deltaX < 0 ? 1 : -1;
+    const nextIndex = Math.min(tournamentRounds.length - 1, Math.max(0, currentIndex + direction));
+    const nextRound = tournamentRounds[nextIndex];
+    if (!nextRound) return;
+    const nextGlobalIndex = rounds.findIndex((round) => round.id === nextRound.id);
+    if (nextRound.locked || nextGlobalIndex > activeRoundIndex) return;
+    state.selectedRound = nextRound.id;
+    renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
+  });
+
+  segment.addEventListener("pointercancel", () => {
+    isDragging = false;
+    pressedRound = "";
+  });
+}
+
 function isDeveloperMode() {
   return new URLSearchParams(window.location.search).has("dev");
 }
@@ -2218,12 +3154,14 @@ function renderOwnerTournament(tournament) {
   const currentStageTitle = tournament.active && !tournament.setupIncomplete
     ? (rounds.find((round) => round.id === activeRound)?.label || "الدور الحالي")
     : "مرحلة إدخال تفاصيل البطولة";
+  const startingRoundLabel = rounds.find((round) => round.id === (tournament.startingRound || "round16"))?.label || "دور 16";
   app.innerHTML = `
     ${ownerTournamentTopbar(tournament)}
     <section class="owner-tournament-page">
       <section class="owner-tournament-hero">
         <div class="owner-cover">
-          <img class="owner-tournament-logo" src="${currentLogoSrc()}" alt="">
+          ${tournament.coverImageUrl ? `<img class="owner-cover-image" src="${tournament.coverImageUrl}" alt="">` : ""}
+          ${tournament.coverImageUrl ? "" : `<img class="owner-tournament-logo" src="${currentLogoSrc()}" alt="">`}
         </div>
         <div class="owner-title-block">
           <div class="owner-group-avatar">${tournament.name.slice(0, 1)}</div>
@@ -2231,13 +3169,14 @@ function renderOwnerTournament(tournament) {
             <div class="owner-title-row">
               <div>
                 <h1>${tournament.name}</h1>
-                <p>${tournament.publicCode || tournament.inviteCode || "PRIVATE"} · ${rounds.find((round) => round.id === activeRound)?.label || "الدور الحالي"}</p>
+                <p>تبدأ من ${startingRoundLabel} · ${aboutLabel}</p>
               </div>
-              <button class="owner-share-btn" type="button" data-share-tournament="${tournament.id}" aria-label="مشاركة البطولة" title="مشاركة البطولة">
-                ${ownerTournamentIcon("share")}
-              </button>
             </div>
             <div class="owner-priority-actions">
+              <button type="button" data-share-tournament="${tournament.id}" aria-label="مشاركة البطولة" title="مشاركة البطولة">
+                <strong>${ownerTournamentIcon("share")}</strong>
+                <span>مشاركة</span>
+              </button>
               <button type="button" data-route="/tournament/${tournament.id}/manage/requests">
                 <strong>${requestCount}</strong>
                 <span>طلبات الدخول</span>
@@ -2246,30 +3185,27 @@ function renderOwnerTournament(tournament) {
                 <strong>${participantCount}</strong>
                 <span>المشاركون</span>
               </button>
+              <button type="button" data-route="/user/${captainUsername}">
+                <strong>@${captainUsername}</strong>
+                <span>القائد</span>
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="owner-summary-card">
-        <div><span>المرحلة الحالية</span><strong>${currentStageTitle}</strong></div>
-        <div><span>القائد</span><strong><button class="inline-profile-link" type="button" data-route="/user/${captainUsername}">@${captainUsername}</button></strong></div>
-        <div><span>حالة البطولة</span><strong>${aboutLabel}</strong></div>
-        <div><span>المنظمون</span><strong>${getTournamentOrganizers(tournament).join("، ")}</strong></div>
-        <div><span>الرعاة</span><strong>${getTournamentSponsors(tournament).join("، ") || "لم يحدد"}</strong></div>
-        <div><span>الجوائز</span><strong>${prizesLabel}</strong></div>
-      </section>
+      ${!tournament.active ? ownerActivationPanel(tournament) : ""}
 
       <section class="owner-action-list">
-        ${ownerTournamentActionRow("voting", "حالة التصويت", "check", `/tournament/${tournament.id}/manage/voting`)}
-        ${ownerTournamentActionRow("results", "نتائج المباريات", "ball", `/tournament/${tournament.id}/manage/results`)}
-        ${ownerTournamentActionRow("prediction-results", "نتائج التوقعات", "bars", `/tournament/${tournament.id}/manage/prediction-results`)}
-        ${ownerTournamentActionRow("leaderboard", "ترتيب المشاركين", "trophy", `/tournament/${tournament.id}/manage/leaderboard`)}
-        ${ownerTournamentActionRow("rules", "قوانين البطولة", "ball", `/tournament/${tournament.id}/manage/rules`)}
-        ${ownerTournamentActionRow("prizes", "إدارة الجوائز", "trophy", `/tournament/${tournament.id}/manage/prizes`)}
-        ${ownerTournamentActionRow("notify", "الإشعارات", "chat", `/tournament/${tournament.id}/manage/notify`)}
+        ${ownerTournamentActionRow("voting", "حالة التصويت", "check", `/tournament/${tournament.id}/manage/voting`, isSectionIncomplete(tournament, "voting"))}
+        ${ownerTournamentActionRow("results", "نتائج المباريات", "ball", `/tournament/${tournament.id}/manage/results`, isSectionIncomplete(tournament, "results"))}
+        ${ownerTournamentActionRow("prediction-results", "نتائج التوقعات", "bars", `/tournament/${tournament.id}/manage/prediction-results`, isSectionIncomplete(tournament, "prediction-results"))}
+        ${ownerTournamentActionRow("leaderboard", "ترتيب المشاركين", "trophy", `/tournament/${tournament.id}/manage/leaderboard`, isSectionIncomplete(tournament, "leaderboard"))}
+        ${ownerTournamentActionRow("rules", "قوانين البطولة", "ball", `/tournament/${tournament.id}/manage/rules`, isSectionIncomplete(tournament, "rules"))}
+        ${ownerTournamentActionRow("prizes", "إدارة الجوائز", "trophy", `/tournament/${tournament.id}/manage/prizes`, isSectionIncomplete(tournament, "prizes"))}
+        ${ownerTournamentActionRow("notify", "الإشعارات", "chat", `/tournament/${tournament.id}/manage/notify`, isSectionIncomplete(tournament, "notify"))}
         ${ownerTournamentActionRow("danger", "منطقة الخطر", "gear", `/tournament/${tournament.id}/manage/danger`)}
-        ${ownerTournamentActionRow("admin-team", "إدارة البطولة", "gear", `/tournament/${tournament.id}/manage/admin-team`)}
+        ${ownerTournamentActionRow("admin-team", "إدارة البطولة", "gear", `/tournament/${tournament.id}/manage/admin-team`, isSectionIncomplete(tournament, "admin-team"))}
       </section>
     </section>
   `;
@@ -2280,6 +3216,9 @@ function renderOwnerTournament(tournament) {
   document.querySelectorAll("[data-share-tournament]").forEach((button) => {
     button.addEventListener("click", () => shareTournamentInvite(getTournamentById(button.dataset.shareTournament)));
   });
+  document.querySelectorAll("[data-activate-tournament]").forEach((button) => {
+    button.addEventListener("click", () => activateTournament(button.dataset.activateTournament));
+  });
 }
 
 function ownerTournamentTopbar(tournament) {
@@ -2289,7 +3228,7 @@ function ownerTournamentTopbar(tournament) {
         <button class="btn ghost back-btn" data-back="true" aria-label="Back" title="Back">←</button>
       </div>
       <button class="page-title-btn" data-route="/create-tournament">
-        <span>${tournament.name}</span>
+        <span>إدارة البطولة</span>
       </button>
       <div class="topbar-side">
         <button class="owner-gear-btn" type="button" data-route="/tournament/${tournament.id}/manage/settings" aria-label="Tournament settings" title="إعدادات البطولة">
@@ -2304,15 +3243,41 @@ function getTournamentById(id) {
   return state.tournaments.find((item) => item.id === id) || state.tournaments[0];
 }
 
-function ownerTournamentActionRow(action, label, icon, route = "") {
+function ownerTournamentActionRow(action, label, icon, route = "", incomplete = false) {
   const actionAttribute = route ? `data-route="${route}"` : `data-owner-tournament-action="${action}"`;
+  const description = ownerActionDescription(action);
   return `
     <button class="owner-action-row" type="button" ${actionAttribute}>
       <span class="owner-action-icon">${ownerTournamentIcon(icon)}</span>
-      <strong>${label}</strong>
+      <span class="owner-action-copy">
+        <strong>${label}</strong>
+        <small>${description}</small>
+      </span>
+      ${incomplete ? `<i class="incomplete-dot row-end-dot" aria-hidden="true"></i>` : `<span class="row-end-dot-placeholder"></span>`}
       <span class="owner-action-arrow">›</span>
     </button>
   `;
+}
+
+function ownerActionDescription(action) {
+  const descriptions = {
+    requests: "اعتماد أو رفض طلبات الانضمام",
+    players: "إدارة المشاركين وحذف المخالفين",
+    voting: "متابعة من صوّت ومن لم يصوّت",
+    results: "استعراض نتائج المباريات المعتمدة",
+    "prediction-results": "مراجعة توقعات المشاركين لكل دور",
+    leaderboard: "ترتيب المشاركين حسب النقاط",
+    rules: "قوانين البطولة الظاهرة للمشاركين",
+    prizes: "تفعيل الجوائز وتحديد تفاصيلها",
+    invites: "كود الدعوة ورابط المشاركة",
+    notify: "إرسال تنبيهات لأعضاء البطولة",
+    danger: "إيقاف المشاركة أو إلغاء البطولة",
+    "admin-team": "تعيين مساعدين وصلاحياتهم",
+    settings: "تعديل بيانات البطولة الأساسية",
+    awards: "إدارة ترشيحات اللاعبين والفرق",
+    points: "تحديد آلية النقاط لكل دور"
+  };
+  return descriptions[action] || "إدارة هذا القسم";
 }
 
 function ownerTournamentIcon(type) {
@@ -2493,15 +3458,16 @@ function renderTournamentManage(id, section) {
       </section>
 
       <section class="owner-action-list">
-        ${ownerManageRow(tournament, "voting", "حالة التصويت", "check", getVotingSummary(tournament))}
-        ${ownerManageRow(tournament, "results", "نتائج المباريات", "ball", tournament.currentRound || tournament.startingRound || "-")}
-        ${ownerManageRow(tournament, "prediction-results", "نتائج التوقعات", "bars", `${tournament.correct || 0}/${tournament.wrong || 0}`)}
-        ${ownerManageRow(tournament, "leaderboard", "ترتيب المشاركين", "trophy", tournament.friends || 1)}
-        ${ownerManageRow(tournament, "rules", "قوانين البطولة", "ball", `${tournament.budget}/${tournament.minPoints}`)}
-        ${ownerManageRow(tournament, "prizes", "إدارة الجوائز", "trophy", getTournamentPrizes(tournament).length)}
-        ${ownerManageRow(tournament, "notify", "الإشعارات", "chat", "إرسال")}
-        ${ownerManageRow(tournament, "danger", "منطقة الخطر", "gear", "حساس")}
-        ${ownerManageRow(tournament, "admin-team", "إدارة البطولة", "gear", getTournamentOrganizers(tournament).length)}
+        ${ownerManageRow(tournament, "voting", "حالة التصويت", "check", getVotingSummary(tournament), isSectionIncomplete(tournament, "voting"))}
+        ${ownerManageRow(tournament, "results", "نتائج المباريات", "ball", tournament.currentRound || tournament.startingRound || "-", isSectionIncomplete(tournament, "results"))}
+        ${ownerManageRow(tournament, "prediction-results", "نتائج التوقعات", "bars", `${tournament.correct || 0}/${tournament.wrong || 0}`, isSectionIncomplete(tournament, "prediction-results"))}
+        ${ownerManageRow(tournament, "leaderboard", "ترتيب المشاركين", "trophy", tournament.friends || 1, isSectionIncomplete(tournament, "leaderboard"))}
+        ${ownerManageRow(tournament, "rules", "قوانين البطولة", "ball", areAllPointRulesSaved(tournament) ? "مكتملة" : "بيانات فارغة", isSectionIncomplete(tournament, "rules"))}
+        ${ownerManageRow(tournament, "prizes", "إدارة الجوائز", "trophy", tournament.hasPrizes ? (getTournamentPrizes(tournament).length || "بيانات فارغة") : "غير مفعلة", isSectionIncomplete(tournament, "prizes"))}
+        ${ownerManageRow(tournament, "invites", "الدعوات والكود", "share", tournament.public ? "رابط عام" : (tournament.inviteCode || "تلقائي"), false)}
+        ${ownerManageRow(tournament, "notify", "الإشعارات", "chat", "إرسال", isSectionIncomplete(tournament, "notify"))}
+        ${ownerManageRow(tournament, "danger", "منطقة الخطر", "gear", "حساس", false)}
+        ${ownerManageRow(tournament, "admin-team", "إدارة البطولة", "gear", getTournamentOrganizers(tournament).length, isSectionIncomplete(tournament, "admin-team"))}
       </section>
     </section>
   `;
@@ -2518,7 +3484,7 @@ function ownerActivationPanel(tournament) {
         <strong>${readiness.ready ? "جاهزة للتفعيل" : "تحتاج استكمال البيانات"}</strong>
         <span>${readiness.ready ? "بعد التفعيل ستظهر البطولة للجميع حسب الخصوصية." : readiness.missing.join("، ")}</span>
       </div>
-      <button class="btn accent compact-btn" type="button" data-activate-tournament="${tournament.id}" ${readiness.ready ? "" : "disabled"}>تفعيل البطولة</button>
+      <button class="btn accent compact-btn" type="button" data-activate-tournament="${tournament.id}">تفعيل البطولة</button>
     </div>
   `;
 }
@@ -2530,13 +3496,18 @@ function getTournamentReadiness(tournament) {
   if (!tournament.startDate) missing.push("تاريخ البداية");
   if (!tournament.startingRound) missing.push("نقطة الانطلاق");
   if (!tournament.maxPlayers) missing.push("عدد المشاركين");
+  if (!areAllPointRulesSaved(tournament)) missing.push("قوانين البطولة");
+  if (tournament.hasPrizes && !hasConfiguredPrizes(tournament)) missing.push("الجوائز");
   return { ready: missing.length === 0, missing };
 }
 
 function activateTournament(tournamentId) {
   const tournament = getTournamentById(tournamentId);
   const readiness = getTournamentReadiness(tournament);
-  if (!readiness.ready) return;
+  if (!readiness.ready) {
+    activationMissingModal(readiness.missing);
+    return;
+  }
   tournament.active = true;
   tournament.draft = false;
   tournament.setupIncomplete = false;
@@ -2544,15 +3515,53 @@ function activateTournament(tournamentId) {
   renderTournamentManage(tournament.id, "");
 }
 
-function ownerManageRow(tournament, section, label, icon, meta) {
+function activationMissingModal(missing = []) {
+  openModal(`
+    <section class="card modal stack">
+      <div class="topbar">
+        <h2 class="section-title">لا يمكن تفعيل البطولة</h2>
+        ${modalCloseButton()}
+      </div>
+      <p class="muted">استكمل البيانات الإجبارية التالية قبل التفعيل:</p>
+      <div class="missing-list">
+        ${missing.map((item) => `<span>${item}</span>`).join("")}
+      </div>
+    </section>
+  `);
+  document.querySelector("#close-modal")?.addEventListener("click", closeModal);
+}
+
+function ownerManageRow(tournament, section, label, icon, meta, incomplete = false) {
   return `
     <button class="owner-action-row manage-action-row" type="button" data-route="/tournament/${tournament.id}/manage/${section}">
       <span class="owner-action-icon">${ownerTournamentIcon(icon)}</span>
-      <strong>${label}</strong>
-      <span class="manage-row-meta">${meta}</span>
+      <span class="owner-action-copy">
+        <strong>${label}</strong>
+        <small>${ownerActionDescription(section)}</small>
+      </span>
+      <span class="manage-row-meta">${incomplete ? `<b class="incomplete-chip">غير مكتمل</b>` : meta}</span>
+      ${incomplete ? `<i class="incomplete-dot row-end-dot" aria-hidden="true"></i>` : `<span class="row-end-dot-placeholder"></span>`}
       <span class="owner-action-arrow">›</span>
     </button>
   `;
+}
+
+function isSectionIncomplete(tournament, section) {
+  if (tournament.active && !tournament.setupIncomplete) return false;
+  const activeRound = tournament.currentRound || tournament.startingRound || "round16";
+  const hasMatches = Boolean((state.matches[activeRound] || []).length);
+  const participants = getTournamentParticipants(tournament);
+  const checks = {
+    voting: !hasMatches,
+    results: !hasMatches,
+    "prediction-results": !participants.length,
+    leaderboard: !participants.length,
+    rules: !(areAllPointRulesSaved(tournament) && tournament.startingRound),
+    prizes: Boolean(tournament.hasPrizes) && !hasConfiguredPrizes(tournament),
+    notify: false,
+    "admin-team": false
+  };
+  return Boolean(checks[section]);
 }
 
 function renderTournamentManageSection(tournament, section) {
@@ -2574,8 +3583,11 @@ function renderTournamentManageSection(tournament, section) {
     "admin-team": "إدارة البطولة"
   };
   const title = titles[section] || "إدارة البطولة";
+  const topbarAction = section === "prizes" && tournament.hasPrizes
+    ? `<button class="btn ghost back-btn topbar-add-btn" type="button" id="show-extra-prize-form" data-show-extra-prize-form="true" aria-label="إضافة جائزة أخرى" title="إضافة جائزة أخرى">+</button>`
+    : "";
   app.innerHTML = `
-    ${templateTopbar(title)}
+    ${templateTopbar(title, topbarAction)}
     <section class="owner-manage-page">
       ${ownerManageSectionContent(tournament, section)}
     </section>
@@ -2591,13 +3603,53 @@ function renderTournamentManageSection(tournament, section) {
   document.querySelectorAll("[data-remove-player]").forEach((button) => {
     button.addEventListener("click", () => confirmRemoveTournamentPlayer(tournament, button.dataset.removePlayer));
   });
+  const openPlayerInviteButton = document.querySelector("#open-player-invite");
+  if (openPlayerInviteButton) {
+    openPlayerInviteButton.addEventListener("click", () => playerInviteModal(tournament));
+  }
+  document.querySelectorAll("[data-send-player-invite]").forEach((button) => {
+    button.addEventListener("click", () => sendPlayerTournamentInvite(tournament, button.dataset.sendPlayerInvite));
+  });
   const addPrizeButton = document.querySelector("#add-tournament-prize");
   if (addPrizeButton) {
     addPrizeButton.addEventListener("click", () => addTournamentPrize(tournament));
   }
+  const saveMainPrizeButton = document.querySelector("#save-main-prize");
+  if (saveMainPrizeButton) {
+    saveMainPrizeButton.addEventListener("click", () => saveMainPredictionPrize(tournament));
+  }
+  document.querySelectorAll("[data-prize-kind]").forEach((select) => {
+    select.addEventListener("change", () => updatePrizeKindFields(select.dataset.prizeKind, select.value));
+    updatePrizeKindFields(select.dataset.prizeKind, select.value);
+  });
+  document.querySelectorAll("[data-show-extra-prize-form], #show-extra-prize-form").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      prizeEditorModal(tournament);
+    });
+  });
+  const managePrizesSwitch = document.querySelector("#manage-prizes-switch");
+  if (managePrizesSwitch) {
+    managePrizesSwitch.addEventListener("click", () => toggleTournamentPrizes(tournament));
+  }
   const saveSettingsButton = document.querySelector("#save-tournament-settings");
   if (saveSettingsButton) {
     saveSettingsButton.addEventListener("click", () => saveTournamentSettings(tournament));
+  }
+  const choosePostImageButton = document.querySelector("#choose-post-image");
+  const postImageInput = document.querySelector("#settings-post-image");
+  if (choosePostImageButton && postImageInput) {
+    choosePostImageButton.addEventListener("click", () => postImageInput.click());
+    postImageInput.addEventListener("change", () => handleTournamentPostImageSelection(tournament, postImageInput));
+  }
+  const removePostImageButton = document.querySelector("#remove-post-image");
+  if (removePostImageButton) {
+    removePostImageButton.addEventListener("click", () => {
+      tournament.coverImageUrl = "";
+      tournament.postImageFileName = "";
+      renderTournamentManageSection(tournament, "settings");
+    });
   }
   const notifyForm = document.querySelector("#owner-notification-form");
   if (notifyForm) {
@@ -2610,6 +3662,10 @@ function renderTournamentManageSection(tournament, section) {
   if (cancelButton) {
     cancelButton.addEventListener("click", () => cancelTournamentWithReason(tournament));
   }
+  const confirmCancelButton = document.querySelector("#confirm-cancel-tournament");
+  if (confirmCancelButton) {
+    confirmCancelButton.addEventListener("click", () => confirmTournamentCancellation(tournament));
+  }
   const joinWindowButton = document.querySelector("#toggle-join-window");
   if (joinWindowButton) {
     joinWindowButton.addEventListener("click", () => toggleJoinWindow(tournament));
@@ -2618,6 +3674,21 @@ function renderTournamentManageSection(tournament, section) {
   if (saveAdminTeamButton) {
     saveAdminTeamButton.addEventListener("click", () => saveAdminTeam(tournament));
   }
+  const predictionPlayerSearch = document.querySelector("#prediction-player-search");
+  if (predictionPlayerSearch) {
+    predictionPlayerSearch.addEventListener("input", () => {
+      state.predictionPlayerQuery = predictionPlayerSearch.value;
+      const dropdown = document.querySelector("#prediction-player-dropdown");
+      if (dropdown) {
+        dropdown.innerHTML = predictionPlayerDropdownHtml(
+          filterPredictionParticipants(getTournamentParticipants(tournament), state.predictionPlayerQuery),
+          state.selectedPredictionViewer
+        );
+        bindPredictionPlayerButtons(tournament);
+      }
+    });
+  }
+  bindPredictionPlayerButtons(tournament);
   const saveAwardsButton = document.querySelector("#save-award-categories");
   if (saveAwardsButton) {
     saveAwardsButton.addEventListener("click", () => {
@@ -2627,30 +3698,80 @@ function renderTournamentManageSection(tournament, section) {
     });
   }
   document.querySelectorAll("[data-remove-prize]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
       tournament.prizes = getTournamentPrizes(tournament).filter((prize) => prize.id !== button.dataset.removePrize);
       renderTournamentManageSection(tournament, "prizes");
     });
   });
+  document.querySelectorAll("[data-edit-prize]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      prizeEditorModal(tournament, button.dataset.editPrize);
+    });
+  });
+  document.querySelectorAll("[data-edit-main-prize]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      mainPrizeEditorModal(tournament);
+    });
+  });
+  document.querySelectorAll("[data-view-prize]").forEach((card) => {
+    card.addEventListener("click", (event) => {
+      if (closestElement(event.target, "button")) return;
+      const swipeRow = closestElement(event.target, "[data-prize-swipe-row]");
+      if (swipeRow?.dataset.prizeJustSwiped === "true") return;
+      const prize = getTournamentPrizes(tournament).find((item) => item.id === card.dataset.viewPrize);
+      if (prize && getPrizeDetail(prize)) prizeDetailsModal(prize);
+    });
+  });
+  bindPrizeSwipeRows();
   document.querySelectorAll("[data-point-rule-round-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedPointRuleRound = button.dataset.pointRuleRoundTab;
-      renderTournamentManageSection(tournament, "points");
+      if (state.editingPointRuleRound && state.editingPointRuleRound !== button.dataset.pointRuleRoundTab) {
+        state.editingPointRuleRound = "";
+      }
+      renderTournamentManageSection(tournament, currentManageSection() || "points");
     });
   });
+  document.querySelectorAll("[data-edit-point-rule-round]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingPointRuleRound = button.dataset.editPointRuleRound;
+      state.selectedPointRuleRound = button.dataset.editPointRuleRound;
+      renderTournamentManageSection(tournament, currentManageSection() || "points");
+    });
+  });
+  document.querySelectorAll("[data-rules-round-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedPointRuleRound = button.dataset.rulesRoundTab;
+      if (state.editingPointRuleRound && state.editingPointRuleRound !== button.dataset.rulesRoundTab) {
+        state.editingPointRuleRound = "";
+      }
+      renderTournamentManageSection(tournament, "rules");
+    });
+  });
+  bindRulesSwipe(tournament);
+  const savePointRulesButton = document.querySelector("#save-point-rules");
+  if (savePointRulesButton) {
+    savePointRulesButton.addEventListener("click", () => savePointRules(tournament));
+  }
   document.querySelectorAll("[data-point-rule-type]").forEach((input) => {
     input.addEventListener("change", () => {
+      if (isPointRuleRoundControlsReadOnly(tournament, input.dataset.pointRuleRound)) return;
+      markPointRuleRoundDirty(tournament, input.dataset.pointRuleRound);
       updateTournamentPointRule(tournament, input.dataset.pointRuleRound, { type: input.value });
-      renderTournamentManageSection(tournament, "points");
+      renderTournamentManageSection(tournament, currentManageSection() || "points");
     });
   });
   document.querySelectorAll("[data-point-rule-field]").forEach((input) => {
     const eventName = input.tagName === "SELECT" ? "change" : "input";
     input.addEventListener(eventName, () => {
-      if (isPointRuleRoundLocked(tournament, input.dataset.pointRuleRound)) return;
+      if (isPointRuleRoundControlsReadOnly(tournament, input.dataset.pointRuleRound)) return;
       const field = input.dataset.pointRuleField;
+      markPointRuleRoundDirty(tournament, input.dataset.pointRuleRound);
       const stringFields = ["pointSource", "nominationType", "percentMode", "pointsMode", "settlement"];
-      const rawValue = stringFields.includes(field) ? input.value : field === "jokerEnabled" ? input.value === "true" : Number(input.value) || 0;
+      const rawValue = stringFields.includes(field) ? input.value : field === "jokerEnabled" ? input.checked : Number(input.value) || 0;
       const value = field === "winnerPercent" ? getFixedPercentWinnerShare({ winnerPercent: rawValue }) : rawValue;
       const patch = { [field]: value };
       if (field === "winnerPercent") patch.loserPercent = getFixedPercentLoserShare({ winnerPercent: value });
@@ -2661,12 +3782,28 @@ function renderTournamentManageSection(tournament, section) {
         patch.loserPoints = getFixedMatchLoserPoints(nextRule);
       }
       updateTournamentPointRule(tournament, input.dataset.pointRuleRound, patch);
-      if (stringFields.includes(field) || field === "jokerEnabled") renderTournamentManageSection(tournament, "points");
+      if (stringFields.includes(field) || field === "jokerEnabled") renderTournamentManageSection(tournament, currentManageSection() || "points");
     });
   });
   document.querySelectorAll("[data-voting-player]").forEach((button) => {
     button.addEventListener("click", () => votingPlayerDetailsModal(tournament, button.dataset.votingRound, button.dataset.votingPlayer, button.dataset.votingStatus));
   });
+  document.querySelectorAll("[data-voting-round-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedVotingRound = button.dataset.votingRoundTab;
+      renderTournamentManageSection(tournament, "voting");
+    });
+  });
+  bindVotingSwipe(tournament);
+  const leaderboardPdfButton = document.querySelector("[data-download-leaderboard-pdf]");
+  if (leaderboardPdfButton) {
+    leaderboardPdfButton.addEventListener("click", () => exportLeaderboardPdf(tournament));
+  }
+}
+
+function currentManageSection() {
+  const match = state.route.match(/^\/tournament\/[^/]+\/manage\/([^/?#]+)/);
+  return match ? match[1] : "";
 }
 
 function ownerManageSectionContent(tournament, section) {
@@ -2723,7 +3860,14 @@ function ownerPlayersPage(tournament) {
   const players = tournament.participants || [state.currentUser.name, "نورة الشامسي", "علي الكتبي", "مريم الهاشمي"];
   return `
     <section class="card panel stack manage-detail-card">
-      <p class="muted">قائمة المشاركين. خيار حذف اللاعب يظهر لصاحب البطولة فقط.</p>
+      <div class="players-page-head">
+        <div>
+          <h2 class="section-title">قائمة المشاركين</h2>
+          <p class="muted">${players.length} مشارك · حذف اللاعب متاح لصاحب البطولة فقط.</p>
+        </div>
+        <button class="btn ghost compact-btn" type="button" id="open-player-invite">إرسال دعوة</button>
+      </div>
+      ${tournament.inviteStatusMessage ? `<p class="invite-status-message compact">${tournament.inviteStatusMessage}</p>` : ""}
       <div class="participant-list">
         ${players.map((player, index) => `
           <div class="participant-row">
@@ -2754,50 +3898,360 @@ function ownerMatchResultsPage(tournament) {
 }
 
 function ownerPredictionResultsPage(tournament) {
-  const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = state.matches[round] || [];
+  const participants = getTournamentParticipants(tournament);
+  const filteredParticipants = filterPredictionParticipants(participants, state.predictionPlayerQuery);
+  const selectedPlayer = participants.includes(state.selectedPredictionViewer)
+    ? state.selectedPredictionViewer
+    : participants[0];
+  state.selectedPredictionViewer = selectedPlayer || "";
+  const tournamentRounds = getTournamentRounds(tournament);
   return `
     <section class="card panel stack manage-detail-card">
-      <p class="muted">ملخص توقعات المشاركين حسب مباريات الدور الحالي.</p>
-      ${matches.map((match) => {
-        const key = `${tournament.id}:${round}:${match.id}`;
-        const prediction = state.predictions[key] || {};
-        const outcome = getPredictionOutcome(prediction);
+      <p class="muted">ابحث داخل قائمة المشاركين فقط، ثم اختر لاعباً لمشاهدة توقعاته لكل دور حتى قبل انتهاء الجولة.</p>
+      <label class="settings-control prediction-player-picker">
+        <span>اختيار المشارك</span>
+        <input class="input" id="prediction-player-search" value="${state.predictionPlayerQuery || selectedPlayer || ""}" placeholder="اكتب أول أحرف من اسم المشارك">
+        <div class="prediction-player-dropdown" id="prediction-player-dropdown">
+          ${predictionPlayerDropdownHtml(filteredParticipants, selectedPlayer)}
+        </div>
+      </label>
+    </section>
+    <section class="card panel stack manage-detail-card">
+      <div class="section-row">
+        <h2 class="section-title">${selectedPlayer || "لا يوجد مشاركون"}</h2>
+        <span class="muted">${tournamentRounds.length} أدوار</span>
+      </div>
+      ${selectedPlayer ? tournamentRounds.map((round) => ownerPredictionRoundBlock(tournament, round.id, selectedPlayer)).join("") : `<p class="muted">لا توجد بيانات مشاركين.</p>`}
+    </section>
+  `;
+}
+
+function playerInviteModal(tournament) {
+  const inviteResults = tournamentInviteSearchResults(tournament, state.playerInviteQuery);
+  openModal(`
+    <section class="card modal stack player-invite-modal">
+      <div class="topbar">
+        <div>
+          <h2 class="section-title">إرسال دعوة</h2>
+          <p class="muted">ابحث عن لاعب مسجل وأرسل له دعوة للبطولة.</p>
+        </div>
+        ${modalCloseButton()}
+      </div>
+      <input class="input" id="player-invite-search" value="${state.playerInviteQuery || ""}" placeholder="ابحث بالاسم أو اليوزرنيم">
+      ${tournament.inviteStatusMessage ? `<p class="invite-status-message">${tournament.inviteStatusMessage}</p>` : ""}
+      <div class="invite-search-results">
+        ${inviteResults.length ? inviteResults.map((user) => playerInviteResultRow(tournament, user)).join("") : `<p class="muted">اكتب اسم لاعب لإظهار النتائج.</p>`}
+      </div>
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+  const search = document.querySelector("#player-invite-search");
+  if (search) {
+    search.addEventListener("input", (event) => {
+      state.playerInviteQuery = event.target.value;
+      tournament.inviteStatusMessage = "";
+      playerInviteModal(tournament);
+      document.querySelector("#player-invite-search")?.focus();
+    });
+    search.focus();
+  }
+  document.querySelectorAll("[data-send-player-invite]").forEach((button) => {
+    button.addEventListener("click", () => sendPlayerTournamentInvite(tournament, button.dataset.sendPlayerInvite, { keepModalOpen: true }));
+  });
+}
+
+function tournamentInviteSearchResults(tournament, query = "") {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return [];
+  return state.users
+    .filter((user) => {
+      const haystack = `${user.name} ${user.username} ${user.handle}`.toLowerCase();
+      return haystack.includes(normalized);
+    })
+    .slice(0, 5);
+}
+
+function isTournamentParticipantName(tournament, user) {
+  const participants = getTournamentParticipants(tournament).map((name) => name.toLowerCase());
+  const firstName = user.name.split(" ")[0].toLowerCase();
+  return participants.some((name) => name === user.name.toLowerCase() || name === firstName || name === user.username.toLowerCase());
+}
+
+function playerInviteResultRow(tournament, user) {
+  const invited = (tournament.invitedUsers || []).includes(user.username);
+  const participant = isTournamentParticipantName(tournament, user);
+  const disabled = invited || participant;
+  const label = participant ? "مشارك" : invited ? "تم الإرسال" : "إرسال دعوة";
+  return `
+    <div class="invite-result-row">
+      <span class="mini-avatar">${user.name.trim().slice(0, 1)}</span>
+      <span>
+        <strong>${user.name}</strong>
+        <small>${user.handle}</small>
+      </span>
+      <button class="btn ${disabled ? "ghost" : "accent"} compact-btn" type="button" data-send-player-invite="${user.username}" ${disabled ? "disabled" : ""}>${label}</button>
+    </div>
+  `;
+}
+
+function sendPlayerTournamentInvite(tournament, username, options = {}) {
+  const user = state.users.find((item) => item.username === username);
+  if (!user || isTournamentParticipantName(tournament, user)) return;
+  tournament.invitedUsers = [...new Set([...(tournament.invitedUsers || []), user.username])];
+  tournament.sentInvites = [
+    ...(tournament.sentInvites || []),
+    {
+      username: user.username,
+      name: user.name,
+      sentAt: new Date().toISOString(),
+      status: "pending"
+    }
+  ];
+  tournament.inviteStatusMessage = `تم إرسال دعوة إلى ${user.name}`;
+  state.playerInviteQuery = "";
+  if (options.keepModalOpen) {
+    playerInviteModal(tournament);
+    return;
+  }
+  renderTournamentManageSection(tournament, "players");
+}
+
+function filterPredictionParticipants(participants, query = "") {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return participants;
+  return participants.filter((player) => String(player).toLowerCase().includes(normalizedQuery));
+}
+
+function predictionPlayerDropdownHtml(participants, selectedPlayer) {
+  return participants.length ? participants.map((player) => `
+    <button class="${player === selectedPlayer ? "active" : ""}" type="button" data-prediction-player="${player}">
+      <span>${player}</span>
+      <strong>${player === selectedPlayer ? "مختار" : "اختيار"}</strong>
+    </button>
+  `).join("") : `<p class="muted">لا يوجد مشارك بهذا الاسم.</p>`;
+}
+
+function bindPredictionPlayerButtons(tournament) {
+  document.querySelectorAll("[data-prediction-player]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedPredictionViewer = button.dataset.predictionPlayer;
+      state.predictionPlayerQuery = button.dataset.predictionPlayer;
+      renderTournamentManageSection(tournament, "prediction-results");
+    });
+  });
+}
+
+function ownerPredictionRoundBlock(tournament, roundId, playerName) {
+  const round = rounds.find((item) => item.id === roundId);
+  const matches = state.matches[roundId] || [];
+  const status = getVotingStatusForRound(tournament, roundId);
+  const completed = status.completed.includes(playerName);
+  const isCurrentUser = playerName === state.currentUser.name;
+  return `
+    <article class="prediction-admin-round">
+      <div class="leader-row">
+        <span>${round?.label || roundId}</span>
+        <strong class="${completed ? "correct" : "muted"}">${completed ? "أنهى التصويت" : "لم يصوت"}</strong>
+      </div>
+      ${matches.length ? matches.map((match, index) => {
+        const key = `${tournament.id}:${roundId}:${match.id}`;
+        const actual = isCurrentUser ? state.predictions[key] : null;
+        const outcome = actual ? getPredictionOutcome(actual) : "";
+        const points = actual ? getPredictionPoints(actual) : 0;
+        const fallback = completed && !actual ? (index % 2 ? match.b : match.a) : "";
+        const label = outcome
+          ? `${outcomeText(outcome, match)}${points ? ` · ${points} نقطة` : ""}`
+          : fallback ? `${outcomeText(fallback, match)} · معاينة` : "بانتظار التصويت";
         return `
-          <div class="leader-row">
+          <div class="leader-row compact-row">
             <span>${teamIdentityHtml(match.a)} ضد ${teamIdentityHtml(match.b)}</span>
-            <strong>${outcome ? outcomeText(outcome, match) : "بانتظار التوقعات"}</strong>
+            <strong>${label}</strong>
           </div>
         `;
-      }).join("") || `<p class="muted">لا توجد توقعات معروضة بعد.</p>`}
-    </section>
+      }).join("") : `<p class="muted">لا توجد مباريات لهذا الدور.</p>`}
+    </article>
   `;
 }
 
 function ownerLeaderboardPage(tournament) {
+  const rows = leaderboardData(tournament);
   return `
     <section class="card panel stack manage-detail-card">
-      <p class="muted">ترتيب المشاركين حسب النقاط الحالية وعدد الترشيحات.</p>
-      <div class="leaderboard-list">${leaderboardRows(tournament).join("")}</div>
+      <div class="section-row">
+        <div>
+          <h2 class="section-title">ترتيب المشاركين</h2>
+          <p class="muted">جميع المشاركين مرتبين من الأعلى نقاطاً إلى الأقل.</p>
+        </div>
+        <button class="icon-btn pdf-download-btn" type="button" data-download-leaderboard-pdf aria-label="تنزيل جدول الترتيب PDF" title="تنزيل PDF">
+          ${downloadIcon()}
+        </button>
+      </div>
+      <div class="leaderboard-table-wrap">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>الترتيب</th>
+              <th>المشارك</th>
+              <th>النقاط</th>
+              <th>صحيح</th>
+              <th>خاطئ</th>
+              <th>الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row, index) => `
+              <tr class="${index < 3 ? `top-leader-row top-leader-${index + 1}` : ""} ${row.name === state.currentUser.name ? "current-user-row" : ""}">
+                <td><span class="leader-rank">#${index + 1}</span></td>
+                <td class="leaderboard-player-cell">${row.name}</td>
+                <td><strong>${row.points}</strong></td>
+                <td><span class="correct">${row.correct}</span></td>
+                <td><span class="wrong">${row.wrong}</span></td>
+                <td>${row.total}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     </section>
+  `;
+}
+
+function downloadIcon() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3v10"></path>
+      <path d="m7 9 5 5 5-5"></path>
+      <path d="M5 19h14"></path>
+    </svg>
   `;
 }
 
 function ownerRulesPage(tournament) {
+  const tournamentRounds = getTournamentRounds(tournament);
+  const selectedRoundId = tournamentRounds.some((round) => round.id === state.selectedPointRuleRound)
+    ? state.selectedPointRuleRound
+    : tournamentRounds[0]?.id;
+  state.selectedPointRuleRound = selectedRoundId || "";
+  const selectedIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === selectedRoundId));
+  const selectedRound = tournamentRounds[selectedIndex] || tournamentRounds[0];
+  const selectedLocked = selectedRound ? isPointRuleRoundLocked(tournament, selectedRound.id) : false;
+  const selectedSaved = selectedRound ? isPointRuleRoundSaved(tournament, selectedRound.id) : false;
+  const selectedEditing = selectedRound ? state.editingPointRuleRound === selectedRound.id : false;
+  const showEditor = Boolean(selectedRound && !selectedLocked && (!selectedSaved || selectedEditing));
   return `
-    <section class="card panel stack manage-detail-card">
-      <p class="muted">القوانين التي تظهر للمشاركين داخل البطولة.</p>
-      <div class="leader-row"><span>نقطة الانطلاق</span><strong>${rounds.find((round) => round.id === tournament.startingRound)?.label || "-"}</strong></div>
-      <div class="leader-row"><span>ميزانية النقاط</span><strong>${tournament.budget || 0}</strong></div>
-      <div class="leader-row"><span>الحد الأدنى للفريق</span><strong>${tournament.minPoints || 0}</strong></div>
-      <button class="btn accent" type="button" data-route="/tournament/${tournament.id}/manage/points">تعديل قواعد النقاط</button>
-      <button class="btn ghost" type="button" data-route="/tournament/${tournament.id}/manage/awards">تعديل الترشيحات والجوائز</button>
+    <section class="voting-screen rules-screen" data-rules-swipe>
+      <p class="muted">القوانين التي تظهر للمشاركين داخل البطولة حسب كل دور.</p>
+      <div class="voting-role-tabs" style="--tab-count:${tournamentRounds.length}; --active-index:${selectedIndex};">
+        ${tournamentRounds.map((round) => `
+          <button class="voting-role-tab ${round.id === selectedRound?.id ? "active" : ""}" type="button" data-rules-round-tab="${round.id}">
+            ${round.label}
+          </button>
+        `).join("")}
+        <span class="voting-role-indicator" aria-hidden="true"></span>
+      </div>
+      <div class="voting-swipe-pane">
+        ${selectedRound ? (showEditor ? pointRuleCard(tournament, selectedRound) : ownerRulesRoundPanel(tournament, selectedRound)) : ""}
+      </div>
+      ${showEditor ? `
+        <button class="btn accent" type="button" id="save-point-rules">حفظ قواعد ${selectedRound?.label || "الدور الحالي"}</button>
+        <p class="action-help-text">بعد الحفظ يغلق الكرت ويصبح للعرض فقط. يمكن فتحه من جديد بزر تعديل إذا لم يبدأ الدور.</p>
+      ` : ""}
+      ${selectedLocked ? `<p class="action-help-text locked-help">لا يمكن تعديل قواعد هذا الدور لأنه بدأ مسبقاً. القواعد محفوظة للقراءة فقط.</p>` : ""}
     </section>
   `;
 }
 
+function ownerRulesRoundPanel(tournament, round) {
+  const rule = getTournamentPointRules(tournament)[round.id];
+  const rulesReady = isPointRuleRoundSaved(tournament, round.id);
+  return `
+    <article class="voting-round-card rules-round-card">
+      <div class="voting-round-head">
+        <div>
+          <strong>قوانين ${round.label}</strong>
+          <span>${rulesReady ? pointRuleTypeLabel(rule) : "غير مكتمل"}</span>
+        </div>
+        <div class="point-rule-actions">
+          <span class="championship-status-text">${isPointRuleRoundLocked(tournament, round.id) ? "مقفل" : "قابل للمراجعة"}</span>
+          ${!isPointRuleRoundLocked(tournament, round.id) ? `<button class="btn ghost compact-btn" type="button" data-edit-rules-round="${round.id}" data-tournament-id="${tournament.id}">تعديل</button>` : ""}
+        </div>
+      </div>
+      ${rulesReady ? `
+        <div class="leader-row"><span>مصدر النقاط</span><strong>${pointSourceLabel(rule)}</strong></div>
+        <div class="leader-row"><span>طريقة الترشيح</span><strong>${pointRuleTypeLabel(rule)}</strong></div>
+        <div class="leader-row"><span>آلية الاحتساب</span><strong>${rule.pointSource === "league" ? "صحيح / خطأ" : settlementSummary(rule)}</strong></div>
+        <div class="point-rule-example"><strong>شرح الدور</strong><span>${pointRuleDescription(rule)}</span></div>
+      ` : `
+        <div class="leader-row"><span>مصدر النقاط</span><strong>بيانات فارغة</strong></div>
+        <div class="leader-row"><span>طريقة الترشيح</span><strong>بيانات فارغة</strong></div>
+        <div class="leader-row"><span>آلية الاحتساب</span><strong>بيانات فارغة</strong></div>
+        <div class="notice">هذا الدور غير مكتمل. أضف قواعد النقاط واحفظها قبل تفعيل البطولة.</div>
+      `}
+    </article>
+  `;
+}
+
+function pointSourceLabel(rule) {
+  if (rule.pointSource === "league") return "دوري النقاط";
+  if (rule.pointSource === "grant") return `إضافة ${rule.budget} نقطة لكل لاعب`;
+  return "استخدام الرصيد المتراكم";
+}
+
 function getTournamentParticipants(tournament) {
-  return tournament.participants || [state.currentUser.name, "نورة الشامسي", "علي الكتبي", "مريم الهاشمي"];
+  const fallbackNames = [
+    state.currentUser.name,
+    "نورة الشامسي",
+    "علي الكتبي",
+    "مريم الهاشمي",
+    "خالد السويدي",
+    "راشد المنصوري",
+    "هند البلوشي",
+    "فهد الكتبي",
+    "سارة العامري",
+    "أحمد المرزوقي",
+    "لطيفة النعيمي",
+    "ماجد الشامسي",
+    "ريم المزروعي",
+    "عبدالله الحمادي",
+    "حمدان الظاهري",
+    "سيف المطروشي",
+    "جميلة الهاشمي",
+    "يوسف العلي"
+  ];
+  const baseParticipants = Array.isArray(tournament.participants) && tournament.participants.length
+    ? tournament.participants
+    : [];
+  const targetCount = Math.max(baseParticipants.length, Number(tournament.friends) || 0, 1);
+  const merged = [...new Set([...baseParticipants, ...fallbackNames])];
+  while (merged.length < targetCount) {
+    merged.push(`مشارك ${merged.length + 1}`);
+  }
+  return merged.slice(0, targetCount);
+}
+
+function getTournamentParticipantCount(tournament) {
+  return getTournamentParticipants(tournament).length;
+}
+
+function getTournamentCapacity(tournament) {
+  return Number(tournament.maxPlayers) || Infinity;
+}
+
+function isTournamentAtCapacity(tournament) {
+  return getTournamentParticipantCount(tournament) >= getTournamentCapacity(tournament);
+}
+
+function capacityReachedModal(tournament) {
+  openModal(`
+    <section class="card modal stack">
+      <div class="topbar">
+        <h2 class="section-title">اكتمل عدد المشاركين</h2>
+        ${modalCloseButton()}
+      </div>
+      <p class="muted">وصلت بطولة ${tournament.name} إلى الحد الأقصى للمشاركين (${getTournamentCapacity(tournament)}).</p>
+    </section>
+  `);
+  document.querySelector("#close-modal")?.addEventListener("click", closeModal);
 }
 
 function getVotingSummary(tournament) {
@@ -2828,20 +4282,35 @@ function getVotingStatusForRound(tournament, roundId) {
 
 function ownerVotingStatusPage(tournament) {
   const tournamentRounds = getTournamentRounds(tournament);
+  const activeRound = tournament.currentRound || tournament.startingRound || tournamentRounds[0]?.id;
+  const selectedRoundId = tournamentRounds.some((round) => round.id === state.selectedVotingRound)
+    ? state.selectedVotingRound
+    : activeRound;
+  state.selectedVotingRound = selectedRoundId;
+  const selectedIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === selectedRoundId));
+  const selectedRound = tournamentRounds[selectedIndex] || tournamentRounds[0];
+  const status = getVotingStatusForRound(tournament, selectedRound.id);
   return `
-    <section class="card panel stack manage-detail-card">
-      <p class="muted">تابع من أنهى التصويت ومن لم يصوت في كل جولة. اللاعبون الذين لا يصوتون قبل القفل يخسرون نقاط الجولة حسب قواعد البطولة.</p>
-      <div class="voting-round-list">
-        ${tournamentRounds.map((round) => ownerVotingRoundCard(tournament, round)).join("")}
+    <section class="voting-screen" data-voting-swipe>
+      <div class="voting-role-tabs" style="--tab-count:${tournamentRounds.length}; --active-index:${selectedIndex};">
+        ${tournamentRounds.map((round) => `
+          <button class="voting-role-tab ${round.id === selectedRound.id ? "active" : ""}" type="button" data-voting-round-tab="${round.id}">
+            ${round.label}
+          </button>
+        `).join("")}
+        <span class="voting-role-indicator" aria-hidden="true"></span>
+      </div>
+      <div class="voting-swipe-pane">
+        ${ownerVotingRoundPanel(tournament, selectedRound, status)}
       </div>
     </section>
   `;
 }
 
-function ownerVotingRoundCard(tournament, round) {
-  const status = getVotingStatusForRound(tournament, round.id);
+function ownerVotingRoundPanel(tournament, round, status) {
+  const completedPct = status.total ? Math.round((status.completed.length / status.total) * 100) : 0;
   return `
-    <article class="voting-round-card">
+    <article class="voting-round-card voting-round-panel">
       <div class="voting-round-head">
         <div>
           <strong>${round.label}</strong>
@@ -2849,7 +4318,21 @@ function ownerVotingRoundCard(tournament, round) {
         </div>
         <span class="championship-status-text">${status.locked ? "مغلقة حالياً" : "متابعة مباشرة"}</span>
       </div>
-      <div class="voting-progress" style="--pct: ${status.total ? Math.round((status.completed.length / status.total) * 100) : 0}%"><span></span></div>
+      <div class="voting-summary-card" aria-label="ملخص حالة التصويت">
+        <div>
+          <span>إجمالي المشاركين</span>
+          <strong>${status.total}</strong>
+        </div>
+        <div>
+          <span>قاموا بالتصويت</span>
+          <strong>${status.completed.length}</strong>
+        </div>
+        <div>
+          <span>لم يصوتوا</span>
+          <strong>${status.pending.length}</strong>
+        </div>
+      </div>
+      <div class="voting-progress" style="--pct: ${completedPct}%"><span></span></div>
       <div class="voting-status-grid">
         <div>
           <h3>أنهوا التصويت</h3>
@@ -2872,6 +4355,71 @@ function votingPlayerRow(player, status, roundId) {
       <span>${status === "done" ? "مكتمل" : "بانتظار التصويت"}</span>
     </button>
   `;
+}
+
+function bindVotingSwipe(tournament) {
+  const pane = document.querySelector("[data-voting-swipe]");
+  if (!pane) return;
+  let startX = 0;
+  let startY = 0;
+  let isHorizontal = false;
+  pane.addEventListener("pointerdown", (event) => {
+    startX = event.clientX;
+    startY = event.clientY;
+    isHorizontal = false;
+  });
+  pane.addEventListener("pointermove", (event) => {
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) > 16 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+      isHorizontal = true;
+    }
+  });
+  pane.addEventListener("pointerup", (event) => {
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (!isHorizontal || Math.abs(deltaX) < 48 || Math.abs(deltaY) > Math.abs(deltaX)) return;
+    const tournamentRounds = getTournamentRounds(tournament);
+    const currentIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === state.selectedVotingRound));
+    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+    if (!tournamentRounds[nextIndex]) return;
+    state.selectedVotingRound = tournamentRounds[nextIndex].id;
+    renderTournamentManageSection(tournament, "voting");
+  });
+}
+
+function bindRulesSwipe(tournament) {
+  const pane = document.querySelector("[data-rules-swipe]");
+  if (!pane) return;
+  let startX = 0;
+  let startY = 0;
+  let isHorizontal = false;
+  pane.addEventListener("pointerdown", (event) => {
+    startX = event.clientX;
+    startY = event.clientY;
+    isHorizontal = false;
+  });
+  pane.addEventListener("pointermove", (event) => {
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) > 16 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+      isHorizontal = true;
+    }
+  });
+  pane.addEventListener("pointerup", (event) => {
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (!isHorizontal || Math.abs(deltaX) < 48 || Math.abs(deltaY) > Math.abs(deltaX)) return;
+    const tournamentRounds = getTournamentRounds(tournament);
+    const currentIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === state.selectedPointRuleRound));
+    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+    if (!tournamentRounds[nextIndex]) return;
+    state.selectedPointRuleRound = tournamentRounds[nextIndex].id;
+    if (state.editingPointRuleRound && state.editingPointRuleRound !== state.selectedPointRuleRound) {
+      state.editingPointRuleRound = "";
+    }
+    renderTournamentManageSection(tournament, "rules");
+  });
 }
 
 function votingPlayerDetailsModal(tournament, roundId, playerName, status) {
@@ -2970,11 +4518,22 @@ function ownerSettingsPage(tournament) {
   return `
     <section class="card panel stack manage-detail-card">
       <p class="muted">هذه الإعدادات في أيقونة أعلى صفحة الأدمن. لا تظهر البطولة للجميع قبل تاريخ البداية المحدد وبعد التفعيل.</p>
+      <div class="post-image-setting">
+        <div class="post-image-preview ${tournament.coverImageUrl ? "has-image" : ""}">
+          ${tournament.coverImageUrl ? `<img src="${tournament.coverImageUrl}" alt="">` : `<span>تصميم الملعب الافتراضي</span>`}
+        </div>
+        <div>
+          <strong>صورة بوست البطولة</strong>
+          <p class="muted">تظهر في أعلى صفحة البطولة. إذا لم تضف صورة، يبقى تصميم الملعب الحالي كخيار تلقائي.</p>
+          <input class="sr-only-file" id="settings-post-image" type="file" accept="image/*">
+          <button class="btn ghost compact-btn" type="button" id="choose-post-image">${tournament.coverImageUrl ? "تعديل الصورة" : "اختيار صورة"}</button>
+          ${tournament.coverImageUrl ? `<button class="btn ghost compact-btn" type="button" id="remove-post-image">إزالة الصورة</button>` : ""}
+        </div>
+      </div>
       <label class="settings-control"><span>اسم البطولة</span><input class="input" id="settings-tournament-name" value="${tournament.name}"></label>
       <label class="settings-control"><span>الخصوصية</span><select class="select" id="settings-privacy"><option value="public" ${tournament.public ? "selected" : ""}>عام</option><option value="private" ${!tournament.public ? "selected" : ""}>خاص</option></select></label>
       <label class="settings-control"><span>الحد الأقصى للمشاركين</span><input class="input" id="settings-max-players" type="number" min="2" value="${tournament.maxPlayers || Math.max(tournament.friends || 1, 16)}"></label>
       <label class="settings-control"><span>تاريخ بدء البطولة</span><input class="input" id="settings-start-date" type="date" min="${today}" value="${tournament.startDate || today}"></label>
-      <label class="settings-control"><span>صورة البوست</span><input class="input" id="settings-post-image" type="file" accept="image/*"></label>
       <div class="notice">خيار المشاركة يظهر دائماً لصاحب البطولة، لكن البطولة تظهر للجميع بعد تاريخ البداية وعند التفعيل.</div>
       <button class="btn accent" id="save-tournament-settings" type="button">حفظ التغييرات</button>
     </section>
@@ -2986,54 +4545,270 @@ function saveTournamentSettings(tournament) {
   tournament.public = document.querySelector("#settings-privacy")?.value !== "private";
   tournament.maxPlayers = Number(document.querySelector("#settings-max-players")?.value) || tournament.maxPlayers || 16;
   tournament.startDate = document.querySelector("#settings-start-date")?.value || tournament.startDate;
-  const postImage = document.querySelector("#settings-post-image")?.files?.[0]?.name || "";
-  if (postImage) tournament.postImageFileName = postImage;
   if (!tournament.public && !tournament.inviteCode) tournament.inviteCode = generateInviteCode();
   tournament.publicCode = tournament.public ? (tournament.publicCode || tournament.officialCompetitionCode || "PUBLIC") : "";
-  renderTournamentManageSection(tournament, "settings");
+  const previousRoute = state.routeHistory.pop();
+  replaceRoute(previousRoute || `/tournament/${tournament.id}/manage`);
+}
+
+function handleTournamentPostImageSelection(tournament, input) {
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    openModal(`
+      <section class="card modal stack">
+        <div class="topbar">
+          <h2 class="section-title">اختيار صورة</h2>
+          ${modalCloseButton()}
+        </div>
+        <p class="muted">يرجى اختيار ملف صورة.</p>
+      </section>
+    `);
+    document.querySelector("#close-modal").addEventListener("click", closeModal);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => postImageCropModal(tournament, String(reader.result || ""), file.name);
+  reader.readAsDataURL(file);
+}
+
+function postImageCropModal(tournament, imageUrl, fileName) {
+  openPostImageCropModal(imageUrl, fileName, (cropped) => {
+    tournament.coverImageUrl = cropped;
+    tournament.postImageFileName = fileName;
+    closeModal();
+    renderTournamentManageSection(tournament, "settings");
+  });
+}
+
+function openPostImageCropModal(imageUrl, fileName, onSave) {
+  openModal(`
+    <section class="card modal stack post-crop-modal">
+      <div class="topbar">
+        <h2 class="section-title">قص صورة البوست</h2>
+        ${modalCloseButton()}
+      </div>
+      <p class="muted">حرّك الصورة واختر حجمها حتى تظهر بشكل مناسب في أعلى صفحة البطولة.</p>
+      <div class="post-crop-frame" id="post-crop-frame">
+        <img id="post-crop-image" src="${imageUrl}" alt="">
+      </div>
+      <div class="post-crop-controls">
+        <label class="settings-control"><span>تكبير الصورة</span><input class="input" id="post-crop-zoom" type="range" min="1" max="2.4" step="0.05" value="1.2"></label>
+        <label class="settings-control"><span>تحريك أفقي</span><input class="input" id="post-crop-x" type="range" min="-50" max="50" step="1" value="0"></label>
+        <label class="settings-control"><span>تحريك عمودي</span><input class="input" id="post-crop-y" type="range" min="-50" max="50" step="1" value="0"></label>
+      </div>
+      <button class="btn accent" type="button" id="save-post-crop" disabled>حفظ الصورة</button>
+    </section>
+  `);
+  const close = document.querySelector("#close-modal");
+  const image = document.querySelector("#post-crop-image");
+  const zoom = document.querySelector("#post-crop-zoom");
+  const x = document.querySelector("#post-crop-x");
+  const y = document.querySelector("#post-crop-y");
+  const saveButton = document.querySelector("#save-post-crop");
+  const applyPreview = () => {
+    image.style.transform = `translate(calc(-50% + ${x.value}%), calc(-50% + ${y.value}%)) scale(${zoom.value})`;
+  };
+  [zoom, x, y].forEach((input) => input.addEventListener("input", applyPreview));
+  applyPreview();
+  image.addEventListener("load", () => {
+    saveButton.disabled = false;
+  });
+  if (image.complete && image.naturalWidth) saveButton.disabled = false;
+  close.addEventListener("click", closeModal);
+  saveButton.addEventListener("click", () => {
+    const cropped = cropPostImageToDataUrl(image, Number(zoom.value), Number(x.value), Number(y.value));
+    onSave(cropped, fileName);
+  });
+}
+
+function cropPostImageToDataUrl(image, zoom = 1.2, offsetX = 0, offsetY = 0) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 480;
+  const ctx = canvas.getContext("2d");
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight) * zoom;
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+  const x = (canvas.width - drawWidth) / 2 + (offsetX / 100) * canvas.width;
+  const y = (canvas.height - drawHeight) / 2 + (offsetY / 100) * canvas.height;
+  ctx.drawImage(image, x, y, drawWidth, drawHeight);
+  return canvas.toDataURL("image/jpeg", 0.88);
 }
 
 function getTournamentPrizes(tournament) {
   if (Array.isArray(tournament.prizes)) return tournament.prizes;
-  tournament.prizes = [
-    { id: "p-1", rank: "المركز الأول", title: "جائزة بطل التوقعات", value: "درع البطولة", note: "تمنح لصاحب أعلى رصيد بعد نهاية البطولة." },
-    { id: "p-2", rank: "المركز الثاني", title: "جائزة الوصيف", value: "ميدالية", note: "تمنح لصاحب ثاني أعلى رصيد." }
-  ];
+  tournament.prizes = [];
   return tournament.prizes;
 }
 
 function ownerPrizesPage(tournament) {
   const prizes = getTournamentPrizes(tournament);
-  const selectedAwards = awardOptions.filter((award) => (tournament.awardCategories || []).includes(award.id));
+  const mainPrize = getMainPredictionPrize(tournament);
+  const extraPrizes = prizes.filter((prize) => prize.awardId !== "prediction-champion");
   return `
     <section class="card panel stack manage-detail-card">
-      <p class="muted">أضف الجوائز الفعلية التي سيعلنها صاحب البطولة للفائزين في مسابقة التوقعات.</p>
-      <div class="prize-list">
-        ${prizes.length ? prizes.map(tournamentPrizeCard).join("") : `<p class="muted">لا توجد جوائز مضافة حتى الآن.</p>`}
+      <div class="toggle-row wide prize-toggle-row">
+        <div>
+          <strong>تفعيل الجوائز</strong>
+          <div class="muted">يعكس اختيارك في إنشاء البطولة. عند التفعيل تصبح إضافة الجوائز مطلوبة قبل تفعيل البطولة.</div>
+        </div>
+        <button type="button" class="switch ${tournament.hasPrizes ? "on" : ""}" id="manage-prizes-switch" aria-pressed="${tournament.hasPrizes ? "true" : "false"}"><span></span></button>
       </div>
     </section>
 
+    ${tournament.hasPrizes ? `
     <section class="card panel stack manage-detail-card">
-      <h2 class="section-title">جوائز حسب النوع</h2>
-      <p class="muted">اختياري: لكل نوع ترشيح مفعّل يمكنك تحديد جائزة خاصة أو تركه بدون جائزة.</p>
-      <div class="prize-list">
-        ${selectedAwards.length ? selectedAwards.map((award) => awardPrizeRow(tournament, award)).join("") : `<p class="muted">لا توجد أنواع ترشيحات مفعلة. فعّل الأنواع من صفحة الجوائز والترشيحات أولاً.</p>`}
+      <div class="prize-section-block">
+        <h3 class="subsection-title">الجائزة الرئيسية</h3>
+        <p class="muted">تظهر تلقائياً عند تفعيل الجوائز وهي جائزة بطل التوقعات.</p>
+        ${mainPredictionPrizeCard(mainPrize)}
+      </div>
+      <div class="prize-section-divider" aria-hidden="true"></div>
+      <div class="prize-section-block">
+        <h3 class="subsection-title">الجوائز الأخرى</h3>
+        <div class="prize-list">
+          ${extraPrizes.length ? extraPrizes.map(tournamentPrizeCard).join("") : `<p class="muted">لا توجد جوائز إضافية حتى الآن.</p>`}
+        </div>
       </div>
     </section>
-
+    ` : `
     <section class="card panel stack manage-detail-card">
-      <h2 class="section-title">إضافة جائزة</h2>
-      <div class="prize-form-grid">
-        <label class="settings-control"><span>نوع الجائزة</span><select class="select" id="prize-rank"><option>المركز الأول</option><option>المركز الثاني</option><option>المركز الثالث</option><option>جائزة خاصة</option>${selectedAwards.map((award) => `<option value="${award.id}">${award.label}</option>`).join("")}</select></label>
-        <label class="settings-control"><span>اسم الجائزة</span><input class="input" id="prize-title" placeholder="مثال: جائزة بطل التوقعات"></label>
-        <label class="settings-control"><span>القيمة أو الوصف المختصر</span><input class="input" id="prize-value" placeholder="مثال: 500 درهم / كأس / قميص"></label>
-        <label class="settings-control"><span>رقم التواصل</span><input class="input" id="prize-contact" placeholder="مثال: 0500000000"></label>
-        <label class="settings-control"><span>آلية التسليم</span><input class="input" id="prize-delivery" placeholder="مثال: تواصل واتساب بعد نهاية البطولة"></label>
-        <label class="settings-control wide"><span>ملاحظات</span><textarea class="textarea" id="prize-note" placeholder="شروط استلام الجائزة أو تفاصيل إضافية"></textarea></label>
-      </div>
-      <button class="btn accent" type="button" id="add-tournament-prize">إضافة الجائزة</button>
+      <h2 class="section-title">الجوائز غير مفعلة</h2>
+      <p class="muted">لن تكون الجوائز مطلوبة عند تفعيل البطولة، ولن تظهر للمشاركين. يمكنك تفعيلها من السويتش أعلاه في أي وقت قبل بدء البطولة.</p>
     </section>
+    `}
   `;
+}
+
+function toggleTournamentPrizes(tournament) {
+  tournament.hasPrizes = !tournament.hasPrizes;
+  state.showExtraPrizeForm = false;
+  renderTournamentManageSection(tournament, "prizes");
+}
+
+function getMainPredictionPrize(tournament) {
+  return getTournamentPrizes(tournament).find((prize) => prize.awardId === "prediction-champion");
+}
+
+function hasConfiguredPrizes(tournament) {
+  const mainPrize = getMainPredictionPrize(tournament);
+  return Boolean(mainPrize?.title && getPrizeDetail(mainPrize));
+}
+
+function mainPredictionPrizeCard(prize) {
+  const complete = Boolean(prize?.title && getPrizeDetail(prize));
+  return `
+    <article class="prize-card main-prize-card ${complete ? "clickable-prize-card" : ""}" ${complete ? `data-view-prize="${prize.id}"` : ""}>
+      <div class="prize-rank">بطل التوقعات</div>
+      <div>
+        <strong>جائزة بطل التوقعات ${complete ? "" : `<i class="incomplete-dot prize-inline-dot" aria-hidden="true"></i>`}</strong>
+        <span>${prize ? prizeValueText(prize) : "بيانات الجائزة مطلوبة قبل تفعيل البطولة"}</span>
+      </div>
+      <div class="prize-card-actions">
+        ${complete ? "" : `<span class="incomplete-chip">غير مكتمل</span>`}
+        <button class="btn ghost compact-btn" type="button" data-edit-main-prize="true">تعديل</button>
+      </div>
+    </article>
+  `;
+}
+
+function prizeKindFields(prefix, prize = {}) {
+  const type = prize.prizeType || "cash";
+  const cashHidden = type !== "cash";
+  const inKindHidden = type !== "in-kind";
+  return `
+    <label class="settings-control"><span>نوع الجائزة</span><select class="select" id="${prefix}-prize-type" data-prize-kind="${prefix}">
+      <option value="cash" ${type === "cash" ? "selected" : ""}>نقدية</option>
+      <option value="in-kind" ${type === "in-kind" ? "selected" : ""}>عينية</option>
+    </select></label>
+    <label class="settings-control" data-prize-kind-field="${prefix}" data-kind="cash" ${cashHidden ? "hidden" : ""}><span>القيمة</span><input class="input" id="${prefix}-prize-cash" value="${prize.value || ""}" placeholder="مثال: 500 درهم" ${cashHidden ? "disabled" : ""}></label>
+    <label class="settings-control" data-prize-kind-field="${prefix}" data-kind="in-kind" ${inKindHidden ? "hidden" : ""}><span>وصف الجائزة</span><input class="input" id="${prefix}-prize-description" value="${prize.description || ""}" placeholder="مثال: قميص رسمي / كأس / جهاز" ${inKindHidden ? "disabled" : ""}></label>
+  `;
+}
+
+function mainPrizeEditorModal(tournament) {
+  const prize = getMainPredictionPrize(tournament) || {};
+  openModal(`
+    <section class="card modal stack">
+      <div class="topbar">
+        <h2 class="section-title">تعديل الجائزة الرئيسية</h2>
+        ${modalCloseButton()}
+      </div>
+      <div class="prize-form-grid">
+        ${prizeKindFields("main", prize)}
+      </div>
+      <button class="btn accent" type="button" id="save-main-prize">حفظ الجائزة الرئيسية</button>
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+  document.querySelectorAll("[data-prize-kind]").forEach((select) => {
+    select.addEventListener("change", () => updatePrizeKindFields(select.dataset.prizeKind, select.value));
+    updatePrizeKindFields(select.dataset.prizeKind, select.value);
+  });
+  document.querySelector("#save-main-prize").addEventListener("click", () => saveMainPredictionPrize(tournament));
+}
+
+function updatePrizeKindFields(prefix, type) {
+  document.querySelectorAll(`[data-prize-kind-field="${prefix}"]`).forEach((field) => {
+    const active = field.dataset.kind === type;
+    field.hidden = !active;
+    field.style.display = active ? "" : "none";
+    field.querySelectorAll("input, textarea, select").forEach((input) => {
+      input.disabled = !active;
+    });
+  });
+}
+
+function getPrizeDetail(prize = {}) {
+  return prize.prizeType === "in-kind" ? prize.description : prize.value;
+}
+
+function prizeValueText(prize = {}) {
+  const isInKind = prize.prizeType === "in-kind";
+  const label = isInKind ? "عينية" : "نقدية";
+  const detail = getPrizeDetail(prize) || prize.value || prize.description || "-";
+  return `${label}: ${detail}`;
+}
+
+function saveMainPredictionPrize(tournament) {
+  const prizeType = document.querySelector("#main-prize-type")?.value || "cash";
+  const value = prizeType === "cash" ? document.querySelector("#main-prize-cash")?.value.trim() || "" : "";
+  const description = prizeType === "in-kind" ? document.querySelector("#main-prize-description")?.value.trim() || "" : "";
+  if ((prizeType === "cash" && !value) || (prizeType === "in-kind" && !description)) {
+    openModal(`
+      <section class="card modal stack">
+        <div class="topbar">
+          <h2 class="section-title">بيانات ناقصة</h2>
+          ${modalCloseButton()}
+        </div>
+        <p class="muted">حدد نوع الجائزة ثم أدخل ${prizeType === "cash" ? "القيمة النقدية" : "وصف الجائزة العينية"} قبل الحفظ.</p>
+      </section>
+    `);
+    document.querySelector("#close-modal").addEventListener("click", closeModal);
+    return;
+  }
+  const prizes = getTournamentPrizes(tournament);
+  const existing = getMainPredictionPrize(tournament);
+  const payload = {
+    id: existing?.id || `p-main-${Date.now()}`,
+    rank: "بطل التوقعات",
+    awardId: "prediction-champion",
+    title: "جائزة بطل التوقعات",
+    prizeType,
+    value,
+    description
+  };
+  if (existing) {
+    Object.assign(existing, payload);
+  } else {
+    prizes.unshift(payload);
+  }
+  closeModal();
+  renderTournamentManageSection(tournament, "prizes");
 }
 
 function awardPrizeRow(tournament, award) {
@@ -3043,7 +4818,7 @@ function awardPrizeRow(tournament, award) {
       <div class="prize-rank">${prize ? "محدد" : "اختياري"}</div>
       <div>
         <strong>${award.label}</strong>
-        ${prize ? `<span>${prize.title} · ${prize.value}</span>${prize.note ? `<p>${prize.note}</p>` : ""}` : `<span>لا توجد جائزة محددة لهذا النوع حالياً.</span>`}
+        ${prize ? `<span>${prize.title} · ${prizeValueText(prize)}</span>` : `<span>لا توجد جائزة محددة لهذا النوع حالياً.</span>`}
       </div>
       ${prize ? `<button class="btn ghost compact-btn" type="button" data-remove-prize="${prize.id}">حذف</button>` : `<span class="muted">يمكن إضافتها من النموذج أدناه</span>`}
     </article>
@@ -3055,52 +4830,148 @@ function getPrizeForAward(tournament, awardId) {
 }
 
 function tournamentPrizeCard(prize) {
+  const complete = Boolean(getPrizeDetail(prize));
   return `
-    <article class="prize-card">
-      <div class="prize-rank">${prize.rank}</div>
-      <div>
-        <strong>${prize.title}</strong>
-        <span>${prize.value}</span>
-        ${prize.contact ? `<p>التواصل: ${prize.contact}</p>` : ""}
-        ${prize.delivery ? `<p>التسليم: ${prize.delivery}</p>` : ""}
-        ${prize.note ? `<p>${prize.note}</p>` : ""}
-      </div>
-      <button class="btn ghost compact-btn" type="button" data-remove-prize="${prize.id}">حذف</button>
-    </article>
+    <div class="prize-swipe-row" data-prize-swipe-row>
+      <button class="prize-swipe-delete" type="button" data-remove-prize="${prize.id}">حذف</button>
+      <article class="prize-card prize-swipe-card ${complete ? "clickable-prize-card" : ""}" ${complete ? `data-view-prize="${prize.id}"` : ""}>
+        <div class="prize-rank">${prize.rank}</div>
+        <div>
+          <strong>${prize.title}</strong>
+          <span>${prizeValueText(prize)}</span>
+        </div>
+        <div class="prize-card-actions">
+          <button class="btn ghost compact-btn" type="button" data-edit-prize="${prize.id}">تعديل</button>
+        </div>
+      </article>
+    </div>
   `;
 }
 
-function addTournamentPrize(tournament) {
-  const title = document.querySelector("#prize-title")?.value.trim();
-  const value = document.querySelector("#prize-value")?.value.trim();
+function bindPrizeSwipeRows() {
+  document.querySelectorAll("[data-prize-swipe-row]").forEach((row) => {
+    const card = row.querySelector(".prize-swipe-card");
+    if (!card || row.dataset.swipeBound === "true") return;
+    row.dataset.swipeBound = "true";
+    let startX = 0;
+    let dragging = false;
+    let moved = 0;
+    const closeOtherRows = () => {
+      document.querySelectorAll("[data-prize-swipe-row].is-open").forEach((openRow) => {
+        if (openRow !== row) openRow.classList.remove("is-open");
+      });
+    };
+    const setDrag = (x) => {
+      moved = Math.min(84, Math.max(0, startX - x));
+      card.style.transform = `translateX(${-moved}px)`;
+    };
+    card.addEventListener("pointerdown", (event) => {
+      startX = event.clientX;
+      dragging = true;
+      moved = 0;
+      closeOtherRows();
+      card.setPointerCapture?.(event.pointerId);
+      card.classList.add("is-dragging");
+    });
+    card.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      const delta = startX - event.clientX;
+      if (delta > 3) {
+        event.preventDefault();
+        setDrag(event.clientX);
+      }
+    });
+    const finish = () => {
+      if (!dragging) return;
+      dragging = false;
+      card.classList.remove("is-dragging");
+      card.style.transform = "";
+      row.classList.toggle("is-open", moved > 42);
+      if (moved > 8) {
+        row.dataset.prizeJustSwiped = "true";
+        window.setTimeout(() => delete row.dataset.prizeJustSwiped, 220);
+      }
+    };
+    card.addEventListener("pointerup", finish);
+    card.addEventListener("pointercancel", finish);
+  });
+}
+
+function prizeDetailsModal(prize) {
+  openModal(`
+    <section class="card modal stack">
+      <div class="topbar">
+        <h2 class="section-title">تفاصيل الجائزة</h2>
+        ${modalCloseButton()}
+      </div>
+      <div class="prize-detail-list">
+        <div><span>الجائزة</span><strong>${prize.title}</strong></div>
+        <div><span>النوع</span><strong>${prize.prizeType === "in-kind" ? "عينية" : "نقدية"}</strong></div>
+        <div><span>${prize.prizeType === "in-kind" ? "الوصف" : "القيمة"}</span><strong>${getPrizeDetail(prize)}</strong></div>
+      </div>
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+}
+
+function prizeEditorModal(tournament, prizeId = "") {
+  const prize = getTournamentPrizes(tournament).find((item) => item.id === prizeId) || null;
+  openModal(`
+    <section class="card modal stack">
+      <div class="topbar">
+        <h2 class="section-title">${prize ? "تعديل الجائزة" : "إضافة جائزة أخرى"}</h2>
+        ${modalCloseButton()}
+      </div>
+      <div class="prize-form-grid">
+        <label class="settings-control"><span>نوع الجائزة</span><select class="select" id="prize-rank">
+          ${extraPrizeOptions.map((option) => `<option value="${option.id}" ${prize?.awardId === option.id ? "selected" : ""}>${option.label}</option>`).join("")}
+        </select></label>
+        ${prizeKindFields("extra", prize || {})}
+      </div>
+      <button class="btn accent" type="button" id="add-tournament-prize" data-prize-id="${prize?.id || ""}">${prize ? "حفظ التعديل" : "حفظ الجائزة"}</button>
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+  document.querySelectorAll("[data-prize-kind]").forEach((select) => {
+    select.addEventListener("change", () => updatePrizeKindFields(select.dataset.prizeKind, select.value));
+    updatePrizeKindFields(select.dataset.prizeKind, select.value);
+  });
+  document.querySelector("#add-tournament-prize").addEventListener("click", () => addTournamentPrize(tournament, prize?.id || ""));
+}
+
+function addTournamentPrize(tournament, prizeId = "") {
   const rank = document.querySelector("#prize-rank")?.value || "جائزة خاصة";
-  const note = document.querySelector("#prize-note")?.value.trim() || "";
-  const contact = document.querySelector("#prize-contact")?.value.trim() || "";
-  const delivery = document.querySelector("#prize-delivery")?.value.trim() || "";
-  const award = awardOptions.find((item) => item.id === rank);
-  if (!title || !value) {
+  const prizeType = document.querySelector("#extra-prize-type")?.value || "cash";
+  const value = prizeType === "cash" ? document.querySelector("#extra-prize-cash")?.value.trim() || "" : "";
+  const description = prizeType === "in-kind" ? document.querySelector("#extra-prize-description")?.value.trim() || "" : "";
+  const award = extraPrizeOptions.find((item) => item.id === rank) || awardOptions.find((item) => item.id === rank);
+  if ((prizeType === "cash" && !value) || (prizeType === "in-kind" && !description)) {
     openModal(`
       <section class="card modal stack">
         <div class="topbar">
           <h2 class="section-title">بيانات ناقصة</h2>
           ${modalCloseButton()}
         </div>
-        <p class="muted">اكتب اسم الجائزة وقيمتها قبل الإضافة.</p>
+        <p class="muted">حدد نوع الجائزة ثم أدخل ${prizeType === "cash" ? "القيمة النقدية" : "وصف الجائزة العينية"} قبل الإضافة.</p>
       </section>
     `);
     document.querySelector("#close-modal").addEventListener("click", closeModal);
     return;
   }
-  getTournamentPrizes(tournament).push({
-    id: `p-${Date.now()}`,
+  const prizes = getTournamentPrizes(tournament);
+  const existing = prizes.find((prize) => prize.id === prizeId);
+  const payload = {
+    id: existing?.id || `p-${Date.now()}`,
     rank: award ? award.label : rank,
     awardId: award?.id || "",
-    title,
+    title: award ? award.label : rank,
+    prizeType,
     value,
-    note,
-    contact,
-    delivery
-  });
+    description
+  };
+  if (existing) Object.assign(existing, payload);
+  else prizes.push(payload);
+  closeModal();
   renderTournamentManageSection(tournament, "prizes");
 }
 
@@ -3196,32 +5067,71 @@ function ownerPointsPage(tournament) {
     ? state.selectedPointRuleRound
     : tournamentRounds[0]?.id;
   state.selectedPointRuleRound = selectedRoundId || "";
+  const selectedIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === selectedRoundId));
   const selectedRound = tournamentRounds.find((round) => round.id === selectedRoundId) || tournamentRounds[0];
+  const selectedReadOnly = selectedRound ? isPointRuleRoundControlsReadOnly(tournament, selectedRound.id) : true;
+  const selectedLocked = selectedRound ? isPointRuleRoundLocked(tournament, selectedRound.id) : false;
   return `
-    <section class="card panel stack manage-detail-card">
-      <p class="muted">اختر قانون النقاط لكل دور من الأدوار التي ستبدأ منها البطولة.</p>
-      <div class="notice">التوقعات تقفل قبل ${PREDICTION_LOCK_MINUTES} دقيقة من بداية أول مباراة في الدور.</div>
-      <div class="notice danger-notice">قاعدة عامة: أي لاعب يصل رصيده إلى أقل من الحد الأدنى للتصويت لكل فريق يتم إقصاؤه من البطولة تلقائياً.</div>
-    </section>
-    <section class="point-rules-tabs" role="tablist" aria-label="أدوار قواعد النقاط">
+    <section class="voting-role-tabs" role="tablist" aria-label="أدوار قواعد النقاط" style="--tab-count:${tournamentRounds.length}; --active-index:${selectedIndex};">
       ${tournamentRounds.map((round) => pointRuleRoundTab(tournament, round, round.id === selectedRoundId)).join("")}
+      <span class="voting-role-indicator" aria-hidden="true"></span>
     </section>
     <section class="point-rules-list">
       ${selectedRound ? pointRuleCard(tournament, selectedRound) : ""}
     </section>
     <section class="card panel stack manage-detail-card">
-      <button class="btn accent" type="button">حفظ قواعد النقاط</button>
+      ${selectedReadOnly ? `
+        <p class="muted">${selectedLocked ? "هذا الدور بدأ أو أصبح نشطاً، لذلك لا يمكن تعديل قواعده." : "القواعد محفوظة. اضغط تعديل داخل بطاقة الدور إذا احتجت تغييرها."}</p>
+      ` : `
+        <button class="btn accent" type="button" id="save-point-rules">حفظ قواعد ${selectedRound?.label || "الدور الحالي"}</button>
+        <p class="muted">هذا الحفظ يخص الدور الحالي فقط. بقية الأدوار تحفظ بشكل منفصل.</p>
+      `}
     </section>
   `;
 }
 
+function savePointRules(tournament) {
+  const rules = getTournamentPointRules(tournament);
+  const selectedRoundId = state.selectedPointRuleRound || getTournamentRounds(tournament)[0]?.id;
+  const selectedRule = selectedRoundId ? rules[selectedRoundId] : null;
+  if (!selectedRoundId || !selectedRule) return;
+  const saved = getPointRulesSaved(tournament);
+  saved[selectedRoundId] = true;
+  tournament.rulesConfigured = areAllPointRulesSaved(tournament);
+  tournament.budget = Number(selectedRule?.budget || tournament.budget || 0);
+  tournament.minPoints = Number(selectedRule?.minPoints || tournament.minPoints || 0);
+  tournament.points = tournament.points || tournament.budget || 0;
+  state.editingPointRuleRound = "";
+  renderTournamentManageSection(tournament, currentManageSection() || "points");
+}
+
+function getPointRulesSaved(tournament) {
+  if (!tournament.pointRulesSaved) tournament.pointRulesSaved = {};
+  return tournament.pointRulesSaved;
+}
+
+function markPointRuleRoundDirty(tournament, roundId) {
+  if (!roundId) return;
+  getPointRulesSaved(tournament)[roundId] = false;
+  tournament.rulesConfigured = areAllPointRulesSaved(tournament);
+}
+
+function isPointRuleRoundSaved(tournament, roundId) {
+  if (!roundId) return false;
+  if (getPointRulesSaved(tournament)[roundId]) return true;
+  return Boolean(tournament.rulesConfigured && tournament.budget && tournament.minPoints);
+}
+
+function areAllPointRulesSaved(tournament) {
+  const tournamentRounds = getTournamentRounds(tournament);
+  return Boolean(tournament.startingRound && tournamentRounds.length && tournamentRounds.every((round) => isPointRuleRoundSaved(tournament, round.id)));
+}
+
 function pointRuleRoundTab(tournament, round, isActive) {
-  const rule = getTournamentPointRules(tournament)[round.id];
   const locked = isPointRuleRoundLocked(tournament, round.id);
   return `
-    <button class="point-rule-tab ${isActive ? "active" : ""} ${locked ? "locked" : ""}" type="button" role="tab" aria-selected="${isActive}" data-point-rule-round-tab="${round.id}">
-      <strong>${round.label}</strong>
-      <span>${locked ? "مقفل" : pointRuleTypeLabel(rule)}</span>
+    <button class="voting-role-tab ${isActive ? "active" : ""} ${locked ? "locked" : ""}" type="button" role="tab" aria-selected="${isActive}" data-point-rule-round-tab="${round.id}" title="${locked ? "مقفل" : round.label}">
+      ${round.label}
     </button>
   `;
 }
@@ -3288,20 +5198,28 @@ function pointRuleCard(tournament, round) {
   const rule = getTournamentPointRules(tournament)[round.id];
   const roundIndex = getTournamentRounds(tournament).findIndex((item) => item.id === round.id);
   const locked = isPointRuleRoundLocked(tournament, round.id);
+  const saved = isPointRuleRoundSaved(tournament, round.id);
+  const editing = state.editingPointRuleRound === round.id;
+  const readOnly = locked || (saved && !editing);
   if (roundIndex === 0 && rule.pointSource === "carry") rule.pointSource = "grant";
-  rule.__locked = locked;
+  rule.__readOnly = readOnly;
   const fieldsHtml = pointRuleFields(round.id, rule, roundIndex);
-  delete rule.__locked;
+  delete rule.__readOnly;
   return `
-    <article class="card panel point-rule-card ${locked ? "locked" : ""}">
+    <article class="card panel point-rule-card ${locked ? "locked" : ""} ${readOnly ? "read-only" : ""}">
       <div class="point-rule-head">
         <div>
           <h2 class="section-title">${round.label}</h2>
           <p class="muted">${pointRuleDescription(rule)}</p>
         </div>
-        <span class="championship-status-text">${locked ? "التعديل مقفل" : pointRuleTypeLabel(rule)}</span>
+        <div class="point-rule-actions">
+          <span class="championship-status-text">${locked ? "التعديل مقفل" : saved && !editing ? "محفوظ" : editing ? "وضع التعديل" : "غير مكتمل"}</span>
+          ${locked && saved && !editing ? `<button class="btn ghost compact-btn disabled-action" type="button" disabled>تعديل</button>` : ""}
+          ${!locked && saved && !editing ? `<button class="btn ghost compact-btn" type="button" data-edit-point-rule-round="${round.id}">تعديل</button>` : ""}
+        </div>
       </div>
       ${locked ? `<div class="notice danger-notice">بدأت هذه الجولة أو تم فتحها فعلياً، لذلك لا يمكن تعديل قواعد النقاط الخاصة بها. القواعد التالية للقراءة فقط.</div>` : ""}
+      ${saved && !editing && !locked ? `<div class="notice">هذه القواعد محفوظة ومغلقة. اضغط تعديل لفتح الحقول، ثم احفظ بعد الانتهاء.</div>` : ""}
       <div class="point-rule-fields">
         ${fieldsHtml}
       </div>
@@ -3317,6 +5235,11 @@ function isPointRuleRoundLocked(tournament, roundId) {
   const activeIndex = tournamentRounds.findIndex((round) => round.id === activeRound);
   if (roundIndex < 0 || activeIndex < 0) return false;
   return roundIndex <= activeIndex;
+}
+
+function isPointRuleRoundControlsReadOnly(tournament, roundId) {
+  if (isPointRuleRoundLocked(tournament, roundId)) return true;
+  return Boolean(isPointRuleRoundSaved(tournament, roundId) && state.editingPointRuleRound !== roundId);
 }
 
 function pointRuleTypeOption(roundId, selectedType, value, label) {
@@ -3342,7 +5265,7 @@ function pointRuleFields(roundId, rule, roundIndex) {
 }
 
 function disablePointRuleControlsIfLocked(rule, html) {
-  if (!rule.__locked) return html;
+  if (!rule.__readOnly) return html;
   return html
     .replace(/<select /g, "<select disabled ")
     .replace(/<input /g, "<input disabled ")
@@ -3390,12 +5313,10 @@ function nominationFields(roundId, rule) {
       <option value="points" ${rule.nominationType === "points" ? "selected" : ""}>نقاط</option>
     </select></label>
     ${rule.nominationType === "points" ? pointsNominationFields(roundId, rule) : percentNominationFields(roundId, rule)}
-    <div class="point-rule-example"><strong>طريقة ظهور التوقع للاعب</strong><span>النظام يعرض فوز أو خسارة فقط في الأدوار الإقصائية، ويضيف التعادل تلقائياً في الدوريات أو دور المجموعات.</span></div>
   `;
 }
 
 function percentNominationFields(roundId, rule) {
-  const loserPercent = getFixedPercentLoserShare(rule);
   return `
     <label class="settings-control"><span>إعداد النسب</span><select class="select" data-point-rule-round="${roundId}" data-point-rule-field="percentMode">
       <option value="fixed" ${rule.percentMode !== "minimum" ? "selected" : ""}>نسب ثابتة لكل مباراة</option>
@@ -3403,19 +5324,16 @@ function percentNominationFields(roundId, rule) {
     </select></label>
     ${rule.percentMode === "minimum" ? `
       <label class="settings-control"><span>أقل نسبة مسموحة لأي طرف</span><input class="input" type="number" min="1" max="49" data-point-rule-round="${roundId}" data-point-rule-field="minPercent" value="${rule.minPercent}"></label>
-      <div class="point-rule-example">${variablePercentRuleExample(rule)}</div>
     ` : `
       <label class="settings-control"><span>نسبة الفريق المرشح للفوز</span><input class="input" type="number" min="1" max="99" data-point-rule-round="${roundId}" data-point-rule-field="winnerPercent" value="${getFixedPercentWinnerShare(rule)}"></label>
-      <div class="point-rule-example"><strong>نسبة الفريق الآخر</strong><span>${loserPercent}% محسوبة تلقائياً لأن مجموع النسب يجب أن يساوي 100%.</span></div>
-      <div class="point-rule-example">${fixedPercentRuleExample(rule)}</div>
     `}
+    ${compactRuleGuide(rule)}
   `;
 }
 
 function pointsNominationFields(roundId, rule) {
   const totalPoints = getFixedMatchPointTotal(rule);
   const winnerPoints = getFixedMatchWinnerPoints(rule);
-  const loserPoints = getFixedMatchLoserPoints(rule);
   return `
     <label class="settings-control"><span>إعداد النقاط</span><select class="select" data-point-rule-round="${roundId}" data-point-rule-field="pointsMode">
       <option value="fixed" ${rule.pointsMode === "fixed" ? "selected" : ""}>نقاط ثابتة للترشيح لكل فريق</option>
@@ -3424,12 +5342,40 @@ function pointsNominationFields(roundId, rule) {
     ${rule.pointsMode === "fixed" ? `
       <label class="settings-control"><span>إجمالي نقاط المباراة</span><input class="input" type="number" min="2" data-point-rule-round="${roundId}" data-point-rule-field="matchPointsTotal" value="${totalPoints}"></label>
       <label class="settings-control"><span>نقاط الفريق المرشح للفوز</span><input class="input" type="number" min="1" max="${Math.max(1, totalPoints - 1)}" data-point-rule-round="${roundId}" data-point-rule-field="winnerPoints" value="${winnerPoints}"></label>
-      <div class="point-rule-example"><strong>نقاط الفريق الآخر</strong><span>${loserPoints} نقطة محسوبة تلقائياً من إجمالي نقاط المباراة.</span></div>
-      <div class="point-rule-example"><strong>نقاط ثابتة</strong><span>الأدمن يحدد إجمالي نقاط المباراة ونقاط الترشيح الأعلى، والنظام يضع باقي النقاط للطرف الآخر.</span></div>
     ` : `
       <label class="settings-control"><span>الحد الأدنى للنقاط لكل فريق</span><input class="input" type="number" data-point-rule-round="${roundId}" data-point-rule-field="minPoints" value="${rule.minPoints}"></label>
-      <div class="point-rule-example"><strong>توزيع نقاط</strong><span>النظام يقسم نقاط الدور على المباريات، واللاعب يوزع النقاط بشرط ألا يقل أي فريق عن الحد الأدنى.</span></div>
     `}
+    ${compactRuleGuide(rule)}
+  `;
+}
+
+function compactRuleGuide(rule) {
+  const display = "يظهر للاعب اختيار الفائز فقط في الأدوار الإقصائية، ويظهر التعادل تلقائياً في الدوريات أو دور المجموعات.";
+  const global = `اختر قانون النقاط لهذا الدور حسب المرحلة التي ستبدأ منها البطولة. التوقعات تقفل قبل ${PREDICTION_LOCK_MINUTES} دقيقة من بداية أول مباراة في الدور. قاعدة عامة: أي لاعب يصل رصيده إلى أقل من الحد الأدنى للتصويت لكل فريق يتم إقصاؤه من البطولة تلقائياً.`;
+  let body = "";
+
+  if (rule.nominationType === "points") {
+    if (rule.pointsMode === "fixed") {
+      body = `النظام يستخدم ${getFixedMatchPointTotal(rule)} نقطة لكل مباراة: ${getFixedMatchWinnerPoints(rule)} نقطة للفريق المرشح للفوز، و${getFixedMatchLoserPoints(rule)} نقطة للطرف الآخر محسوبة تلقائياً. مثال: إذا اختار اللاعب الفريق الأقوى يتم اعتماد نقاط الترشيح الأعلى مباشرة بدون إدخال يدوي.`;
+    } else {
+      body = `النظام يقسم نقاط الدور على المباريات، واللاعب يوزع النقاط بشرط ألا يقل أي فريق عن ${rule.minPoints || 0} نقطة. مثال: إذا كانت ميزانية الدور 400 نقطة وفيه 4 مباريات، يبدأ توزيع كل مباراة من 100 نقطة تقريباً حسب اختيارات اللاعب.`;
+    }
+  } else if (rule.percentMode === "minimum") {
+    body = `اللاعب يحدد نسبة كل طرف بنفسه، مجموع النسب في كل مباراة يجب أن يساوي 100%، وأقل نسبة مسموحة لأي طرف هي ${rule.minPercent || 20}%. مثال: 65% لفريق و35% للطرف الآخر تعني أن ترشيحه الأقوى هو صاحب النسبة الأعلى.`;
+  } else {
+    const sampleBalance = rule.pointSource === "grant" ? (rule.budget || 200) : 200;
+    const sampleMatches = 2;
+    const perMatch = sampleBalance / sampleMatches;
+    const winnerPoints = Math.round(perMatch * (getFixedPercentWinnerShare(rule) / 100));
+    const loserPoints = Math.round(perMatch * (getFixedPercentLoserShare(rule) / 100));
+    body = `النسبة الأعلى ${getFixedPercentWinnerShare(rule)}% للفريق المرشح للفوز، والطرف الآخر ${getFixedPercentLoserShare(rule)}% محسوبة تلقائياً لأن المجموع دائماً 100%. مثال: إذا كان رصيد اللاعب ${sampleBalance} نقطة والدور فيه ${sampleMatches} مباريات، يحسب النظام ${winnerPoints} نقطة للترشيح الأقوى و${loserPoints} نقطة للطرف الآخر في كل مباراة.`;
+  }
+
+  return `
+    <div class="point-rule-example compact-guide">
+      <strong>شرح مختصر</strong>
+      <p>${body} ${display} ${global}</p>
+    </div>
   `;
 }
 
@@ -3446,12 +5392,15 @@ function settlementFieldsHtml(roundId, rule) {
 
 function jokerRuleFields(roundId, rule) {
   return `
-    <label class="settings-control"><span>الجوكر</span><select class="select" data-point-rule-round="${roundId}" data-point-rule-field="jokerEnabled">
-      <option value="false" ${rule.jokerEnabled ? "" : "selected"}>غير مفعل</option>
-      <option value="true" ${rule.jokerEnabled ? "selected" : ""}>مفعل</option>
-    </select></label>
+    <label class="joker-checkbox-card ${rule.jokerEnabled ? "active" : ""}">
+      <input type="checkbox" data-point-rule-round="${roundId}" data-point-rule-field="jokerEnabled" ${rule.jokerEnabled ? "checked" : ""}>
+      <span class="joker-checkmark" aria-hidden="true"></span>
+      <span class="joker-copy">
+        <strong>تفعيل الجوكر</strong>
+        <small>يسمح للمتسابق بمضاعفة النقاط التي يحصل عليها عند توقع صحيح في مباريات محددة من هذا الدور.</small>
+      </span>
+    </label>
     ${rule.jokerEnabled ? `<label class="settings-control"><span>عدد مباريات الجوكر في الجولة</span><input class="input" type="number" min="1" data-point-rule-round="${roundId}" data-point-rule-field="jokerUses" value="${rule.jokerUses || 1}"></label>` : ""}
-    ${rule.jokerEnabled ? `<div class="point-rule-example"><strong>آلية الجوكر</strong><span>إذا استخدم اللاعب الجوكر على توقع صحيح، تتضاعف النقاط التي حصل عليها من هذا التوقع.</span></div>` : ""}
   `;
 }
 
@@ -3596,9 +5545,8 @@ function ownerDangerPage(tournament) {
     <section class="card panel stack manage-detail-card">
       <div class="notice danger-notice">هذه الخيارات تؤثر على البطولة والمشاركين. تستخدم فقط عند الحاجة.</div>
       <button class="btn warn" type="button" id="toggle-join-window">${tournament.joinClosed ? "إعادة فتح استقبال المشاركين" : "إيقاف استقبال المشاركين"}</button>
-      <label class="settings-control wide"><span>سبب إلغاء البطولة</span><textarea class="textarea" id="cancel-tournament-reason" placeholder="اكتب سبب الإلغاء ليظهر في سجل الإدارة والتنبيهات.">${tournament.cancelReason || ""}</textarea></label>
       <button class="btn danger-btn" type="button" id="cancel-tournament-button">إلغاء البطولة</button>
-      <p class="muted" id="danger-action-status">${tournament.cancelReason ? `آخر سبب: ${tournament.cancelReason}` : ""}</p>
+      <p class="muted" id="danger-action-status">${tournament.cancelReason ? `تم الإلغاء. السبب الظاهر للمشاركين: ${tournament.cancelReason}` : "عند الإلغاء سيتم طلب السبب في نافذة تأكيد قبل التنفيذ."}</p>
     </section>
   `;
 }
@@ -3609,29 +5557,63 @@ function toggleJoinWindow(tournament) {
 }
 
 function cancelTournamentWithReason(tournament) {
+  openModal(`
+    <section class="card modal stack">
+      <div class="topbar">
+        <h2 class="section-title">إلغاء البطولة</h2>
+        ${modalCloseButton()}
+      </div>
+      <div class="notice danger-notice">
+        سبب الإلغاء سيظهر للمشاركين داخل البطولة. بعد التأكيد سيتم إلغاء نتائج هذه البطولة من بروفايلات المشاركين وإحصائياتهم المرتبطة بها.
+      </div>
+      <label class="settings-control wide">
+        <span>سبب إلغاء البطولة</span>
+        <textarea class="textarea" id="cancel-tournament-reason" placeholder="اكتب سبب واضح ومختصر للمشاركين.">${tournament.cancelReason || ""}</textarea>
+      </label>
+      <p class="muted" id="cancel-tournament-error"></p>
+      <div class="topbar">
+        <button class="btn ghost" type="button" id="close-cancel-modal">تراجع</button>
+        <button class="btn danger-btn" type="button" id="confirm-cancel-tournament">تأكيد الإلغاء</button>
+      </div>
+    </section>
+  `);
+  document.querySelector("#close-modal")?.addEventListener("click", closeModal);
+  document.querySelector("#close-cancel-modal")?.addEventListener("click", closeModal);
+  document.querySelector("#confirm-cancel-tournament")?.addEventListener("click", () => confirmTournamentCancellation(tournament));
+}
+
+function confirmTournamentCancellation(tournament) {
   const reason = document.querySelector("#cancel-tournament-reason")?.value.trim();
-  const status = document.querySelector("#danger-action-status");
+  const error = document.querySelector("#cancel-tournament-error");
   if (!reason) {
-    if (status) {
-      status.textContent = "اكتب سبب الإلغاء قبل تنفيذ الإجراء.";
-      status.classList.add("form-error-inline");
+    if (error) {
+      error.textContent = "اكتب سبب الإلغاء قبل تنفيذ الإجراء.";
+      error.classList.add("form-error-inline");
     }
     return;
   }
   tournament.active = false;
   tournament.cancelled = true;
   tournament.cancelReason = reason;
+  tournament.resultsVoided = true;
+  tournament.points = 0;
+  tournament.correct = 0;
+  tournament.wrong = 0;
+  tournament.rank = null;
+  tournament.leaderName = "";
+  tournament.leaderPoints = 0;
   state.notifications.unshift({
     id: `n-cancel-${Date.now()}`,
     type: "tournament-update",
     title: `تم إلغاء ${tournament.name}`,
-    body: reason,
+    body: `سبب الإلغاء: ${reason}. تم إلغاء نتائج هذه البطولة من الإحصائيات.`,
     time: "الآن",
     icon: "trophy",
     unread: true,
     route: `/tournament/${tournament.id}`,
     tournamentId: tournament.id
   });
+  closeModal();
   renderTournamentManageSection(tournament, "danger");
 }
 
@@ -3654,6 +5636,82 @@ function advanceTournamentRound(tournamentId) {
   tournament.currentRound = nextRound.id;
   state.selectedRound = nextRound.id;
   renderTournament(tournament.id);
+}
+
+function isTournamentFinished(tournament) {
+  if (tournament.completed || tournament.finished) return true;
+  const tournamentRounds = getTournamentRounds(tournament);
+  const finalRound = tournamentRounds[tournamentRounds.length - 1];
+  const finalMatches = finalRound ? (state.matches[finalRound.id] || []) : [];
+  return Boolean(finalMatches.length && finalMatches.every((match) => getMatchResultOutcome(match, finalRound.id)));
+}
+
+function tournamentFinalAwardResults(tournament) {
+  const enabledAwards = awardOptions.filter((award) => (tournament.awardCategories || []).includes(award.id));
+  const rows = [
+    { id: "prediction-champion", label: "بطل مسابقة التوقعات", winner: leaderboardData(tournament)[0]?.name || "غير محدد", prize: getMainPredictionPrize(tournament) },
+    ...enabledAwards.map((award) => ({
+      id: award.id,
+      label: award.label,
+      winner: getAwardFinalWinner(tournament, award),
+      prize: getPrizeForAward(tournament, award.id)
+    }))
+  ];
+  return `
+    <section class="panel final-awards-shell">
+      <div class="pick-board-hero">
+        <div>
+          <span class="badge">نتائج البطولة</span>
+          <h2 class="section-title">الفائزون بالترشيحات</h2>
+          <p class="muted">بعد اعتماد نتيجة آخر مباراة، تظهر هنا المراكز الفائزة في كل توقع والجائزة المرتبطة بها.</p>
+        </div>
+      </div>
+      <div class="final-awards-grid">
+        ${rows.map((row) => finalAwardResultCard(row)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function finalAwardResultCard(row) {
+  return `
+    <article class="final-award-card">
+      <span>${row.label}</span>
+      <strong>${row.winner}</strong>
+      <small>${row.prize ? prizeValueText(row.prize) : "لا توجد جائزة محددة"}</small>
+    </article>
+  `;
+}
+
+function getAwardFinalWinner(tournament, award) {
+  const winners = tournament.awardWinners || {};
+  if (winners[award.id]) return winners[award.id];
+  if (award.id === "champion-pick") return getTournamentChampionName(tournament);
+  if (award.id === "runner-up-pick") return getTournamentRunnerUpName(tournament);
+  const eligible = officialRosterPlayers.filter((player) => isEligibleForAward(player, award.id));
+  return eligible[0]?.name || "غير محدد";
+}
+
+function getTournamentFinalMatch(tournament) {
+  const tournamentRounds = getTournamentRounds(tournament);
+  const finalRound = tournamentRounds[tournamentRounds.length - 1];
+  const finalMatches = finalRound ? (state.matches[finalRound.id] || []) : [];
+  return finalMatches.find((match) => getMatchResultOutcome(match, finalRound.id)) || null;
+}
+
+function getTournamentChampionName(tournament) {
+  const finalMatch = getTournamentFinalMatch(tournament);
+  if (!finalMatch) return "غير محدد";
+  return getMatchResultOutcome(finalMatch, "final") || "غير محدد";
+}
+
+function getTournamentRunnerUpName(tournament) {
+  const finalMatch = getTournamentFinalMatch(tournament);
+  if (!finalMatch) return "غير محدد";
+  const champion = getTournamentChampionName(tournament);
+  if (champion === finalMatch.a) return finalMatch.b;
+  if (champion === finalMatch.b) return finalMatch.a;
+  return "غير محدد";
 }
 
 function awardNominationWorkflow(tournament) {
@@ -3857,7 +5915,7 @@ function matchIdentityHtml(match) {
   `;
 }
 
-function pickBoardWorkflow(tournament, round, matches) {
+function pickBoardWorkflow(tournament, round, matches, budgetState = {}) {
   if (!matches.length) return "";
   const sortedMatches = sortPredictionMatches(tournament.id, round, matches);
   const pickedCount = matches.filter((match) => isPredictionComplete(tournament.id, round, match.id)).length;
@@ -3870,6 +5928,9 @@ function pickBoardWorkflow(tournament, round, matches) {
   const roundLockAt = getRoundPredictionLockAt(round);
   const rule = getTournamentPointRules(tournament)[round] || {};
   const playerGuide = pointRulePlayerGuide(rule, { hasDraw, totalBudget, minPoints, matchCount: matches.length });
+  const used = budgetState.used ?? getUsedBudget(tournament.id, round);
+  const roundBudget = getRoundBudgetForPlayer(tournament, round, rule) || tournament.budget || 0;
+  const pct = budgetState.pct ?? Math.min(100, Math.round((used / Math.max(1, roundBudget)) * 100));
 
   return `
     <section class="panel pick-board-shell">
@@ -3885,6 +5946,11 @@ function pickBoardWorkflow(tournament, round, matches) {
 
       <div class="prediction-guide">
         ${playerGuide.items.map((item) => `<span>${item}</span>`).join("")}
+      </div>
+
+      <div class="prediction-budget-box">
+        <div class="stat-line"><span>المستخدم من ميزانية الجولة</span><strong>${used} / ${roundBudget}</strong></div>
+        <div class="budget-bar" style="--pct: ${pct}%"><span></span></div>
       </div>
 
       <div class="match-countdown round-vote-countdown" data-match-countdown data-countdown-mode="round" data-kickoff="${new Date(firstKickoff).toISOString()}" data-lock-at="${roundLockAt}">
@@ -4179,7 +6245,7 @@ function liveApiKeyModal() {
         <h2 class="section-title">ربط API النتائج</h2>
         <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
       </div>
-      <p class="muted">ضع مفتاح API-Sports للاختبار. سيتم حفظه في هذا المتصفح فقط، وليس مناسباً للنشر الرسمي بدون Backend Proxy.</p>
+      <p class="muted">للإطلاق الرسمي يجب حفظ مفتاح API-Sports في Vercel كمتغير API_SPORTS_KEY. الإدخال هنا للاختبار المحلي فقط عند استخدام رابط مباشر.</p>
       <label class="field">
         <span>API Key</span>
         <input class="input" id="live-api-key" value="${getApiSportsKey()}" placeholder="x-apisports-key">
@@ -4230,8 +6296,10 @@ function incrementApiSportsQuota() {
 }
 
 async function refreshLiveApiResults(tournament, round) {
+  const endpoint = state.liveApi.endpoint || "/api/live-results";
+  const usesBackendProxy = endpoint.startsWith("/api/");
   const key = getApiSportsKey();
-  if (!key) {
+  if (!usesBackendProxy && !key) {
     state.liveApi.lastError = "أدخل مفتاح API أولاً";
     liveApiKeyModal();
     return;
@@ -4249,11 +6317,8 @@ async function refreshLiveApiResults(tournament, round) {
   renderTournament(tournament.id);
 
   try {
-    const response = await fetch(state.liveApi.endpoint, {
-      headers: {
-        "x-apisports-key": key
-      }
-    });
+    const headers = usesBackendProxy ? {} : { "x-apisports-key": key };
+    const response = await fetch(endpoint, { headers });
     incrementApiSportsQuota();
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
@@ -4360,10 +6425,17 @@ function validatePrediction(tournament, round, key, nextPrediction) {
   const currentValue = getPredictionPoints(state.predictions[key] || {});
   const nextValue = points;
   const total = getUsedBudget(tournament.id, round) - currentValue + nextValue;
-  if (manualPoints && total > tournament.budget) {
-    return `مجموع النقاط ${total} يتخطى الميزانية ${tournament.budget}.`;
+  const roundBudget = getRoundBudgetForPlayer(tournament, round, rule);
+  if (manualPoints && total > roundBudget) {
+    return `مجموع النقاط ${total} يتخطى ميزانية الدور ${roundBudget}.`;
   }
   return "";
+}
+
+function getRoundBudgetForPlayer(tournament, round, rule = getPointRuleForRound(tournament, round), currentBalance = null) {
+  if (rule.pointSource === "grant") return Number(rule.budget || tournament.budget || 0);
+  if (currentBalance !== null) return Number(currentBalance) || Number(tournament.budget || rule.budget || 0);
+  return Number(tournament.points || tournament.budget || rule.budget || 0);
 }
 
 function getUsedBudget(tournamentId, round) {
@@ -4500,40 +6572,54 @@ function renderLive() {
   if (selectedTournament && state.selectedLiveTournamentId !== selectedTournament.id) {
     state.selectedLiveTournamentId = selectedTournament.id;
   }
-  const liveMatches = selectedTournament ? getTournamentLiveMatches(selectedTournament) : [];
+  const activeIndex = Math.max(0, joinedTournaments.findIndex((tournament) => tournament.id === selectedTournament?.id));
 
   app.innerHTML = `
-    ${templateTopbar("المباريات الحية")}
+    <div class="main-auto-hide-chrome main-tabs-chrome">
+      ${templateTopbar("المباريات الحية")}
+      ${joinedTournaments.length ? `
+        <div class="championship-segment live-championship-segment" role="tablist" aria-label="بطولات المباشر" style="--tab-count: ${joinedTournaments.length}; --active-index: ${activeIndex};">
+          ${joinedTournaments.map((tournament) => `
+            <button class="championship-segment-btn live-championship-tab ${selectedTournament && selectedTournament.id === tournament.id ? "active" : ""}" type="button" data-live-tournament="${tournament.id}" role="tab" aria-selected="${selectedTournament && selectedTournament.id === tournament.id}">
+              <strong>${tournament.name} ${tournament.rank ? `#${tournament.rank}` : ""}</strong>
+            </button>
+          `).join("")}
+          <span class="championship-segment-indicator" aria-hidden="true"></span>
+        </div>
+      ` : ""}
+    </div>
     <section class="grid">
       <div class="card panel">
         <h1 class="section-title">المباشر</h1>
         <p class="muted">تظهر هنا فقط البطولات التي أنت مشارك فيها. اختر بطولة لعرض نتائجها الحية وتأثيرها على رصيدك.</p>
       </div>
       ${joinedTournaments.length ? `
-        <div class="live-tournament-list">
-          ${joinedTournaments.map((tournament) => `
-            <button class="live-tournament-tab ${selectedTournament && selectedTournament.id === tournament.id ? "active" : ""}" data-live-tournament="${tournament.id}">
-              <strong>${tournament.name}</strong>
-              <span>${tournament.points} pts · Rank #${tournament.rank || "-"}</span>
-            </button>
-          `).join("")}
-        </div>
-        <div class="card panel">
-          <div class="topbar">
-            <div>
-              <h2 class="section-title">${selectedTournament.name}</h2>
-              <p class="muted">Live results from this championship only.</p>
-            </div>
-            <span class="badge">${selectedTournament.publicCode || "JOINED"}</span>
-          </div>
-          <div class="live-grid">
-            ${liveMatches.map(liveMatchCard).join("")}
+        <div class="championship-page-slider live-page-slider" id="live-page-slider" style="--championship-index: ${activeIndex}; --tab-count: ${joinedTournaments.length};">
+          <div class="championship-page-track">
+            ${joinedTournaments.map((tournament) => {
+              const liveMatches = getTournamentLiveMatches(tournament);
+              return `
+                <section class="championship-slide" aria-label="${tournament.name}">
+                  <div class="card panel">
+                    <div class="topbar">
+                      <div>
+                        <h2 class="section-title">${tournament.name}</h2>
+                        <p class="muted">${tr("Live results from this championship only.")}</p>
+                      </div>
+                    </div>
+                    <div class="live-grid">
+                      ${liveMatches.map(liveMatchCard).join("")}
+                    </div>
+                  </div>
+                </section>
+              `;
+            }).join("")}
           </div>
         </div>
       ` : `
         <div class="card panel">
-          <p class="muted">أنت غير مشارك في أي بطولة نشطة حالياً. انضم إلى بطولة Public من صفحة Search.</p>
-          <button class="btn accent" data-route="/search">Go to Search</button>
+          <p class="muted">${tr("أنت غير مشارك في أي بطولة نشطة حالياً. انضم إلى بطولة Public من صفحة Search.")}</p>
+          <button class="btn accent" data-route="/search">${tr("Go to Search")}</button>
         </div>
       `}
     </section>
@@ -4541,9 +6627,53 @@ function renderLive() {
 
   document.querySelectorAll("[data-live-tournament]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.selectedLiveTournamentId = button.dataset.liveTournament;
-      render();
+      setLiveTournament(button.dataset.liveTournament);
     });
+  });
+
+  setupLiveTournamentSwipe(joinedTournaments);
+  setupMainChromeAutoHide(".main-auto-hide-chrome");
+}
+
+function setLiveTournament(tournamentId) {
+  state.selectedLiveTournamentId = tournamentId;
+  render();
+}
+
+function getAdjacentLiveTournament(tournaments, direction) {
+  if (!tournaments.length) return "";
+  const currentIndex = Math.max(0, tournaments.findIndex((tournament) => tournament.id === state.selectedLiveTournamentId));
+  const nextIndex = Math.min(tournaments.length - 1, Math.max(0, currentIndex + direction));
+  return tournaments[nextIndex]?.id || tournaments[0].id;
+}
+
+function setupLiveTournamentSwipe(tournaments) {
+  const slider = document.querySelector("#live-page-slider");
+  if (!slider || tournaments.length < 2) return;
+  let startX = 0;
+  let startY = 0;
+  let isDragging = false;
+
+  slider.addEventListener("pointerdown", (event) => {
+    if (isInteractiveTarget(event.target)) return;
+    isDragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    slider.setPointerCapture(event.pointerId);
+  });
+
+  slider.addEventListener("pointerup", (event) => {
+    if (!isDragging) return;
+    isDragging = false;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) < 54 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    const direction = deltaX < 0 ? 1 : -1;
+    setLiveTournament(getAdjacentLiveTournament(tournaments, direction));
+  });
+
+  slider.addEventListener("pointercancel", () => {
+    isDragging = false;
   });
 }
 
@@ -4573,7 +6703,6 @@ function liveMatchCard(match) {
     <article class="match-card">
       <div class="match-top">
         <span class="badge">${match.statusShort ? liveStatusLabel(match.statusShort) : `الدقيقة ${match.minute}`}</span>
-        <span class="muted">${match.tournamentName}</span>
       </div>
       <div class="live-score">
         ${teamIdentityHtml(match.a, "compact")}
@@ -4614,13 +6743,67 @@ function renderChallenges(type) {
     <section class="card panel stack">
       <h1 class="section-title">${labels[type] || "التحديات"}</h1>
       ${filtered.length ? filtered.map((item) => `
-        <button class="draft-row" data-route="${item.draft ? "/create-tournament/new" : `/tournament/${item.id}`}">
-          <strong>${item.name}</strong>
-          <span class="badge">${item.draft ? "مسودة" : item.active ? "نشطة" : "منتهية"}</span>
-        </button>
+        ${type === "drafts" ? `
+          <div class="draft-row draft-manage-row">
+            <button class="draft-row-main" type="button" data-route="/create-tournament/new">
+              <strong>${item.name}</strong>
+              <span class="badge">مسودة</span>
+            </button>
+            <button class="draft-delete-btn" type="button" data-delete-draft="${item.id}" aria-label="حذف المسودة" title="حذف المسودة">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 7h14"></path>
+                <path d="M10 11v6M14 11v6"></path>
+                <path d="M8 7l1-3h6l1 3"></path>
+                <path d="M7 7l1 13h8l1-13"></path>
+              </svg>
+            </button>
+          </div>
+        ` : `
+          <button class="draft-row" data-route="${item.draft ? "/create-tournament/new" : `/tournament/${item.id}`}">
+            <strong>${item.name}</strong>
+            <span class="badge">${item.draft ? "مسودة" : item.active ? "نشطة" : "منتهية"}</span>
+          </button>
+        `}
       `).join("") : `<p class="muted">لا توجد عناصر حالياً.</p>`}
     </section>
   `;
+
+  if (type === "drafts") {
+    document.querySelectorAll("[data-delete-draft]").forEach((button) => {
+      button.addEventListener("click", () => confirmDeleteDraft(button.dataset.deleteDraft));
+    });
+  }
+}
+
+function confirmDeleteDraft(tournamentId) {
+  const draft = state.tournaments.find((tournament) => tournament.id === tournamentId);
+  if (!draft) return;
+  openModal(`
+    <section class="card modal stack">
+      <div class="modal-title-row">
+        <h2 class="section-title">حذف المسودة</h2>
+        <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
+      </div>
+      <div class="danger-confirm-body">
+        <span class="danger-icon">!</span>
+        <div>
+          <strong>${draft.name}</strong>
+          <p>سيتم حذف هذه المسودة نهائياً من قائمة المسودات.</p>
+        </div>
+      </div>
+      <div class="topbar">
+        <button class="btn ghost" type="button" id="cancel-delete-draft">إلغاء</button>
+        <button class="btn danger-btn" type="button" id="confirm-delete-draft">حذف المسودة</button>
+      </div>
+    </section>
+  `);
+  document.querySelector("#close-modal").addEventListener("click", closeModal);
+  document.querySelector("#cancel-delete-draft").addEventListener("click", closeModal);
+  document.querySelector("#confirm-delete-draft").addEventListener("click", () => {
+    state.tournaments = state.tournaments.filter((tournament) => tournament.id !== tournamentId);
+    closeModal();
+    renderChallenges("drafts");
+  });
 }
 
 function renderUser(username) {
@@ -4643,26 +6826,26 @@ function renderUser(username) {
             </div>
           </div>
           <div class="profile-summary">
-            <div class="stats-row">
-              <div class="stat-column">
-                <strong class="highlight">${profile.accuracy}%</strong>
-                <span>Accuracy</span>
-              </div>
-              <div class="stat-column">
-                <strong>${profile.followersCount}</strong>
-                <span>Followers</span>
-              </div>
-              <div class="stat-column">
-                <strong>${profile.followingCount}</strong>
-                <span>Following</span>
-              </div>
+            <div class="profile-bio">
+              <h1 class="profile-name">${profile.name}</h1>
+              <div class="muted">${profile.handle}</div>
+              <div class="muted">${state.language === "en" ? "Favorite team" : "الفريق المفضل"}: ${profile.favoriteTeam || (state.language === "en" ? "Not set" : "غير محدد")}</div>
             </div>
           </div>
         </div>
-        <div class="profile-bio">
-          <h1 class="profile-name">${profile.name}</h1>
-          <div class="muted">${profile.handle}</div>
-          <div class="muted">${state.language === "en" ? "Favorite team" : "الفريق المفضل"}: ${profile.favoriteTeam || (state.language === "en" ? "Not set" : "غير محدد")}</div>
+        <div class="stats-row profile-stats-row">
+          <div class="stat-column">
+            <strong class="highlight">${profile.accuracy}%</strong>
+            <span>Accuracy</span>
+          </div>
+          <div class="stat-column">
+            <strong>${profile.followersCount}</strong>
+            <span>Followers</span>
+          </div>
+          <div class="stat-column">
+            <strong>${profile.followingCount}</strong>
+            <span>Following</span>
+          </div>
         </div>
         <button class="btn ${user.relation === "Unfollow" ? "ghost" : "accent"}" id="profile-follow-btn">
           ${user.relation === "Unfollow" ? "تتابعه" : "متابعة"}
@@ -4775,7 +6958,7 @@ function renderNotFound() {
 }
 
 function peopleModal(kind) {
-  const title = kind === "followers" ? "Followers" : "Following";
+  const title = kind === "followers" ? tr("Followers") : tr("Following");
   openModal(`
     <section class="card modal stack">
       <div class="topbar">
@@ -4798,18 +6981,18 @@ function peopleModal(kind) {
 }
 
 function modalCloseButton() {
-  return `<button class="btn ghost modal-close-btn" type="button" id="close-modal" aria-label="Close" title="Close">×</button>`;
+  return `<button class="btn ghost modal-close-btn" type="button" id="close-modal" aria-label="${tr("Close")}" title="${tr("Close")}">×</button>`;
 }
 
 function peopleListHtml(kind) {
   const people = kind === "followers" ? state.currentUser.followers : state.currentUser.following;
-  if (!people.length) return `<p class="muted">لا توجد أسماء حالياً.</p>`;
+  if (!people.length) return `<p class="muted">${tr("لا توجد أسماء حالياً.")}</p>`;
 
   return people.map((name) => {
     const isFollowing = isFollowingPerson(name);
     const profile = getPersonProfile(name);
     const action = kind === "following" || isFollowing ? "unfollow" : "follow-back";
-    const label = action === "unfollow" ? "Unfollow" : "Follow back";
+    const label = action === "unfollow" ? tr("Unfollow") : tr("Follow back");
     return `
       <div class="leader-row people-row">
         <button class="user-row-main" data-route="/user/${profile.username}">
@@ -4869,11 +7052,11 @@ function editProfileModal() {
   openModal(`
     <form class="card modal stack" id="edit-profile-form">
       <div class="topbar">
-        <h2 class="section-title">Edit Profile</h2>
+        <h2 class="section-title">${tr("Edit Profile")}</h2>
         ${modalCloseButton()}
       </div>
       <div class="profile-edit-preview">
-        <label class="avatar-upload" for="profile-photo" aria-label="Change profile photo" title="Change profile photo">
+        <label class="avatar-upload" for="profile-photo" aria-label="${tr("Choose image")}" title="${tr("Choose image")}">
           ${avatarHtml(user, "avatar-preview")}
           <span aria-hidden="true">+</span>
         </label>
@@ -4897,8 +7080,8 @@ function editProfileModal() {
       </div>
       <div class="error-text" id="profile-error"></div>
       <div class="topbar">
-        <button class="btn ghost" type="button" id="cancel-profile">Cancel</button>
-        <button class="btn accent" type="submit">Save Changes</button>
+        <button class="btn ghost" type="button" id="cancel-profile">${tr("Cancel")}</button>
+        <button class="btn accent" type="submit">${tr("Save Changes")}</button>
       </div>
     </form>
   `);
@@ -4909,7 +7092,7 @@ function editProfileModal() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      document.querySelector("#profile-error").textContent = "يرجى اختيار ملف صورة.";
+      document.querySelector("#profile-error").textContent = tr("Please choose an image file.");
       return;
     }
     const reader = new FileReader();
@@ -4927,12 +7110,12 @@ function editProfileModal() {
     const favoriteTeam = document.querySelector("#profile-team").value.trim();
 
     if (!name || !handle) {
-      document.querySelector("#profile-error").textContent = "الاسم واسم المستخدم مطلوبان.";
+      document.querySelector("#profile-error").textContent = tr("Name and username are required.");
       return;
     }
     if (!handle.startsWith("@")) handle = `@${handle}`;
     if (!/^@[A-Za-z0-9_]{3,20}$/.test(handle)) {
-      document.querySelector("#profile-error").textContent = "اسم المستخدم يجب أن يكون 3-20 حرفاً أو رقماً أو شرطة سفلية.";
+      document.querySelector("#profile-error").textContent = tr("Username must be 3-20 letters, numbers, or underscores.");
       return;
     }
 
@@ -4963,26 +7146,26 @@ async function shareProfile() {
     }
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(profileUrl);
-      profileShareModal(profileUrl, "Profile link copied.");
+      profileShareModal(profileUrl, tr("Profile link copied."));
       return;
     }
   } catch {
     // Fall back to showing the link below.
   }
 
-  profileShareModal(profileUrl, "Copy this profile link.");
+  profileShareModal(profileUrl, tr("Copy this profile link."));
 }
 
 function profileShareModal(profileUrl, message) {
   openModal(`
     <section class="card modal stack">
       <div class="topbar">
-        <h2 class="section-title">Share Profile</h2>
+        <h2 class="section-title">${tr("Share Profile")}</h2>
         ${modalCloseButton()}
       </div>
       <p class="muted">${message}</p>
       <input class="input" readonly value="${profileUrl}">
-      <button class="btn accent" id="copy-profile-link">Copy Link</button>
+      <button class="btn accent" id="copy-profile-link">${tr("Copy Link")}</button>
     </section>
   `);
   document.querySelector("#close-modal").addEventListener("click", closeModal);
@@ -4995,32 +7178,36 @@ function profileSettingsModal() {
   openModal(`
     <section class="card modal stack">
       <div class="topbar">
-        <h2 class="section-title">Profile Settings</h2>
+        <h2 class="section-title">${tr("Profile Settings")}</h2>
         ${modalCloseButton()}
       </div>
       <div class="settings-list">
         <div class="settings-row language-settings-row">
-          <span>Language</span>
+          <span>${tr("Language")}</span>
           ${languageToggle()}
         </div>
         <div class="settings-row theme-settings-row">
-          <span>المظهر</span>
+          <span>${tr("Theme")}</span>
           ${themeToggle()}
         </div>
         <button class="settings-row" id="settings-notifications">
-          <span>لوحة التنبيهات</span>
+          <span>${tr("Notification Settings")}</span>
           <strong>›</strong>
         </button>
         <button class="settings-row" id="settings-edit-profile">
-          <span>Edit profile details</span>
+          <span>${tr("Edit profile details")}</span>
           <strong>›</strong>
         </button>
         <button class="settings-row" id="settings-share-profile">
-          <span>Share profile</span>
+          <span>${tr("Share profile")}</span>
+          <strong>›</strong>
+        </button>
+        <button class="settings-row" id="settings-history">
+          <span>${tr("History")}</span>
           <strong>›</strong>
         </button>
         <button class="settings-row danger-row" id="settings-logout">
-          <span>تسجيل الخروج</span>
+          <span>${tr("Logout")}</span>
           <strong>›</strong>
         </button>
       </div>
@@ -5030,6 +7217,10 @@ function profileSettingsModal() {
   document.querySelector("#settings-notifications").addEventListener("click", notificationSettingsModal);
   document.querySelector("#settings-edit-profile").addEventListener("click", editProfileModal);
   document.querySelector("#settings-share-profile").addEventListener("click", shareProfile);
+  document.querySelector("#settings-history").addEventListener("click", () => {
+    closeModal();
+    navigate("/challenges/history");
+  });
   document.querySelector("#settings-logout").addEventListener("click", () => {
     closeModal();
     navigate("/login");
@@ -5040,7 +7231,7 @@ function leaderboardRows(tournament, options = {}) {
   const rows = leaderboardData(tournament, options);
   const visibleRows = options.limit ? rows.slice(0, options.limit) : rows;
   return visibleRows.map((row, index) => `
-    <div class="leader-row leaderboard-entry">
+    <div class="leader-row leaderboard-entry ${row.name === state.currentUser.name ? "current-user-row" : ""}">
       <div class="leader-main">
         <span class="leader-rank">#${index + 1}</span>
         <span class="leader-name">${row.name}</span>
@@ -5057,20 +7248,239 @@ function leaderboardRows(tournament, options = {}) {
 }
 
 function leaderboardData(tournament, options = {}) {
-  const basePoints = Number(tournament.points) || Number(tournament.budget) || 0;
-  const currentCorrect = Number(tournament.correct) || 0;
-  const currentWrong = Number(tournament.wrong) || 0;
+  const settledRows = settleTournamentLeaderboard(tournament, options);
   const liveImpacts = options.live ? liveLeaderboardImpacts(tournament, options.round) : {};
-  return [
-    { name: state.currentUser.name, points: basePoints, correct: currentCorrect, wrong: currentWrong },
-    { name: "نورة الشامسي", points: basePoints - 40, correct: Math.max(0, currentCorrect + 1), wrong: currentWrong + 1 },
-    { name: "علي الكتبي", points: basePoints + 90, correct: currentCorrect + 3, wrong: Math.max(0, currentWrong) },
-    { name: "مريم الهاشمي", points: basePoints - 160, correct: Math.max(0, currentCorrect - 1), wrong: currentWrong + 3 },
-    { name: "سالم المنصوري", points: basePoints - 210, correct: Math.max(0, currentCorrect - 2), wrong: currentWrong + 4 }
-  ].map((row, index) => {
+  return settledRows.map((row, index) => {
     const liveDelta = liveImpacts[index] || 0;
     return { ...row, liveDelta, points: row.points + liveDelta, total: row.correct + row.wrong };
   }).sort((a, b) => b.points - a.points);
+}
+
+function settleTournamentLeaderboard(tournament) {
+  const participants = getTournamentParticipants(tournament);
+  const rows = participants.map((name, index) => ({
+    id: participantId(name),
+    name,
+    seedIndex: index,
+    points: 0,
+    correct: 0,
+    wrong: 0
+  }));
+  const byId = Object.fromEntries(rows.map((row) => [row.id, row]));
+  const tournamentRounds = getTournamentRounds(tournament);
+  const rules = getTournamentPointRules(tournament);
+
+  tournamentRounds.forEach((round, roundIndex) => {
+    const rule = rules[round.id];
+    const matches = (state.matches[round.id] || []).filter((match) => getMatchResultOutcome(match, round.id));
+    if (!matches.length) return;
+    if (roundIndex === 0 && rule.pointSource === "carry") rule.pointSource = "grant";
+    if (rule.pointSource === "grant") {
+      rows.forEach((row) => {
+        row.points += Number(rule.budget || tournament.budget || 0);
+      });
+    } else if (rule.pointSource !== "league") {
+      rows.forEach((row) => {
+        if (row.points <= 0) row.points = Number(tournament.budget || rule.budget || 0);
+      });
+    }
+
+    const roundStartBalances = Object.fromEntries(rows.map((row) => [row.id, row.points]));
+    matches.forEach((match, matchIndex) => {
+      const winner = getMatchResultOutcome(match, round.id);
+      if (!winner) return;
+      const predictions = rows.map((row) => simulatedParticipantPrediction(tournament, round.id, match, rule, row, matchIndex, matches.length, roundStartBalances[row.id]));
+      settleMatchByRule(byId, predictions, winner, rule, match, matches.length, roundStartBalances);
+    });
+  });
+
+  if (!tournamentRounds.some((round) => (state.matches[round.id] || []).some((match) => getMatchResultOutcome(match, round.id)))) {
+    const basePoints = Number(tournament.points) || Number(tournament.budget) || 0;
+    return rows.map((row, index) => ({
+      ...row,
+      points: basePoints - index * 45,
+      correct: Math.max(0, Number(tournament.correct || 0) + (index % 3)),
+      wrong: Math.max(0, Number(tournament.wrong || 0) + (index % 2))
+    }));
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    points: Math.round(row.points)
+  }));
+}
+
+function participantId(name) {
+  return normalizeName(name).replace(/\s+/g, "-") || "player";
+}
+
+function getMatchResultOutcome(match, round) {
+  const [homeGoals, awayGoals] = parseMatchScore(match.score);
+  if (homeGoals === null || awayGoals === null) return "";
+  if (homeGoals === awayGoals) return isDrawAllowed(round) ? "draw" : "";
+  return homeGoals > awayGoals ? match.a : match.b;
+}
+
+function simulatedParticipantPrediction(tournament, round, match, rule, row, matchIndex, matchCount, roundStartBalance) {
+  const key = `${tournament.id}:${round}:${match.id}`;
+  const actual = row.name === state.currentUser.name ? state.predictions[key] : null;
+  const outcome = actual ? getPredictionOutcome(actual) : deterministicOutcomeForPlayer(row, match, matchIndex, round);
+  const points = actual ? getPredictionPoints(actual) : getRuleStakeForOutcome(tournament, round, match, outcome, rule, matchCount, roundStartBalance);
+  return {
+    userId: row.id,
+    outcome,
+    points: Math.max(0, Number(points) || 0),
+    submitted: Boolean(outcome),
+    joker: Boolean(actual?.joker)
+  };
+}
+
+function deterministicOutcomeForPlayer(row, match, matchIndex, round) {
+  const choices = predictionOutcomes(round, match).map((outcome) => outcome.value);
+  return choices[(row.seedIndex + matchIndex) % choices.length];
+}
+
+function getRuleStakeForOutcome(tournament, round, match, outcome, rule, matchCount, roundStartBalance) {
+  if (rule.pointSource === "league") return 0;
+  if (rule.nominationType === "points" && rule.pointsMode === "fixed") {
+    if (outcome === "draw") return Math.round(getFixedMatchPointTotal(rule) / 2);
+    return getFixedMatchWinnerPoints(rule);
+  }
+  const budget = getRoundBudgetForPlayer(tournament, round, rule, roundStartBalance);
+  const perMatch = budget / Math.max(1, matchCount);
+  if (rule.nominationType === "percent") {
+    if (rule.percentMode === "fixed") {
+      const pct = outcome === "draw" ? 50 : getFixedPercentWinnerShare(rule);
+      return Math.round(perMatch * (pct / 100));
+    }
+    return Math.round(perMatch);
+  }
+  return Math.max(Number(rule.minPoints || tournament.minPoints || 1), Math.round(perMatch));
+}
+
+function settleMatchByRule(rowsById, predictions, winningOutcome, rule, match, matchCount, roundStartBalances) {
+  if (rule.pointSource === "league") {
+    predictions.forEach((prediction) => {
+      const row = rowsById[prediction.userId];
+      const correct = prediction.outcome === winningOutcome;
+      row.points += correct ? Number(rule.correctPoints || 10) : Number(rule.wrongPoints || 0);
+      if (correct) row.correct += 1;
+      else row.wrong += 1;
+    });
+    return;
+  }
+
+  const winners = predictions.filter((prediction) => prediction.submitted && prediction.outcome === winningOutcome);
+  const losers = predictions.filter((prediction) => !prediction.submitted || prediction.outcome !== winningOutcome);
+  const noPickPool = predictions
+    .filter((prediction) => !prediction.submitted)
+    .reduce((sum, prediction) => sum + getNoPickForfeit(roundStartBalances[prediction.userId], matchCount), 0);
+  const loserPool = losers.reduce((sum, prediction) => sum + (prediction.submitted ? prediction.points : 0), 0) + noPickPool;
+  const winnerStake = winners.reduce((sum, prediction) => sum + prediction.points, 0);
+
+  losers.forEach((prediction) => {
+    const row = rowsById[prediction.userId];
+    row.points -= prediction.submitted ? prediction.points : getNoPickForfeit(roundStartBalances[prediction.userId], matchCount);
+    row.wrong += 1;
+  });
+
+  winners.forEach((prediction) => {
+    const row = rowsById[prediction.userId];
+    let share = 0;
+    if (rule.settlement === "loser-pool-equal") {
+      share = winners.length ? loserPool / winners.length : 0;
+    } else if (rule.settlement === "loser-pool-ratio") {
+      share = winnerStake ? (prediction.points / winnerStake) * loserPool : 0;
+    }
+    const jokerMultiplier = prediction.joker ? 2 : 1;
+    row.points += share * jokerMultiplier;
+    row.correct += 1;
+  });
+}
+
+function getNoPickForfeit(roundStartBalance, matchCount) {
+  return Math.round((Number(roundStartBalance) || 0) / Math.max(1, matchCount));
+}
+
+function exportLeaderboardPdf(tournament) {
+  const rows = leaderboardData(tournament);
+  const tournamentName = tournament.name || "Pick A Side";
+  const generatedAt = new Date().toLocaleString("ar-AE", { hour12: false });
+  const tableRows = rows.map((row, index) => `
+    <tr>
+      <td>#${index + 1}</td>
+      <td>${escapePrintable(row.name)}</td>
+      <td>${row.points}</td>
+      <td>${row.correct}</td>
+      <td>${row.wrong}</td>
+      <td>${row.total}</td>
+    </tr>
+  `).join("");
+  const printableHtml = `
+    <!doctype html>
+    <html lang="ar" dir="rtl">
+      <head>
+        <meta charset="utf-8">
+        <title>${escapePrintable(tournamentName)} - ترتيب المشاركين</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 32px; font-family: Arial, sans-serif; color: #111; }
+          h1 { margin: 0 0 8px; font-size: 24px; }
+          p { margin: 0 0 22px; color: #555; }
+          table { width: 100%; border-collapse: collapse; font-size: 14px; }
+          th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
+          th { background: #f1f3f5; font-weight: 700; }
+          td:nth-child(2) { text-align: start; font-weight: 700; }
+          @media print { body { margin: 18mm; } }
+        </style>
+      </head>
+      <body>
+        <h1>${escapePrintable(tournamentName)} - ترتيب المشاركين</h1>
+        <p>تم إنشاء الجدول: ${generatedAt}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>الترتيب</th>
+              <th>المشارك</th>
+              <th>النقاط</th>
+              <th>صحيح</th>
+              <th>خاطئ</th>
+              <th>الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+  const pdfWindow = window.open("", "_blank", "width=900,height=700");
+  if (!pdfWindow) {
+    openModal(`
+      <section class="card modal stack">
+        <div class="modal-title-row">
+          <h2 class="section-title">تعذر فتح ملف PDF</h2>
+          <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
+        </div>
+        <p class="muted">اسمح بفتح النوافذ المنبثقة من المتصفح ثم حاول مرة أخرى.</p>
+      </section>
+    `);
+    document.querySelector("#close-modal").addEventListener("click", closeModal);
+    return;
+  }
+  pdfWindow.document.write(printableHtml);
+  pdfWindow.document.close();
+  pdfWindow.focus();
+  setTimeout(() => pdfWindow.print(), 250);
+}
+
+function escapePrintable(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[char]));
 }
 
 function liveLeaderboardImpacts(tournament, round) {

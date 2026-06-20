@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260620-live-proxy-fix1";
+const CACHE_NAME = "pick-a-side-20260621-backend-sync1";
 const APP_SHELL = [
   "./",
   "./index.html",

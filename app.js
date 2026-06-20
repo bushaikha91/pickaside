@@ -11,7 +11,7 @@ const state = {
   predictionPlayerQuery: "",
   playerInviteQuery: "",
   searchFocused: false,
-  searchHistory: ["دوري الأبطال", "@noura", "CL2026"],
+  searchHistory: [],
   publicTournamentFilter: "all",
   pendingCreateCoverImage: null,
   createFormDraft: {},
@@ -19,254 +19,44 @@ const state = {
   routeHistory: [],
   isHistoryNavigation: false,
   currentUser: {
-    name: "Salem Al Mansoori",
-    handle: "@salem",
-    avatar: "س",
+    name: "Pick A Side User",
+    handle: "@user",
+    avatar: "P",
     avatarUrl: "",
-    favoriteTeam: "Al Ain",
-    correctPredictions: 42,
-    totalPredictions: 58,
-    followers: ["Noura", "Ali", "Maryam", "Khaled"],
-    following: ["Rashed", "Hind", "Fahad"]
+    favoriteTeam: "",
+    correctPredictions: 0,
+    totalPredictions: 0,
+    followers: [],
+    following: []
   },
-  users: [
-    { name: "Noura Al Shamsi", username: "noura", handle: "@noura", relation: "Follow back" },
-    { name: "Ali Al Ketbi", username: "ali", handle: "@ali", relation: "Unfollow" },
-    { name: "Maryam Al Hashemi", username: "maryam", handle: "@maryam", relation: "Unfollow" },
-    { name: "Khaled Al Suwaidi", username: "khaled", handle: "@khaled", relation: "Follow back" }
-  ],
-  tournaments: [
-    {
-      id: "uae-cup",
-      name: "Champions League",
-      public: true,
-      publicCode: "CL2026",
-      active: true,
-      joined: true,
-      owner: "Salem",
-      rank: 2,
-      friends: 14,
-      points: 1180,
-      correct: 8,
-      wrong: 3,
-      budget: 400,
-      minPoints: 20,
-      startingRound: "group",
-      currentRound: "group",
-      awardCategories: ["best-player", "top-scorer"]
-    },
-    {
-      id: "world-night",
-      name: "Weekend Derby",
-      public: true,
-      publicCode: "DERBY",
-      active: true,
-      joined: true,
-      owner: "Ali",
-      rank: 5,
-      friends: 22,
-      points: 940,
-      correct: 6,
-      wrong: 5,
-      budget: 350,
-      minPoints: 15,
-      startingRound: "round16",
-      currentRound: "quarter",
-      awardCategories: []
-    },
-    {
-      id: "ali-open-picks",
-      name: "Ali Open Picks",
-      public: true,
-      publicCode: "ALI777",
-      active: false,
-      joined: false,
-      owner: "Ali",
-      ownerUsername: "ali",
-      rank: null,
-      friends: 11,
-      participants: ["Ali", "Hind", "Fahad"],
-      leaderName: "",
-      leaderPoints: 0,
-      points: 0,
-      budget: 250,
-      minPoints: 10,
-      startingRound: "round16",
-      currentRound: "round16",
-      awardCategories: []
-    },
-    {
-      id: "maryam-active-cup",
-      name: "Maryam Active Cup",
-      public: true,
-      publicCode: "MARYAM",
-      active: true,
-      joined: false,
-      owner: "Maryam",
-      ownerUsername: "maryam",
-      rank: null,
-      friends: 19,
-      participants: ["Maryam", "Noura", "Ali", "Khaled"],
-      leaderName: "Noura",
-      leaderPoints: 980,
-      points: 0,
-      budget: 350,
-      minPoints: 15,
-      startingRound: "group",
-      currentRound: "group",
-      awardCategories: ["top-scorer"]
-    },
-    {
-      id: "noura-open-cup",
-      name: "Noura Open Cup",
-      public: true,
-      publicCode: "NOURA",
-      active: false,
-      joined: false,
-      owner: "Noura",
-      ownerUsername: "noura",
-      rank: null,
-      friends: 18,
-      participants: ["Noura", "Hind", "Fahad", "Rashed"],
-      leaderName: "Hind",
-      leaderPoints: 0,
-      points: 0,
-      budget: 300,
-      minPoints: 10,
-      startingRound: "round16",
-      currentRound: "round16",
-      awardCategories: []
-    },
-    {
-      id: "noura-live-league",
-      name: "Noura Live League",
-      public: true,
-      publicCode: "LIVE9",
-      active: true,
-      joined: false,
-      owner: "Noura",
-      ownerUsername: "noura",
-      rank: null,
-      friends: 26,
-      participants: ["Noura", "Ali", "Maryam", "Khaled", "Salem"],
-      leaderName: "Ali",
-      leaderPoints: 1260,
-      points: 0,
-      budget: 400,
-      minPoints: 20,
-      startingRound: "group",
-      currentRound: "group",
-      awardCategories: ["champion-pick"]
-    },
-    {
-      id: "draft-001",
-      name: "Private Friends Cup",
-      public: false,
-      active: false,
-      draft: true,
-      joined: false,
-      owner: "Salem",
-      inviteCode: "K7M2QZ",
-      awardCategories: []
-    }
-  ],
+  users: [],
+  tournaments: [],
   matches: {
-    group: [
-      { id: "g1", kickoff: "2026-06-06T18:00:00+04:00", a: "العين", b: "النصر", score: "2 - 1" },
-      { id: "g2", kickoff: "2026-06-06T20:00:00+04:00", a: "الهلال", b: "الوصل", score: "1 - 1" },
-      { id: "g3", kickoff: "2026-06-07T18:30:00+04:00", a: "الاتحاد", b: "الشارقة", score: "0 - 2" },
-      { id: "g4", kickoff: "2026-06-07T21:00:00+04:00", a: "الأهلي", b: "الوحدة", score: "3 - 2" }
-    ],
-    round16: [
-      { id: "m1", kickoff: "2026-06-06T21:00:00+04:00", a: "الهلال", b: "النصر", score: "2 - 0" },
-      { id: "m2", kickoff: "2026-06-06T23:00:00+04:00", a: "العين", b: "الوصل", score: "1 - 0" },
-      { id: "m3", kickoff: "2026-06-07T20:00:00+04:00", a: "الاتحاد", b: "الأهلي", score: "2 - 3" },
-      { id: "m4", kickoff: "2026-06-07T22:30:00+04:00", a: "الشارقة", b: "الوحدة", score: "1 - 2" }
-    ],
-    quarter: [
-      { id: "q1", kickoff: "2026-06-10T21:00:00+04:00", a: "الفائز 1", b: "الفائز 2", score: null },
-      { id: "q2", kickoff: "2026-06-10T23:00:00+04:00", a: "الفائز 3", b: "الفائز 4", score: null }
-    ],
+    group: [],
+    round16: [],
+    quarter: [],
     semi: [],
     final: []
   },
-  liveMatches: [
-    { league: "AFC Champions", minute: "67", home: "الهلال", away: "العين", score: "2 - 1", impact: "+80 محتملة" },
-    { league: "UAE Pro League", minute: "52", home: "الوصل", away: "النصر", score: "0 - 0", impact: "قيد الانتظار" },
-    { league: "Club Cup", minute: "83", home: "الأهلي", away: "الاتحاد", score: "1 - 3", impact: "-45 حالياً" }
-  ],
+  liveMatches: [],
   predictions: {},
   quickPicks: {},
   predictionErrors: {},
   awardPicks: {},
   awardSearchQueries: {},
-  notifications: [
-    {
-      id: "n-join-request",
-      type: "join-request",
-      title: "طلب انضمام",
-      body: "راشد يريد دخول Private Friends Cup",
-      time: "الآن",
-      icon: "user",
-      unread: true,
-      route: "/challenges/created",
-      requesterName: "Rashed",
-      requesterHandle: "@rashed",
-      tournamentId: "draft-001",
-      tournamentName: "Private Friends Cup",
-      status: "pending"
-    },
-    {
-      id: "n-tournament-invite",
-      type: "tournament-invite",
-      title: "دعوة بطولة",
-      body: "علي دعاك إلى Weekend Derby",
-      time: "الآن",
-      icon: "trophy",
-      unread: true,
-      route: "/tournament/world-night",
-      inviterName: "Ali",
-      tournamentId: "world-night",
-      tournamentName: "Weekend Derby",
-      status: "pending"
-    },
-    {
-      id: "n-lock",
-      title: "توقعاتك تقفل قريباً",
-      body: "باقي وقت قصير على Champions League",
-      time: "الآن",
-      icon: "clock",
-      unread: true,
-      route: "/tournament/uae-cup"
-    },
-    {
-      id: "n-round",
-      title: "فتح الدور التالي",
-      body: "ربع النهائي جاهز للتوقع",
-      time: "قبل 12 د",
-      icon: "trophy",
-      unread: true,
-      route: "/tournament/world-night"
-    },
-    {
-      id: "n-follow",
-      type: "follow",
-      title: "نورة تابعتك",
-      body: "",
-      time: "اليوم",
-      icon: "user",
-      unread: false,
-      route: "/user/noura",
-      followerName: "Noura",
-      followerUsername: "noura",
-      status: "pending"
-    }
-  ],
+  notifications: [],
   notificationPreferences: {
     invites: true,
     joinRequests: true,
     tournamentUpdates: true,
     social: true
+  },
+  backend: {
+    loading: true,
+    configured: false,
+    client: null,
+    session: null,
+    error: ""
   },
   selectedLiveTournamentId: "",
   competitionSearchQuery: "",
@@ -276,6 +66,9 @@ const state = {
   competitionSearchStatus: "",
   competitionSearchError: "",
   competitionSearchTimer: null,
+  selectedCompetitionMatchesByRound: null,
+  selectedCompetitionFixtureStatus: "",
+  selectedCompetitionFixtureError: "",
   liveApi: {
     endpoint: "/api/live-results",
     lastFetchAt: 0,
@@ -289,10 +82,16 @@ const state = {
 };
 
 const rounds = [
+  { id: "qualifying", label: "التصفيات" },
+  { id: "preliminary", label: "الدور التمهيدي" },
+  { id: "playoff", label: "الملحق" },
   { id: "group", label: "دور المجموعات" },
+  { id: "round64", label: "دور 64" },
+  { id: "round32", label: "دور 32" },
   { id: "round16", label: "دور 16" },
   { id: "quarter", label: "ربع النهائي" },
   { id: "semi", label: "نصف النهائي" },
+  { id: "third-place", label: "تحديد المركز الثالث" },
   { id: "final", label: "النهائي" }
 ];
 
@@ -340,12 +139,12 @@ const translations = {
     "Settled tournaments": "Settled tournaments",
     "Notifications": "Notifications",
     "طلب انضمام": "Join request",
-    "راشد يريد دخول Private Friends Cup": "Rashed wants to join Private Friends Cup",
+    "طلب جديد للانضمام إلى البطولة": "New request to join the championship",
     "توقعاتك تقفل قريباً": "Predictions close soon",
-    "باقي وقت قصير على Champions League": "Champions League closes soon",
+    "باقي وقت قصير على البطولة": "Championship predictions close soon",
     "فتح الدور التالي": "Next round unlocked",
     "ربع النهائي جاهز للتوقع": "Quarter final is ready",
-    "نورة تابعتك": "Noura followed you",
+    "مستخدم جديد تابعك": "A new user followed you",
     "رد المتابعة": "Follow back",
     "متابعة": "Follow",
     "تتابعه": "Following",
@@ -361,7 +160,7 @@ const translations = {
     "تم قبول الطلب": "Request approved",
     "تم رفض الطلب": "Request declined",
     "دعوة بطولة": "Tournament invite",
-    "علي دعاك إلى Weekend Derby": "Ali invited you to Weekend Derby",
+    "تمت دعوتك إلى بطولة": "You were invited to a championship",
     "تم قبول الدعوة": "Invite accepted",
     "تم رفض الدعوة": "Invite declined",
     "انضممت إلى": "Joined",
@@ -572,12 +371,12 @@ const translations = {
     "Settled tournaments": "بطولات منتهية",
     "Notifications": "التنبيهات",
     "Join request": "طلب انضمام",
-    "Rashed wants to join Private Friends Cup": "راشد يريد دخول Private Friends Cup",
+    "New request to join the championship": "طلب جديد للانضمام إلى البطولة",
     "Predictions close soon": "توقعاتك تقفل قريباً",
-    "Champions League closes soon": "باقي وقت قصير على Champions League",
+    "Championship predictions close soon": "باقي وقت قصير على البطولة",
     "Next round unlocked": "فتح الدور التالي",
     "Quarter final is ready": "ربع النهائي جاهز للتوقع",
-    "Noura followed you": "نورة تابعتك",
+    "A new user followed you": "مستخدم جديد تابعك",
     "Followed back": "تم رد المتابعة",
     "You now follow": "أنت الآن تتابع",
     "Follow": "متابعة",
@@ -589,7 +388,7 @@ const translations = {
     "Approved": "تم القبول",
     "Declined": "تم الرفض",
     "Tournament invite": "دعوة بطولة",
-    "Ali invited you to Weekend Derby": "علي دعاك إلى Weekend Derby",
+    "You were invited to a championship": "تمت دعوتك إلى بطولة",
     "Invite accepted": "تم قبول الدعوة",
     "Invite declined": "تم رفض الدعوة",
     "Joined": "انضممت إلى",
@@ -760,14 +559,14 @@ const dataNameTranslations = {
     "الفائز 3": "Winner 3",
     "الفائز 4": "Winner 4",
     "Champions League": "Champions League",
-    "Weekend Derby": "Weekend Derby",
-    "Private Friends Cup": "Private Friends Cup",
+    "Friendly Championship": "Friendly Championship",
+    "Private Championship": "Private Championship",
     "AFC Champions League Elite": "AFC Champions League Elite",
     "UEFA Champions League": "UEFA Champions League",
     "UAE Pro League": "UAE Pro League",
     "Club World Championship": "Club World Championship",
     "Gulf Cup": "Gulf Cup",
-    "Weekend Derby Series": "Weekend Derby Series"
+    "Friendly Championship Series": "Friendly Championship Series"
   },
   ar: {
     "Al Ain": "العين",
@@ -783,14 +582,14 @@ const dataNameTranslations = {
     "Winner 3": "الفائز 3",
     "Winner 4": "الفائز 4",
     "Champions League": "دوري الأبطال",
-    "Weekend Derby": "ديربي نهاية الأسبوع",
-    "Private Friends Cup": "كأس الأصدقاء الخاصة",
+    "Friendly Championship": "بطولة ودية",
+    "Private Championship": "بطولة خاصة",
     "AFC Champions League Elite": "دوري أبطال آسيا للنخبة",
     "UEFA Champions League": "دوري أبطال أوروبا",
     "UAE Pro League": "دوري أدنوك للمحترفين",
     "Club World Championship": "بطولة العالم للأندية",
     "Gulf Cup": "كأس الخليج",
-    "Weekend Derby Series": "سلسلة ديربي نهاية الأسبوع"
+    "Friendly Championship Series": "سلسلة بطولة ودية"
   }
 };
 
@@ -812,47 +611,8 @@ const extraPrizeOptions = [
   { id: "best-playmaker", label: "أفضل صانع ألعاب في البطولة" }
 ];
 
-const officialCompetitions = [
-  { id: "comp-afc", name: "AFC Champions League Elite", code: "AFCELITE", region: "Asia", season: "2026", defaultStart: "group" },
-  { id: "comp-ucl", name: "UEFA Champions League", code: "UCL", region: "Europe", season: "2026", defaultStart: "group" },
-  { id: "comp-uae", name: "UAE Pro League", code: "UAEPL", region: "UAE", season: "2026", defaultStart: "group" },
-  { id: "comp-club", name: "Club World Championship", code: "CWC", region: "Global", season: "2026", defaultStart: "group" },
-  { id: "comp-gulf", name: "Gulf Cup", code: "GULFCUP", region: "GCC", season: "2026", defaultStart: "round16" },
-  { id: "comp-friendly", name: "Weekend Derby Series", code: "DERBY", region: "Private", season: "2026", defaultStart: "round16" }
-];
-
-const officialRosterPlayers = [
-  { id: "p-omar", name: "عمر عبد الرحمن", team: "العين", position: "MID", age: 34 },
-  { id: "p-khaled-eisa", name: "خالد عيسى", team: "العين", position: "GK", age: 36 },
-  { id: "p-soufiane", name: "سفيان رحيمي", team: "العين", position: "FWD", age: 30 },
-  { id: "p-laba", name: "لابا كودجو", team: "العين", position: "FWD", age: 33 },
-  { id: "p-ali-mabkhout", name: "علي مبخوت", team: "الجزيرة", position: "FWD", age: 35 },
-  { id: "p-hareb", name: "حارب عبدالله", team: "شباب الأهلي", position: "FWD", age: 23 },
-  { id: "p-sultan", name: "سلطان عادل", team: "اتحاد كلباء", position: "FWD", age: 21 },
-  { id: "p-ronaldo", name: "كريستيانو رونالدو", team: "النصر", position: "FWD", age: 41 },
-  { id: "p-salem", name: "سالم الدوسري", team: "الهلال", position: "MID", age: 34 },
-  { id: "p-alowais", name: "محمد العويس", team: "الهلال", position: "GK", age: 34 },
-  { id: "p-benzema", name: "كريم بنزيما", team: "الاتحاد", position: "FWD", age: 38 },
-  { id: "p-kante", name: "نغولو كانتي", team: "الاتحاد", position: "MID", age: 35 },
-  { id: "p-crespo", name: "محمد عباس", team: "العين", position: "MID", age: 22 },
-  { id: "p-ali-khasif", name: "علي خصيف", team: "الجزيرة", position: "GK", age: 39 },
-  { id: "p-abdullah-idrees", name: "عبدالله إدريس", team: "الجزيرة", position: "DEF", age: 21 },
-  { id: "p-maayouf", name: "عبدالله المعيوف", team: "الاتحاد", position: "GK", age: 39 }
-];
-
-const sportsApiTeamDirectory = {
-  "العين": { id: "api-team-al-ain", logoUrl: teamLogoDataUri("A", "#5b2cff", "#ffffff") },
-  "النصر": { id: "api-team-al-nassr", logoUrl: teamLogoDataUri("N", "#ffd43b", "#173c8f") },
-  "الهلال": { id: "api-team-al-hilal", logoUrl: teamLogoDataUri("H", "#1264ff", "#ffffff") },
-  "الوصل": { id: "api-team-al-wasl", logoUrl: teamLogoDataUri("W", "#f4c430", "#151515") },
-  "الاتحاد": { id: "api-team-al-ittihad", logoUrl: teamLogoDataUri("I", "#f3c400", "#111111") },
-  "الشارقة": { id: "api-team-sharjah", logoUrl: teamLogoDataUri("S", "#e4363d", "#ffffff") },
-  "الأهلي": { id: "api-team-al-ahli", logoUrl: teamLogoDataUri("Ah", "#d71920", "#ffffff") },
-  "الوحدة": { id: "api-team-al-wahda", logoUrl: teamLogoDataUri("W", "#7b1113", "#ffffff") },
-  "الجزيرة": { id: "api-team-al-jazira", logoUrl: teamLogoDataUri("J", "#d71920", "#ffffff") },
-  "شباب الأهلي": { id: "api-team-shabab-al-ahli", logoUrl: teamLogoDataUri("SA", "#d71920", "#ffffff") },
-  "اتحاد كلباء": { id: "api-team-kalba", logoUrl: teamLogoDataUri("K", "#f2c300", "#111111") }
-};
+const officialRosterPlayers = [];
+const sportsApiTeamDirectory = {};
 
 function navigate(path) {
   if (path !== state.route) {
@@ -1463,11 +1223,306 @@ function updateBottomNav(route) {
 
 function getInitialRoute() {
   if (window.location.hash.startsWith("#/")) return window.location.hash.slice(1);
+  if (window.location.protocol === "file:" && window.location.pathname.toLowerCase().endsWith("/index.html")) return "/";
   return window.location.pathname === "/index.html" ? "/" : window.location.pathname;
+}
+
+function appConfigEndpoint() {
+  if (window.location.protocol === "file:") return "https://www.pickaside.mobile/api/app-config";
+  return "/api/app-config";
+}
+
+async function initializeBackend() {
+  state.backend.loading = true;
+  state.backend.error = "";
+  try {
+    const response = await fetch(appConfigEndpoint(), { cache: "no-store" });
+    const config = response.ok ? await response.json() : {};
+    if (!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase?.createClient) {
+      state.backend.loading = false;
+      state.backend.configured = false;
+      state.backend.error = "Supabase is not configured";
+      return;
+    }
+    state.backend.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+    state.backend.configured = true;
+    const { data } = await state.backend.client.auth.getSession();
+    state.backend.session = data.session || null;
+    if (state.backend.session) {
+      await loadCurrentUserProfile(state.backend.session);
+      await loadBackendData();
+    }
+    state.backend.client.auth.onAuthStateChange(async (_event, session) => {
+      state.backend.session = session || null;
+      if (session) {
+        await loadCurrentUserProfile(session);
+        await loadBackendData();
+      }
+      render();
+    });
+  } catch (error) {
+    state.backend.configured = false;
+    state.backend.error = error.message || "Backend configuration failed";
+  } finally {
+    state.backend.loading = false;
+  }
+}
+
+async function loadCurrentUserProfile(session) {
+  const user = session?.user;
+  if (!user || !state.backend.client) return;
+  const { data, error } = await state.backend.client
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) return;
+  if (!data) {
+    await upsertCurrentUserProfile(user, {
+      username: user.user_metadata?.username || user.email?.split("@")[0] || "user",
+      displayName: user.user_metadata?.display_name || user.email?.split("@")[0] || "Pick A Side User"
+    });
+    return;
+  }
+  state.currentUser = profileToCurrentUser(data);
+}
+
+async function upsertCurrentUserProfile(user, profile) {
+  if (!user || !state.backend.client) return;
+  const row = {
+    id: user.id,
+    username: profile.username,
+    display_name: profile.displayName,
+    avatar_url: "",
+    favorite_team: "",
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await state.backend.client
+    .from("profiles")
+    .upsert(row, { onConflict: "id" })
+    .select("id, username, display_name, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
+    .single();
+  if (!error && data) state.currentUser = profileToCurrentUser(data);
+}
+
+function profileToCurrentUser(profile) {
+  const displayName = profile.display_name || profile.username || "Pick A Side User";
+  return {
+    name: displayName,
+    handle: `@${profile.username || "user"}`,
+    avatar: displayName.trim().charAt(0).toUpperCase() || "P",
+    avatarUrl: profile.avatar_url || "",
+    favoriteTeam: profile.favorite_team || "",
+    correctPredictions: Number(profile.correct_predictions) || 0,
+    totalPredictions: Number(profile.total_predictions) || 0,
+    followers: Array.from({ length: Number(profile.followers_count) || 0 }, (_, index) => `follower-${index + 1}`),
+    following: Array.from({ length: Number(profile.following_count) || 0 }, (_, index) => `following-${index + 1}`)
+  };
+}
+
+function isBackendReady() {
+  return Boolean(state.backend.configured && state.backend.client && state.backend.session?.user?.id);
+}
+
+function makeTournamentId() {
+  if (isBackendReady() && window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `t-${Date.now()}`;
+}
+
+function profileMapById(profiles = []) {
+  return new Map((profiles || []).map((profile) => [profile.id, profile]));
+}
+
+async function loadBackendData() {
+  if (!isBackendReady()) return;
+  await loadBackendTournaments();
+}
+
+async function loadBackendTournaments() {
+  if (!isBackendReady()) return;
+  const client = state.backend.client;
+  const userId = state.backend.session.user.id;
+  const [{ data: tournaments, error: tournamentsError }, { data: participants, error: participantsError }] = await Promise.all([
+    client
+      .from("tournaments")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    client
+      .from("tournament_participants")
+      .select("tournament_id, profile_id, role, status, points, correct_predictions, wrong_predictions")
+      .eq("profile_id", userId)
+  ]);
+
+  if (tournamentsError || participantsError) {
+    state.backend.error = tournamentsError?.message || participantsError?.message || "";
+    return;
+  }
+
+  const ownerIds = [...new Set((tournaments || []).map((tournament) => tournament.owner_id).filter(Boolean))];
+  let owners = [];
+  if (ownerIds.length) {
+    const { data } = await client
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .in("id", ownerIds);
+    owners = data || [];
+  }
+
+  const ownersById = profileMapById(owners);
+  const participantByTournament = new Map((participants || []).map((participant) => [participant.tournament_id, participant]));
+  const backendTournaments = (tournaments || []).map((row) => {
+    return dbTournamentToApp(row, participantByTournament.get(row.id), ownersById.get(row.owner_id));
+  });
+  mergeBackendTournaments(backendTournaments);
+}
+
+function mergeBackendTournaments(backendTournaments) {
+  const backendIds = new Set(backendTournaments.map((tournament) => tournament.id));
+  const localOnly = state.tournaments.filter((tournament) => !backendIds.has(tournament.id) && !tournament.backendSynced);
+  state.tournaments = [...backendTournaments, ...localOnly];
+}
+
+function dbTournamentToApp(row, participation, ownerProfile) {
+  const isOwner = row.owner_id === state.backend.session?.user?.id;
+  const ownerName = ownerProfile?.display_name || (isOwner ? state.currentUser.name : "صاحب البطولة");
+  const ownerUsername = ownerProfile?.username || (isOwner ? state.currentUser.handle.replace("@", "") : "owner");
+  const settings = row.settings || {};
+  const matchesByRound = row.matches_by_round || emptyMatchesByRound();
+  const roundIds = Array.isArray(row.round_ids) && row.round_ids.length
+    ? row.round_ids
+    : roundOptionsFromMatches(matchesByRound).map((round) => round.id);
+
+  return {
+    id: row.id,
+    name: row.name,
+    officialCompetitionId: row.official_competition_api_id ? `api-${row.official_competition_api_id}-${row.official_competition_season || ""}` : "",
+    officialCompetitionApiId: row.official_competition_api_id || "",
+    officialCompetitionSeason: row.official_competition_season || "",
+    officialCompetitionLogoUrl: row.official_competition_logo_url || "",
+    officialCompetitionCode: settings.officialCompetitionCode || "",
+    officialCompetitionName: row.official_competition_name || row.name,
+    matchesByRound,
+    fixturesStatus: settings.fixturesStatus || "",
+    logoFileName: settings.logoFileName || "",
+    coverImageUrl: row.cover_image_url || "",
+    postImageFileName: settings.postImageFileName || "",
+    public: row.is_public,
+    publicCode: row.is_public ? (settings.publicCode || row.invite_code || "") : "",
+    active: row.is_active,
+    draft: row.is_draft,
+    setupIncomplete: row.setup_incomplete,
+    activationReady: Boolean(settings.activationReady),
+    startDate: row.start_date,
+    hasPrizes: row.has_prizes,
+    joined: isOwner || Boolean(participation),
+    owner: ownerName,
+    ownerUsername,
+    rank: Number(settings.rank) || 1,
+    friends: Number(settings.friends) || Number(settings.participantCount) || (participation ? 1 : 0),
+    maxPlayers: row.max_players,
+    participants: settings.participants || (participation || isOwner ? [state.currentUser.name] : []),
+    points: Number(participation?.points ?? settings.points ?? 0),
+    correct: Number(participation?.correct_predictions ?? settings.correct ?? 0),
+    wrong: Number(participation?.wrong_predictions ?? settings.wrong ?? 0),
+    budget: settings.budget ?? null,
+    minPoints: settings.minPoints ?? null,
+    rulesConfigured: Boolean(settings.rulesConfigured),
+    roundIds,
+    startingRound: row.starting_round,
+    currentRound: row.current_round,
+    inviteCode: row.invite_code,
+    awardCategories: row.award_categories || [],
+    prizes: row.prizes || [],
+    joinRequests: settings.joinRequests || [],
+    backendSynced: true
+  };
+}
+
+function appTournamentToDb(tournament) {
+  const officialApiId = Number(tournament.officialCompetitionApiId) || null;
+  const season = Number(tournament.officialCompetitionSeason) || null;
+  return {
+    id: tournament.id,
+    owner_id: state.backend.session.user.id,
+    name: tournament.name,
+    official_competition_api_id: officialApiId,
+    official_competition_name: tournament.officialCompetitionName || tournament.name,
+    official_competition_season: season,
+    official_competition_logo_url: tournament.officialCompetitionLogoUrl || null,
+    cover_image_url: tournament.coverImageUrl || null,
+    is_public: Boolean(tournament.public),
+    invite_code: tournament.inviteCode || null,
+    max_players: Number(tournament.maxPlayers) || 16,
+    starting_round: tournament.startingRound || "group",
+    current_round: tournament.currentRound || tournament.startingRound || "group",
+    start_date: tournament.startDate,
+    has_prizes: Boolean(tournament.hasPrizes),
+    is_active: Boolean(tournament.active),
+    is_draft: Boolean(tournament.draft),
+    setup_incomplete: Boolean(tournament.setupIncomplete),
+    matches_by_round: tournament.matchesByRound || emptyMatchesByRound(),
+    round_ids: tournament.roundIds || roundOptionsFromMatches(tournament.matchesByRound || emptyMatchesByRound()).map((round) => round.id),
+    prizes: tournament.prizes || [],
+    award_categories: tournament.awardCategories || [],
+    settings: {
+      officialCompetitionCode: tournament.officialCompetitionCode || "",
+      fixturesStatus: tournament.fixturesStatus || "",
+      logoFileName: tournament.logoFileName || "",
+      postImageFileName: tournament.postImageFileName || "",
+      publicCode: tournament.publicCode || "",
+      activationReady: Boolean(tournament.activationReady),
+      rank: tournament.rank || 1,
+      friends: tournament.friends || 1,
+      participantCount: Math.max(tournament.friends || 0, (tournament.participants || []).length),
+      participants: tournament.participants || [],
+      points: tournament.points || 0,
+      correct: tournament.correct || 0,
+      wrong: tournament.wrong || 0,
+      budget: tournament.budget ?? null,
+      minPoints: tournament.minPoints ?? null,
+      rulesConfigured: Boolean(tournament.rulesConfigured),
+      joinRequests: tournament.joinRequests || []
+    },
+    updated_at: new Date().toISOString()
+  };
+}
+
+async function persistTournamentToBackend(tournament) {
+  if (!isBackendReady() || !tournament) return false;
+  const client = state.backend.client;
+  const { error } = await client
+    .from("tournaments")
+    .upsert(appTournamentToDb(tournament), { onConflict: "id" });
+  if (error) throw error;
+  const participantRow = {
+    tournament_id: tournament.id,
+    profile_id: state.backend.session.user.id,
+    role: isTournamentOwner(tournament) ? "owner" : "player",
+    status: "joined",
+    points: Number(tournament.points) || 0,
+    correct_predictions: Number(tournament.correct) || 0,
+    wrong_predictions: Number(tournament.wrong) || 0
+  };
+  const { error: participantError } = await client
+    .from("tournament_participants")
+    .upsert(participantRow, { onConflict: "tournament_id,profile_id" });
+  if (participantError) throw participantError;
+  tournament.backendSynced = true;
+  return true;
+}
+
+function queueTournamentPersist(tournament) {
+  if (!isBackendReady() || !tournament) return;
+  persistTournamentToBackend(tournament).catch((error) => {
+    tournament.backendSyncError = error.message || "تعذر حفظ البطولة في قاعدة البيانات.";
+    state.backend.error = tournament.backendSyncError;
+  });
 }
 
 function renderAuth(route) {
   const isSignup = route === "/signup";
+  const backendStatus = authBackendStatusHtml();
   app.innerHTML = `
     <section class="auth-layout">
       <div class="hero-panel">
@@ -1479,19 +1534,25 @@ function renderAuth(route) {
       </div>
       <form class="card auth-card stack" id="auth-form">
         <h2>${isSignup ? "إنشاء حساب" : "تسجيل الدخول"}</h2>
+        ${backendStatus}
         <div class="field">
           <label>البريد الإلكتروني</label>
-          <input class="input" type="email" required value="salem@example.com">
+          <input class="input" id="auth-email" type="email" autocomplete="email" required>
         </div>
         ${isSignup ? `
           <div class="field">
             <label>اسم المستخدم</label>
-            <input class="input" type="text" required value="salem">
+            <input class="input" id="auth-username" type="text" autocomplete="username" required>
+          </div>
+          <div class="field">
+            <label>الاسم الظاهر</label>
+            <input class="input" id="auth-display-name" type="text" autocomplete="name" required>
           </div>` : ""}
         <div class="field">
           <label>كلمة المرور</label>
-          <input class="input" type="password" required value="password123">
+          <input class="input" id="auth-password" type="password" autocomplete="${isSignup ? "new-password" : "current-password"}" required>
         </div>
+        <div class="error-text" id="auth-error"></div>
         <button class="btn accent" type="submit">${isSignup ? "إنشاء الحساب" : "دخول"}</button>
         <button class="btn ghost" type="button" data-route="${isSignup ? "/login" : "/signup"}">
           ${isSignup ? "لدي حساب" : "إنشاء حساب جديد"}
@@ -1501,13 +1562,73 @@ function renderAuth(route) {
   `;
   document.querySelector("#auth-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    navigate("/");
+    handleAuthSubmit(isSignup);
   });
+}
+
+function authBackendStatusHtml() {
+  if (state.backend.loading) {
+    return `<div class="notice">جاري تجهيز الاتصال بالحسابات...</div>`;
+  }
+  if (state.backend.configured) {
+    return `<div class="notice success-notice">نظام الحسابات الحقيقي جاهز.</div>`;
+  }
+  return `
+    <div class="notice danger-notice">
+      نظام الحسابات الحقيقي غير مفعّل بعد. أضف مفاتيح Supabase في Vercel: SUPABASE_URL و SUPABASE_ANON_KEY.
+    </div>
+  `;
+}
+
+async function handleAuthSubmit(isSignup) {
+  const errorBox = document.querySelector("#auth-error");
+  const email = document.querySelector("#auth-email")?.value.trim();
+  const password = document.querySelector("#auth-password")?.value;
+  const username = document.querySelector("#auth-username")?.value.trim().replace(/^@/, "").toLowerCase();
+  const displayName = document.querySelector("#auth-display-name")?.value.trim();
+
+  if (!state.backend.configured || !state.backend.client) {
+    errorBox.textContent = "لا يمكن إنشاء حساب حقيقي قبل تفعيل Supabase في Vercel.";
+    return;
+  }
+
+  try {
+    if (isSignup) {
+      const { data, error } = await state.backend.client.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            display_name: displayName || username
+          }
+        }
+      });
+      if (error) throw error;
+      if (data.user) {
+        await upsertCurrentUserProfile(data.user, { username, displayName: displayName || username });
+      }
+      if (!data.session) {
+        errorBox.textContent = "تم إنشاء الحساب. إذا كان تأكيد البريد مفعلاً، افتح بريدك لتأكيد الحساب ثم سجل الدخول.";
+        return;
+      }
+      state.backend.session = data.session;
+    } else {
+      const { data, error } = await state.backend.client.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      state.backend.session = data.session;
+      await loadCurrentUserProfile(data.session);
+    }
+    await loadBackendData();
+    navigate("/");
+  } catch (error) {
+    errorBox.textContent = error.message || "تعذر تنفيذ العملية حالياً.";
+  }
 }
 
 function renderHome() {
   const user = state.currentUser;
-  const efficiency = Math.round((user.correctPredictions / user.totalPredictions) * 100);
+  const efficiency = user.totalPredictions ? Math.round((user.correctPredictions / user.totalPredictions) * 100) : 0;
   const activeTournaments = state.tournaments.filter((item) => item.active && item.joined);
   const pendingVoteTasks = getHomePendingVoteTasks();
   app.innerHTML = `
@@ -1624,7 +1745,7 @@ function getHomePendingVoteTasks() {
     .flatMap((tournament) => {
       const round = tournament.currentRound || tournament.startingRound || "round16";
       const roundLabel = rounds.find((item) => item.id === round)?.label || "الدور الحالي";
-      const matches = state.matches[round] || [];
+      const matches = getTournamentMatches(tournament, round);
       return matches
         .filter((match) => !isPredictionComplete(tournament.id, round, match.id))
         .map((match) => {
@@ -2052,7 +2173,7 @@ function joinTournament(tournamentId) {
 function searchOfficialCompetitions(query) {
   const normalized = query.trim().toLowerCase();
   const source = state.apiCompetitions;
-  if (!normalized) return source.slice(0, 12);
+  if (!normalized) return [];
 
   const competitions = source.filter((competition) => {
     return competition.name.toLowerCase().includes(normalized)
@@ -2067,9 +2188,12 @@ function getSelectedCompetition() {
 }
 
 function competitionResultsHtml(query) {
+  if (!query.trim()) {
+    return `<div class="competition-empty">اكتب اسم البطولة للبحث في جميع البطولات الفعلية لكرة القدم. مثال: World Cup أو كأس العالم.</div>`;
+  }
   const competitions = searchOfficialCompetitions(query);
   if (state.competitionSearchStatus === "loading") {
-    return `<div class="competition-empty">جاري تحميل البطولات الرسمية من API-Football...</div>`;
+    return `<div class="competition-empty">جاري البحث في البطولات الرسمية من API-Football...</div>`;
   }
   if (!competitions.length) {
     const message = state.competitionSearchError || "اكتب اسم البطولة للبحث في جميع البطولات الفعلية لكرة القدم.";
@@ -2093,11 +2217,24 @@ function selectedCompetitionSummary() {
     return `<span class="muted">اختر بطولة من القائمة حتى يتم جلب مبارياتها، أدوارها، وقوائم اللاعبين من الربط الرياضي.</span>`;
   }
 
-  const startRound = rounds.find((round) => round.id === competition.defaultStart)?.label || "حسب بيانات الربط";
+  const apiRounds = roundOptionsFromMatches(state.selectedCompetitionMatchesByRound);
+  const startRound = apiRounds.length
+    ? apiRounds.map((round) => round.label).join("، ")
+    : "حسب بيانات الربط";
+  const fixtureStatus = state.selectedCompetitionFixtureStatus === "loading"
+    ? `<small>جاري جلب مباريات البطولة من الربط...</small>`
+    : state.selectedCompetitionFixtureStatus === "loaded"
+      ? `<small>تم ربط ${countMatchesByRound(state.selectedCompetitionMatchesByRound)} مباراة من موسم ${competition.season}</small>`
+      : state.selectedCompetitionFixtureStatus === "empty"
+        ? `<small>لم تظهر مباريات لهذا الموسم من المصدر الرسمي حتى الآن.</small>`
+        : state.selectedCompetitionFixtureError
+          ? `<small>${state.selectedCompetitionFixtureError}</small>`
+          : "";
   return `
     <div>
       <strong>${competition.name}</strong>
-      <span>${competition.region} · موسم ${competition.season} · يبدأ افتراضياً من ${startRound}</span>
+      <span>${competition.region} · موسم ${competition.season} · الأدوار المتاحة: ${startRound}</span>
+      ${fixtureStatus}
     </div>
     <span class="badge">${competition.code}</span>
   `;
@@ -2130,6 +2267,7 @@ function selectOfficialCompetition(competitionId) {
     if (preview) preview.textContent = `مرحلة البداية: سيتم جلب مباريات ${label} من الربط الرياضي، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.`;
   }
   if (error) error.textContent = "";
+  loadOfficialCompetitionFixtures(competition);
 }
 
 function validateCompetitionSelection() {
@@ -2182,6 +2320,8 @@ async function fetchOfficialCompetitions(query) {
 
 function officialCompetitionSearchTerm(query) {
   const normalized = String(query || "").trim().toLowerCase();
+  if (/world\s*cup/.test(normalized)) return "world cup";
+  if (/fifa/.test(normalized) && /world/.test(normalized)) return "world cup";
   if (/كأس|كاس/.test(normalized) && /العالم/.test(normalized)) return "world cup";
   if (/دوري/.test(normalized) && /ابطال|أبطال/.test(normalized)) return "champions league";
   if (/كوبا/.test(normalized) || /امريكا|أمريكا/.test(normalized)) return "copa america";
@@ -2195,13 +2335,194 @@ function competitionsApiEndpoint() {
   return "/api/competitions";
 }
 
+function fixturesApiEndpoint() {
+  if (window.location.protocol === "file:") return "https://www.pickaside.mobile/api/fixtures";
+  return "/api/fixtures";
+}
+
+async function loadOfficialCompetitionFixtures(competition) {
+  if (!competition?.apiId) return;
+  state.selectedCompetitionFixtureStatus = "loading";
+  state.selectedCompetitionFixtureError = "";
+  state.selectedCompetitionMatchesByRound = null;
+  const summary = document.querySelector("#selected-competition");
+  if (summary) summary.innerHTML = selectedCompetitionSummary();
+
+  try {
+    const url = `${fixturesApiEndpoint()}?league=${encodeURIComponent(competition.apiId)}&season=${encodeURIComponent(competition.season || new Date().getFullYear())}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const matchesByRound = normalizeFixturePayload(payload);
+    state.selectedCompetitionMatchesByRound = matchesByRound;
+    state.selectedCompetitionFixtureStatus = countMatchesByRound(matchesByRound) ? "loaded" : "empty";
+    syncStartingRoundSelectWithApiRounds();
+  } catch (error) {
+    state.selectedCompetitionMatchesByRound = emptyMatchesByRound();
+    state.selectedCompetitionFixtureStatus = "error";
+    state.selectedCompetitionFixtureError = "تعذر جلب مباريات البطولة حالياً. لن يتم استخدام مباريات تجريبية بدلاً منها.";
+  }
+
+  const nextSummary = document.querySelector("#selected-competition");
+  if (nextSummary) nextSummary.innerHTML = selectedCompetitionSummary();
+}
+
+function syncStartingRoundSelectWithApiRounds() {
+  const startingRound = document.querySelector("#starting-round");
+  const preview = document.querySelector("#api-preview");
+  if (!startingRound) return;
+  const options = createStartingRoundOptions();
+  const selected = normalizeStartingRoundValue(startingRound.value, options);
+  startingRound.innerHTML = options.map((round) => `<option value="${round.id}" ${round.id === selected ? "selected" : ""}>${round.label}</option>`).join("");
+  const label = options.find((round) => round.id === selected)?.label || "المرحلة المختارة";
+  if (preview) {
+    preview.textContent = `مرحلة البداية: سيتم استخدام مباريات ${label} من الربط الرياضي، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً حسب أدوار البطولة.`;
+  }
+}
+
+function normalizeFixturePayload(payload) {
+  const byRound = emptyMatchesByRound();
+  const list = Array.isArray(payload?.response) ? payload.response : [];
+  list.forEach((item) => {
+    const fixture = item.fixture || {};
+    const league = item.league || {};
+    const teams = item.teams || {};
+    const goals = item.goals || {};
+    const score = item.score || {};
+    const status = fixture.status || {};
+    const roundDetails = parseApiRoundDetails(league.round || "");
+    const round = roundDetails.id;
+    const homeGoals = goals.home ?? score.fulltime?.home ?? score.halftime?.home;
+    const awayGoals = goals.away ?? score.fulltime?.away ?? score.halftime?.away;
+    byRound[round].push({
+      id: `fx-${fixture.id || `${round}-${byRound[round].length + 1}`}`,
+      fixtureId: fixture.id || "",
+      kickoff: fixture.date || new Date().toISOString(),
+      a: teams.home?.name || "Home",
+      b: teams.away?.name || "Away",
+      logoA: teams.home?.logo || "",
+      logoB: teams.away?.logo || "",
+      score: homeGoals !== undefined && awayGoals !== undefined ? `${homeGoals} - ${awayGoals}` : "",
+      statusShort: status.short || "",
+      minute: status.elapsed || "",
+      apiRound: league.round || "",
+      roundLabel: roundDetails.label,
+      legLabel: roundDetails.legLabel,
+      stageLabel: roundDetails.stageLabel
+    });
+  });
+  Object.keys(byRound).forEach((round) => {
+    byRound[round].sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
+  });
+  return byRound;
+}
+
+function emptyMatchesByRound() {
+  return rounds.reduce((acc, round) => {
+    acc[round.id] = [];
+    return acc;
+  }, {});
+}
+
+function countMatchesByRound(matchesByRound) {
+  if (!matchesByRound) return 0;
+  return Object.values(matchesByRound).reduce((sum, matches) => sum + (Array.isArray(matches) ? matches.length : 0), 0);
+}
+
+function roundOptionsFromMatches(matchesByRound) {
+  if (!matchesByRound) return [];
+  return rounds.filter((round) => Array.isArray(matchesByRound[round.id]) && matchesByRound[round.id].length);
+}
+
+function createStartingRoundOptions() {
+  const apiRoundOptions = roundOptionsFromMatches(state.selectedCompetitionMatchesByRound);
+  return apiRoundOptions.length ? apiRoundOptions : rounds;
+}
+
+function normalizeStartingRoundValue(value, options = rounds) {
+  if (options.some((round) => round.id === value)) return value;
+  return options[0]?.id || "group";
+}
+
+function roundIdFromApiRound(value) {
+  return parseApiRoundDetails(value).id;
+}
+
+function parseApiRoundDetails(value) {
+  const original = String(value || "").trim();
+  const round = original.toLowerCase();
+  const legLabel = apiRoundLegLabel(round);
+  let id = "group";
+
+  if (/qualif|qualification|تصفيات/.test(round)) id = "qualifying";
+  else if (/prelim|preliminary|تمهيدي/.test(round)) id = "preliminary";
+  else if (/play[-\s]?off|playoff|ملحق/.test(round)) id = "playoff";
+  else if (/round of 64|round\s*64|1\/32|64th finals|last 64/.test(round)) id = "round64";
+  else if (/round of 32|round\s*32|1\/16|32nd finals|last 32/.test(round)) id = "round32";
+  else if (/round of 16|round\s*16|1\/8|8th finals|last 16/.test(round)) id = "round16";
+  else if (/quarter|1\/4|ربع/.test(round)) id = "quarter";
+  else if (/semi|1\/2|نصف/.test(round)) id = "semi";
+  else if (/third|3rd|bronze|المركز الثالث/.test(round)) id = "third-place";
+  else if (/final|نهائي/.test(round)) id = "final";
+  else if (/group|regular season|league stage|round\s+\d+|مجموعة|مجموعات/.test(round)) id = "group";
+
+  const baseLabel = rounds.find((item) => item.id === id)?.label || "الدور";
+  return {
+    id,
+    label: legLabel ? `${baseLabel} - ${legLabel}` : baseLabel,
+    stageLabel: original || baseLabel,
+    legLabel
+  };
+}
+
+function apiRoundLegLabel(round) {
+  if (/1st leg|first leg|leg 1|1st|ذهاب/.test(round)) return "ذهاب";
+  if (/2nd leg|second leg|leg 2|2nd|إياب|اياب/.test(round)) return "إياب";
+  return "";
+}
+
+function isApiCompetitionTournament(tournament) {
+  return String(tournament?.officialCompetitionId || "").startsWith("api-league-")
+    || Boolean(tournament?.officialCompetitionApiId);
+}
+
+function getTournamentMatches(tournament, round) {
+  if (tournament?.matchesByRound) return tournament.matchesByRound[round] || [];
+  if (isApiCompetitionTournament(tournament)) return [];
+  return state.matches[round] || [];
+}
+
+function emptyRoundMatchesMessage(tournament, isLocked = false) {
+  if (isLocked) return "هذا الدور مغلق حتى يؤكد الربط الرياضي الفرق المتأهلة من الدور السابق.";
+  if (isApiCompetitionTournament(tournament)) {
+    return `لم يتم جلب مباريات ${tournament.officialCompetitionName || tournament.name} لهذا الدور من المصدر الرسمي بعد. لن نعرض مباريات تجريبية لا تخص هذه البطولة.`;
+  }
+  return "لا توجد مباريات في هذا الدور حالياً.";
+}
+
+function setTournamentMatches(tournament, round, matches) {
+  if (!tournament || !isApiCompetitionTournament(tournament)) return;
+  tournament.matchesByRound = tournament.matchesByRound || emptyMatchesByRound();
+  tournament.matchesByRound[round] = matches;
+}
+
+function getRoundPredictionLockAtForTournament(tournament, round) {
+  const matches = getTournamentMatches(tournament, round);
+  if (!matches.length) return "";
+  const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
+  return String(firstKickoff - PREDICTION_LOCK_MINUTES * 60 * 1000);
+}
+
 function normalizeCompetitionPayload(payload) {
   const list = Array.isArray(payload?.response) ? payload.response : [];
   return list.map((item) => {
     const league = item.league || item;
     const country = item.country || {};
     const seasons = Array.isArray(item.seasons) ? item.seasons : [];
-    const season = seasons.find((entry) => entry.current) || seasons[seasons.length - 1] || {};
+    const season = seasons.find((entry) => Number(entry.year) === 2026)
+      || seasons.find((entry) => entry.current)
+      || seasons[seasons.length - 1]
+      || {};
     const type = league.type ? `${league.type}` : "League";
     return {
       id: `api-league-${league.id}`,
@@ -2214,7 +2535,25 @@ function normalizeCompetitionPayload(payload) {
       logoUrl: league.logo || "",
       countryFlag: country.flag || ""
     };
-  }).filter((competition) => competition.apiId && competition.name);
+  }).filter((competition) => competition.apiId && competition.name)
+    .sort(officialCompetitionSort);
+}
+
+function officialCompetitionSort(a, b) {
+  return officialCompetitionRank(a) - officialCompetitionRank(b)
+    || String(a.name).localeCompare(String(b.name));
+}
+
+function officialCompetitionRank(competition) {
+  const name = String(competition.name || "").toLowerCase();
+  const region = String(competition.region || "").toLowerCase();
+  let rank = 50;
+  if (name === "world cup") rank -= 30;
+  if (name.includes("world cup")) rank -= 15;
+  if (region === "world") rank -= 8;
+  if (name.includes("club")) rank += 12;
+  if (Number(competition.season) === 2026) rank -= 5;
+  return rank;
 }
 
 function renderChampionshipsPage() {
@@ -2364,7 +2703,7 @@ function tournamentsTopbar() {
 function tournamentNeedsUserVote(tournament) {
   if (!tournament.joined || tournament.draft) return false;
   const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = state.matches[round] || [];
+  const matches = getTournamentMatches(tournament, round);
   if (!matches.length || isPredictionLocked(matches)) return false;
   return matches.some((match) => !isPredictionComplete(tournament.id, round, match.id));
 }
@@ -2377,11 +2716,11 @@ function activeChampionshipCard(tournament) {
 
 function activeVoteTaskCard(tournament) {
   const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = sortPredictionMatches(tournament.id, round, state.matches[round] || []);
+  const matches = sortPredictionMatches(tournament.id, round, getTournamentMatches(tournament, round));
   const roundLabel = rounds.find((item) => item.id === round)?.label || "الجولة الحالية";
   const completedCount = matches.filter((match) => isPredictionComplete(tournament.id, round, match.id)).length;
   const pendingCount = Math.max(0, matches.length - completedCount);
-  const lockAt = getRoundPredictionLockAt(round);
+  const lockAt = getRoundPredictionLockAtForTournament(tournament, round);
   return `
     <article class="active-vote-card" data-card-route="/tournament/${tournament.id}/player" role="button" tabindex="0" aria-label="فتح تصويت ${tournament.name}">
       <div class="active-vote-main">
@@ -2409,7 +2748,7 @@ function followedPublicTournaments() {
   return state.tournaments.filter((tournament) => {
     if (!tournament.public || tournament.draft) return false;
     if (tournament.joined) return false;
-    if (tournament.owner === state.currentUser.name || tournament.owner === "Salem") return false;
+    if (tournament.owner === state.currentUser.name || tournament.ownerUsername === state.currentUser.handle.replace("@", "")) return false;
     return isFollowingTournamentOwner(tournament);
   });
 }
@@ -2651,7 +2990,7 @@ function tournamentCoverStyle(tournament) {
 function getTournamentOwnerUsername(tournament) {
   if (tournament.ownerUsername) return tournament.ownerUsername;
   const ownerName = String(tournament.owner || "").trim();
-  if (!ownerName || ownerName === state.currentUser.name || ownerName === "Salem") return state.currentUser.handle.replace("@", "");
+  if (!ownerName || ownerName === state.currentUser.name) return state.currentUser.handle.replace("@", "");
   const ownerFirstName = ownerName.split(" ")[0].toLowerCase();
   const matchingUser = state.users.find((user) => {
     const firstName = user.name.split(" ")[0].toLowerCase();
@@ -2662,13 +3001,8 @@ function getTournamentOwnerUsername(tournament) {
 
 function getTournamentLeaderName(tournament) {
   if (tournament.leaderName) return tournament.leaderName;
-  const base = [
-    { name: state.currentUser.name, points: tournament.points || 0 },
-    { name: "نورة الشامسي", points: (tournament.points || 0) - 40 },
-    { name: "علي الكتبي", points: (tournament.points || 0) + 90 },
-    { name: "مريم الهاشمي", points: (tournament.points || 0) - 160 }
-  ];
-  return base.sort((a, b) => b.points - a.points)[0].name;
+  const participants = getTournamentParticipants(tournament);
+  return participants[0] || "غير محدد";
 }
 
 function joinTournamentSilently(tournamentId) {
@@ -2682,16 +3016,18 @@ function joinTournamentSilently(tournamentId) {
   tournament.participants = [...new Set([...(tournament.participants || []), state.currentUser.name])];
   tournament.friends = (tournament.friends || 0) + 1;
   tournament.rank = tournament.friends;
+  queueTournamentPersist(tournament);
   return true;
 }
 
 function renderCreateTournament() {
   const selectedCompetition = getSelectedCompetition();
-  const initialRoundId = selectedCompetition?.defaultStart || "group";
+  const startingRoundOptions = createStartingRoundOptions();
+  const initialRoundId = normalizeStartingRoundValue(selectedCompetition?.defaultStart || "group", startingRoundOptions);
   const initialRoundLabel = rounds.find((round) => round.id === initialRoundId)?.label || "دور المجموعات";
   const today = new Date().toISOString().slice(0, 10);
   const draft = state.createFormDraft || {};
-  const selectedRoundValue = draft.startingRound || initialRoundId;
+  const selectedRoundValue = normalizeStartingRoundValue(draft.startingRound || initialRoundId, startingRoundOptions);
   app.innerHTML = `
     ${templateTopbar("بطولة جديدة")}
     <form class="card panel stack" id="create-form">
@@ -2744,8 +3080,9 @@ function renderCreateTournament() {
         <div class="field">
           <label>نقطة الانطلاق</label>
           <select class="select" id="starting-round">
-            ${rounds.map((round) => `<option value="${round.id}" ${round.id === selectedRoundValue ? "selected" : ""}>${round.label}</option>`).join("")}
+            ${startingRoundOptions.map((round) => `<option value="${round.id}" ${round.id === selectedRoundValue ? "selected" : ""}>${round.label}</option>`).join("")}
           </select>
+          <small class="muted">تتغير هذه القائمة حسب الأدوار التي يرجعها الربط الرياضي للبطولة المختارة.</small>
         </div>
         <div class="field">
           <label>تاريخ بداية البطولة</label>
@@ -2782,7 +3119,6 @@ function renderCreateTournament() {
     document.querySelector("#create-error").textContent = "";
     scheduleOfficialCompetitionSearch(event.target.value);
   });
-  ensureOfficialCompetitionCatalog();
   privacy.addEventListener("click", () => {
     const isOn = !privacy.classList.contains("on");
     privacy.classList.toggle("on", isOn);
@@ -2814,13 +3150,13 @@ function renderCreateTournament() {
     const label = rounds.find((round) => round.id === event.target.value).label;
     document.querySelector("#api-preview").textContent = `مرحلة البداية: سيتم جلب مباريات ${label}، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.`;
   });
-  document.querySelector("#save-draft").addEventListener("click", () => {
-    const id = saveTournament(true);
+  document.querySelector("#save-draft").addEventListener("click", async () => {
+    const id = await saveTournament(true);
     if (id) navigate("/challenges/drafts");
   });
-  document.querySelector("#create-form").addEventListener("submit", (event) => {
+  document.querySelector("#create-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const id = saveTournament(false);
+    const id = await saveTournament(false);
     if (id) {
       state.selectedChampionshipsTab = "mine";
       tournamentCreatedModal(id);
@@ -2917,7 +3253,7 @@ function createTournamentPostImageCropModal(imageUrl, fileName) {
   });
 }
 
-function saveTournament(draft = false) {
+async function saveTournament(draft = false) {
   if (!validateCompetitionSelection()) return "";
   const tournamentName = document.querySelector("#tournament-name").value.trim();
   if (!tournamentName) {
@@ -2929,16 +3265,28 @@ function saveTournament(draft = false) {
     document.querySelector("#create-error").textContent = "حدد تاريخ بداية البطولة أولاً.";
     return "";
   }
-  const id = `t-${Date.now()}`;
+  const id = makeTournamentId();
   const selectedCompetition = getSelectedCompetition();
   const isPrivate = document.querySelector("#privacy-switch").classList.contains("on");
   const hasPrizes = document.querySelector("#prizes-switch").classList.contains("on");
-  state.tournaments.unshift({
+  const competitionMatchesByRound = selectedCompetition.apiId
+    ? (state.selectedCompetitionMatchesByRound || emptyMatchesByRound())
+    : null;
+  const tournamentRoundIds = (roundOptionsFromMatches(competitionMatchesByRound).length
+    ? roundOptionsFromMatches(competitionMatchesByRound)
+    : createStartingRoundOptions()).map((round) => round.id);
+  const startingRound = normalizeStartingRoundValue(document.querySelector("#starting-round").value, rounds.filter((round) => tournamentRoundIds.includes(round.id)));
+  const tournament = {
     id,
     name: tournamentName,
     officialCompetitionId: selectedCompetition.id,
+    officialCompetitionApiId: selectedCompetition.apiId || "",
+    officialCompetitionSeason: selectedCompetition.season || "",
+    officialCompetitionLogoUrl: selectedCompetition.logoUrl || "",
     officialCompetitionCode: selectedCompetition.code,
     officialCompetitionName: selectedCompetition.name,
+    matchesByRound: competitionMatchesByRound,
+    fixturesStatus: state.selectedCompetitionFixtureStatus || (competitionMatchesByRound ? "pending" : ""),
     logoFileName: "",
     coverImageUrl: state.pendingCreateCoverImage?.url || "",
     postImageFileName: state.pendingCreateCoverImage?.fileName || "",
@@ -2963,13 +3311,22 @@ function saveTournament(draft = false) {
     budget: null,
     minPoints: null,
     rulesConfigured: false,
-    startingRound: document.querySelector("#starting-round").value,
-    currentRound: document.querySelector("#starting-round").value,
+    roundIds: tournamentRoundIds,
+    startingRound,
+    currentRound: startingRound,
     inviteCode: isPrivate ? generateInviteCode() : null,
     awardCategories: [],
     prizes: [],
-    joinRequests: []
-  });
+    joinRequests: [],
+    backendSynced: false
+  };
+  state.tournaments.unshift(tournament);
+  try {
+    await persistTournamentToBackend(tournament);
+  } catch (error) {
+    tournament.backendSyncError = error.message || "تعذر حفظ البطولة في قاعدة البيانات.";
+    state.backend.error = tournament.backendSyncError;
+  }
   state.pendingCreateCoverImage = null;
   state.createFormDraft = {};
   return id;
@@ -2977,6 +3334,7 @@ function saveTournament(draft = false) {
 
 function renderTournament(id, options = {}) {
   const tournament = getTournamentById(id);
+  if (!tournament) return renderNotFoundPage("البطولة غير موجودة", "/create-tournament");
   const forcePlayerView = options.forcePlayer || state.route.endsWith("/player");
   if (isTournamentOwner(tournament) && !forcePlayerView) return renderOwnerTournament(tournament);
   const activeRound = tournament.currentRound || tournament.startingRound || "round16";
@@ -2998,7 +3356,7 @@ function renderTournament(id, options = {}) {
   const activeRoundIndex = rounds.findIndex((round) => round.id === activeRound);
   const selectedTournamentRoundIndex = Math.max(0, tournamentTabs.findIndex((tab) => tab.id === selectedView));
   const isLocked = selectedRoundIndex > activeRoundIndex;
-  const matches = showingAwards || isLocked ? [] : (state.matches[selectedRound] || []);
+  const matches = showingAwards || isLocked ? [] : getTournamentMatches(tournament, selectedRound);
   const used = getUsedBudget(tournament.id, selectedRound);
   const nextRound = getNextRound(tournament);
   const tournamentFinished = isTournamentFinished(tournament);
@@ -3025,7 +3383,7 @@ function renderTournament(id, options = {}) {
             <strong>الدور الحالي: ${rounds.find((round) => round.id === activeRound).label}</strong>
             <p class="muted">${nextRound ? `الدور التالي يفتح بعد اعتماد نتائج ${rounds.find((round) => round.id === activeRound).label} من الـ API.` : "هذه آخر مرحلة في البطولة."}</p>
           </div>
-          ${nextRound ? `<button class="btn warn" data-advance-round="${tournament.id}">محاكاة اعتماد نتائج الدور</button>` : ""}
+          ${nextRound ? `<button class="btn warn" data-advance-round="${tournament.id}">تحديث واعتماد الدور</button>` : ""}
         </div>
         ${showingAwards || isLocked ? "" : `
           <div class="live-api-bar compact-live-api-bar">
@@ -3038,7 +3396,7 @@ function renderTournament(id, options = {}) {
         ${isPredictionLocked(matches) ? `<div class="notice danger-notice">تم قفل توقعات هذا الدور. اللاعبون بدون توقعات مكتملة يعتبرون خاسرين لنقاط الجولة عند التسوية.</div>` : ""}
       </div>
       ${tournamentFinished ? tournamentFinalAwardResults(tournament) : showingAwards ? awardNominationWorkflow(tournament) : `
-        ${matches.length ? "" : `<div class="card panel">هذا الدور مغلق حتى يؤكد الـ API الفرق المتأهلة من الدور السابق.</div>`}
+        ${matches.length ? "" : `<div class="card panel">${emptyRoundMatchesMessage(tournament, isLocked)}</div>`}
         ${pickBoardWorkflow(tournament, selectedRound, matches, { used })}
       `}
     </section>
@@ -3074,8 +3432,8 @@ function renderTournament(id, options = {}) {
     });
   });
   document.querySelectorAll("[data-advance-round]").forEach((button) => {
-    button.addEventListener("click", () => {
-      advanceTournamentRound(button.dataset.advanceRound);
+    button.addEventListener("click", async () => {
+      await refreshAndAdvanceTournamentRound(button.dataset.advanceRound);
     });
   });
   document.querySelectorAll("[data-full-leaderboard]").forEach((button) => {
@@ -3230,16 +3588,17 @@ function isDeveloperMode() {
 }
 
 function isTournamentOwner(tournament) {
+  if (!tournament) return false;
   const currentUsername = state.currentUser.handle.replace("@", "");
   return tournament.owner === state.currentUser.name
-    || tournament.owner === "Salem"
     || tournament.ownerUsername === currentUsername;
 }
 
 function renderOwnerTournament(tournament) {
+  if (!tournament) return renderNotFoundPage("البطولة غير موجودة", "/create-tournament");
   const activeRound = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = state.matches[activeRound] || [];
-  const participants = tournament.participants || [state.currentUser.name, "نورة الشامسي", "علي الكتبي", "مريم الهاشمي"].slice(0, Math.max(1, tournament.friends || 1));
+  const matches = getTournamentMatches(tournament, activeRound);
+  const participants = getTournamentParticipants(tournament);
   const captainUsername = getTournamentOwnerUsername(tournament);
   const aboutLabel = tournament.public ? "بطولة عامة" : "بطولة خاصة";
   const prizesLabel = tournament.hasPrizes || (tournament.awardCategories || []).length || getTournamentPrizes(tournament).length ? "جوائز متاحة" : "بدون جوائز";
@@ -3334,7 +3693,7 @@ function ownerTournamentTopbar(tournament) {
 }
 
 function getTournamentById(id) {
-  return state.tournaments.find((item) => item.id === id) || state.tournaments[0];
+  return state.tournaments.find((item) => item.id === id) || null;
 }
 
 function ownerTournamentActionRow(action, label, icon, route = "", incomplete = false) {
@@ -3536,6 +3895,7 @@ function sendOwnerNotification(tournament) {
 
 function renderTournamentManage(id, section) {
   const tournament = getTournamentById(id);
+  if (!tournament) return renderNotFoundPage("البطولة غير موجودة", "/create-tournament");
   if (!isTournamentOwner(tournament)) return renderTournament(tournament.id);
   if (section) return renderTournamentManageSection(tournament, section);
 
@@ -3555,7 +3915,7 @@ function renderTournamentManage(id, section) {
         ${ownerManageRow(tournament, "voting", "حالة التصويت", "check", getVotingSummary(tournament), isSectionIncomplete(tournament, "voting"))}
         ${ownerManageRow(tournament, "results", "نتائج المباريات", "ball", tournament.currentRound || tournament.startingRound || "-", isSectionIncomplete(tournament, "results"))}
         ${ownerManageRow(tournament, "prediction-results", "نتائج التوقعات", "bars", `${tournament.correct || 0}/${tournament.wrong || 0}`, isSectionIncomplete(tournament, "prediction-results"))}
-        ${ownerManageRow(tournament, "leaderboard", "ترتيب المشاركين", "trophy", tournament.friends || 1, isSectionIncomplete(tournament, "leaderboard"))}
+        ${ownerManageRow(tournament, "leaderboard", "ترتيب المشاركين", "trophy", tournament.friends || getTournamentParticipants(tournament).length || 0, isSectionIncomplete(tournament, "leaderboard"))}
         ${ownerManageRow(tournament, "rules", "قوانين البطولة", "ball", areAllPointRulesSaved(tournament) ? "مكتملة" : "بيانات فارغة", isSectionIncomplete(tournament, "rules"))}
         ${ownerManageRow(tournament, "prizes", "إدارة الجوائز", "trophy", tournament.hasPrizes ? (getTournamentPrizes(tournament).length || "بيانات فارغة") : "غير مفعلة", isSectionIncomplete(tournament, "prizes"))}
         ${ownerManageRow(tournament, "invites", "الدعوات والكود", "share", tournament.public ? "رابط عام" : (tournament.inviteCode || "تلقائي"), false)}
@@ -3643,7 +4003,7 @@ function ownerManageRow(tournament, section, label, icon, meta, incomplete = fal
 function isSectionIncomplete(tournament, section) {
   if (tournament.active && !tournament.setupIncomplete) return false;
   const activeRound = tournament.currentRound || tournament.startingRound || "round16";
-  const hasMatches = Boolean((state.matches[activeRound] || []).length);
+  const hasMatches = Boolean(getTournamentMatches(tournament, activeRound).length);
   const participants = getTournamentParticipants(tournament);
   const checks = {
     voting: !hasMatches,
@@ -3922,20 +4282,16 @@ function ownerManageSectionContent(tournament, section) {
 }
 
 function getJoinRequestCount(tournament) {
-  return tournament.active ? 2 : 4;
+  return (tournament.joinRequests || []).filter((request) => request.status === "pending" || !request.status).length;
 }
 
 function ownerRequestsPage(tournament) {
-  const requests = [
-    { name: "حمد المنصوري", handle: "@hamad" },
-    { name: "راشد المزروعي", handle: "@rashed" },
-    { name: "هند الكعبي", handle: "@hind" }
-  ].slice(0, getJoinRequestCount(tournament));
+  const requests = (tournament.joinRequests || []).filter((request) => request.status === "pending" || !request.status);
   return `
     <section class="card panel stack manage-detail-card">
       <p class="muted">راجع طلبات المشاركة قبل دخول اللاعبين للبطولة.</p>
       <div class="request-list">
-        ${requests.map((request) => `
+        ${requests.length ? requests.map((request) => `
           <div class="request-row">
             <div>
               <strong>${request.name}</strong>
@@ -3944,14 +4300,14 @@ function ownerRequestsPage(tournament) {
             <button class="btn accent compact-btn" type="button" data-request-action="accept">قبول</button>
             <button class="btn ghost compact-btn" type="button" data-request-action="reject">رفض</button>
           </div>
-        `).join("")}
+        `).join("") : `<p class="muted">لا توجد طلبات انضمام حالياً.</p>`}
       </div>
     </section>
   `;
 }
 
 function ownerPlayersPage(tournament) {
-  const players = tournament.participants || [state.currentUser.name, "نورة الشامسي", "علي الكتبي", "مريم الهاشمي"];
+  const players = getTournamentParticipants(tournament);
   return `
     <section class="card panel stack manage-detail-card">
       <div class="players-page-head">
@@ -3977,7 +4333,7 @@ function ownerPlayersPage(tournament) {
 
 function ownerMatchResultsPage(tournament) {
   const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = state.matches[round] || [];
+  const matches = getTournamentMatches(tournament, round);
   return `
     <section class="card panel stack manage-detail-card">
       <p class="muted">نتائج المباريات المعتمدة من الربط الرياضي، وتستخدم لاحقاً في تسوية النقاط.</p>
@@ -4137,7 +4493,7 @@ function bindPredictionPlayerButtons(tournament) {
 
 function ownerPredictionRoundBlock(tournament, roundId, playerName) {
   const round = rounds.find((item) => item.id === roundId);
-  const matches = state.matches[roundId] || [];
+  const matches = getTournamentMatches(tournament, roundId);
   const status = getVotingStatusForRound(tournament, roundId);
   const completed = status.completed.includes(playerName);
   const isCurrentUser = playerName === state.currentUser.name;
@@ -4292,35 +4648,7 @@ function pointSourceLabel(rule) {
 }
 
 function getTournamentParticipants(tournament) {
-  const fallbackNames = [
-    state.currentUser.name,
-    "نورة الشامسي",
-    "علي الكتبي",
-    "مريم الهاشمي",
-    "خالد السويدي",
-    "راشد المنصوري",
-    "هند البلوشي",
-    "فهد الكتبي",
-    "سارة العامري",
-    "أحمد المرزوقي",
-    "لطيفة النعيمي",
-    "ماجد الشامسي",
-    "ريم المزروعي",
-    "عبدالله الحمادي",
-    "حمدان الظاهري",
-    "سيف المطروشي",
-    "جميلة الهاشمي",
-    "يوسف العلي"
-  ];
-  const baseParticipants = Array.isArray(tournament.participants) && tournament.participants.length
-    ? tournament.participants
-    : [];
-  const targetCount = Math.max(baseParticipants.length, Number(tournament.friends) || 0, 1);
-  const merged = [...new Set([...baseParticipants, ...fallbackNames])];
-  while (merged.length < targetCount) {
-    merged.push(`مشارك ${merged.length + 1}`);
-  }
-  return merged.slice(0, targetCount);
+  return Array.isArray(tournament?.participants) ? [...new Set(tournament.participants)] : [];
 }
 
 function getTournamentParticipantCount(tournament) {
@@ -4356,7 +4684,7 @@ function getVotingSummary(tournament) {
 
 function getVotingStatusForRound(tournament, roundId) {
   const players = getTournamentParticipants(tournament);
-  const matches = state.matches[roundId] || [];
+  const matches = getTournamentMatches(tournament, roundId);
   const activeRound = tournament.currentRound || tournament.startingRound || "round16";
   const activeRoundIndex = rounds.findIndex((round) => round.id === activeRound);
   const roundIndex = rounds.findIndex((round) => round.id === roundId);
@@ -4518,7 +4846,7 @@ function bindRulesSwipe(tournament) {
 
 function votingPlayerDetailsModal(tournament, roundId, playerName, status) {
   const round = rounds.find((item) => item.id === roundId);
-  const matches = state.matches[roundId] || [];
+  const matches = getTournamentMatches(tournament, roundId);
   const completed = status === "done";
   const rows = matches.length ? matches.map((match, index) => {
     const pickedTeam = completed ? (index % 2 ? match.b : match.a) : "لم يصوت";
@@ -4585,9 +4913,9 @@ function confirmRemoveTournamentPlayer(tournament, playerName) {
 }
 
 function removeTournamentPlayer(tournament, playerName) {
-  const currentPlayers = tournament.participants || [state.currentUser.name, "نورة الشامسي", "علي الكتبي", "مريم الهاشمي"];
+  const currentPlayers = getTournamentParticipants(tournament);
   tournament.participants = currentPlayers.filter((player) => player !== playerName);
-  tournament.friends = Math.max(1, (tournament.friends || currentPlayers.length) - 1);
+  tournament.friends = Math.max(0, tournament.participants.length);
   Object.keys(state.quickPicks).forEach((key) => {
     if (key.startsWith(`${tournament.id}:`) && key.includes(playerName)) delete state.quickPicks[key];
   });
@@ -4641,6 +4969,7 @@ function saveTournamentSettings(tournament) {
   tournament.startDate = document.querySelector("#settings-start-date")?.value || tournament.startDate;
   if (!tournament.public && !tournament.inviteCode) tournament.inviteCode = generateInviteCode();
   tournament.publicCode = tournament.public ? (tournament.publicCode || tournament.officialCompetitionCode || "PUBLIC") : "";
+  queueTournamentPersist(tournament);
   const previousRoute = state.routeHistory.pop();
   replaceRoute(previousRoute || `/tournament/${tournament.id}/manage`);
 }
@@ -4671,6 +5000,7 @@ function postImageCropModal(tournament, imageUrl, fileName) {
   openPostImageCropModal(imageUrl, fileName, (cropped) => {
     tournament.coverImageUrl = cropped;
     tournament.postImageFileName = fileName;
+    queueTournamentPersist(tournament);
     closeModal();
     renderTournamentManageSection(tournament, "settings");
   });
@@ -5122,7 +5452,7 @@ function ownerAdminTeamPage(tournament) {
         `).join("")}
       </div>
       <div class="prize-form-grid">
-        <label class="settings-control"><span>اسم المساعد</span><input class="input" id="admin-helper-name" placeholder="مثال: علي الكتبي"></label>
+        <label class="settings-control"><span>اسم المساعد</span><input class="input" id="admin-helper-name" placeholder="مثال: مدير مساعد"></label>
         <label class="settings-control"><span>الدور</span><select class="select" id="admin-helper-role"><option>مشرف نتائج</option><option>مشرف لاعبين</option><option>مشرف جوائز</option><option>مشرف كامل</option></select></label>
         <label class="checkbox-card"><input type="checkbox" data-admin-permission value="اعتماد الطلبات"><span>اعتماد الطلبات</span></label>
         <label class="checkbox-card"><input type="checkbox" data-admin-permission value="حذف اللاعبين"><span>حذف اللاعبين</span></label>
@@ -5712,8 +6042,12 @@ function confirmTournamentCancellation(tournament) {
 }
 
 function getTournamentRounds(tournament) {
-  const startIndex = Math.max(0, rounds.findIndex((round) => round.id === (tournament.startingRound || "round16")));
-  return rounds.slice(startIndex);
+  const explicitRounds = Array.isArray(tournament?.roundIds)
+    ? rounds.filter((round) => tournament.roundIds.includes(round.id))
+    : [];
+  const sourceRounds = explicitRounds.length ? explicitRounds : rounds;
+  const startIndex = Math.max(0, sourceRounds.findIndex((round) => round.id === (tournament.startingRound || sourceRounds[0]?.id || "group")));
+  return sourceRounds.slice(startIndex);
 }
 
 function getNextRound(tournament) {
@@ -5722,21 +6056,122 @@ function getNextRound(tournament) {
   return currentIndex >= 0 ? tournamentRounds[currentIndex + 1] : null;
 }
 
-function advanceTournamentRound(tournamentId) {
-  const tournament = state.tournaments.find((item) => item.id === tournamentId);
+async function refreshAndAdvanceTournamentRound(tournamentId) {
+  const tournament = getTournamentById(tournamentId);
   if (!tournament) return;
+  state.liveApi.lastStatus = "جاري مزامنة أدوار البطولة";
+  state.liveApi.lastError = "";
+  renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
+
+  if (isApiCompetitionTournament(tournament)) {
+    await refreshTournamentFixturesFromApi(tournament);
+  }
+
+  const advanced = syncTournamentCurrentRound(tournament);
+  if (advanced) {
+    state.liveApi.lastStatus = "تم فتح الدور التالي من بيانات الربط";
+    state.liveApi.lastError = "";
+  } else if (isRoundCompleted(tournament, tournament.currentRound)) {
+    state.liveApi.lastStatus = "الدور مكتمل، بانتظار ظهور مباريات الدور التالي من الربط";
+    state.liveApi.lastError = "";
+  } else {
+    state.liveApi.lastStatus = "لم يكتمل الدور الحالي بعد";
+    state.liveApi.lastError = "لا يتم فتح الدور التالي إلا بعد اعتماد نتائج كل مباريات الدور الحالي.";
+  }
+  renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
+}
+
+function advanceTournamentRound(tournamentId) {
+  const tournament = getTournamentById(tournamentId);
+  if (!tournament) return false;
   const nextRound = getNextRound(tournament);
-  if (!nextRound) return;
+  if (!nextRound) return false;
+  if (!isRoundCompleted(tournament, tournament.currentRound)) return false;
+  if (!getTournamentMatches(tournament, nextRound.id).length) return false;
   tournament.currentRound = nextRound.id;
   state.selectedRound = nextRound.id;
-  renderTournament(tournament.id);
+  return true;
+}
+
+async function refreshTournamentFixturesFromApi(tournament) {
+  if (!tournament?.officialCompetitionApiId) return false;
+  try {
+    const season = tournament.officialCompetitionSeason || new Date().getFullYear();
+    const url = `${fixturesApiEndpoint()}?league=${encodeURIComponent(tournament.officialCompetitionApiId)}&season=${encodeURIComponent(season)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const latestMatches = normalizeFixturePayload(payload);
+    tournament.matchesByRound = mergeTournamentMatchesByRound(tournament.matchesByRound || emptyMatchesByRound(), latestMatches);
+    const apiRounds = roundOptionsFromMatches(tournament.matchesByRound).map((round) => round.id);
+    if (apiRounds.length) tournament.roundIds = apiRounds;
+    tournament.fixturesStatus = countMatchesByRound(tournament.matchesByRound) ? "loaded" : "empty";
+    return true;
+  } catch (error) {
+    state.liveApi.lastError = error.message || "تعذر جلب مباريات البطولة";
+    return false;
+  }
+}
+
+function mergeTournamentMatchesByRound(currentMatchesByRound, latestMatchesByRound) {
+  const merged = emptyMatchesByRound();
+  rounds.forEach((round) => {
+    const latest = latestMatchesByRound?.[round.id] || [];
+    const current = currentMatchesByRound?.[round.id] || [];
+    merged[round.id] = latest.length ? latest : current;
+  });
+  return merged;
+}
+
+function syncTournamentCurrentRound(tournament) {
+  const tournamentRounds = getTournamentRounds(tournament);
+  const previousRound = tournament.currentRound;
+  for (let index = 0; index < tournamentRounds.length; index += 1) {
+    const round = tournamentRounds[index];
+    const matches = getTournamentMatches(tournament, round.id);
+    if (!matches.length) {
+      if (index === 0) {
+        tournament.currentRound = round.id;
+        state.selectedRound = round.id;
+      }
+      break;
+    }
+    if (!isRoundCompleted(tournament, round.id)) {
+      tournament.currentRound = round.id;
+      state.selectedRound = round.id;
+      break;
+    }
+    const nextRound = tournamentRounds[index + 1];
+    if (!nextRound) {
+      tournament.currentRound = round.id;
+      state.selectedRound = round.id;
+      tournament.finished = true;
+      break;
+    }
+    if (!getTournamentMatches(tournament, nextRound.id).length) {
+      tournament.currentRound = round.id;
+      state.selectedRound = round.id;
+      break;
+    }
+  }
+  return previousRound !== tournament.currentRound;
+}
+
+function isRoundCompleted(tournament, roundId) {
+  const matches = getTournamentMatches(tournament, roundId);
+  return Boolean(matches.length) && matches.every(isMatchFinal);
+}
+
+function isMatchFinal(match) {
+  const status = String(match.statusShort || "").toUpperCase();
+  return ["FT", "AET", "PEN"].includes(status) || Boolean(match.finished);
 }
 
 function isTournamentFinished(tournament) {
   if (tournament.completed || tournament.finished) return true;
   const tournamentRounds = getTournamentRounds(tournament);
   const finalRound = tournamentRounds[tournamentRounds.length - 1];
-  const finalMatches = finalRound ? (state.matches[finalRound.id] || []) : [];
+  const finalMatches = finalRound ? getTournamentMatches(tournament, finalRound.id) : [];
   return Boolean(finalMatches.length && finalMatches.every((match) => getMatchResultOutcome(match, finalRound.id)));
 }
 
@@ -5789,7 +6224,7 @@ function getAwardFinalWinner(tournament, award) {
 function getTournamentFinalMatch(tournament) {
   const tournamentRounds = getTournamentRounds(tournament);
   const finalRound = tournamentRounds[tournamentRounds.length - 1];
-  const finalMatches = finalRound ? (state.matches[finalRound.id] || []) : [];
+  const finalMatches = finalRound ? getTournamentMatches(tournament, finalRound.id) : [];
   return finalMatches.find((match) => getMatchResultOutcome(match, finalRound.id)) || null;
 }
 
@@ -5879,7 +6314,8 @@ function awardSearchResultsHtml(awardId, key, query) {
 }
 
 function teamAwardSearchResultsHtml(key, query) {
-  const teams = searchOfficialTeams(query).slice(0, 6);
+  const tournamentId = String(key || "").split(":")[0];
+  const teams = searchOfficialTeams(query, getTournamentById(tournamentId)).slice(0, 6);
   if (!query.trim()) {
     return `<div class="muted roster-empty">ابدأ بالكتابة للبحث في الفرق الرسمية.</div>`;
   }
@@ -5898,10 +6334,11 @@ function isTeamAward(awardId) {
   return awardOptions.find((award) => award.id === awardId)?.target === "team";
 }
 
-function searchOfficialTeams(query) {
+function searchOfficialTeams(query, tournament = null) {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return [];
-  const teams = [...new Set(Object.values(state.matches).flat().flatMap((match) => [match.a, match.b]))]
+  const matchSource = tournament ? Object.values(tournament.matchesByRound || {}) : Object.values(state.matches);
+  const teams = [...new Set(matchSource.flat().flatMap((match) => [match.a, match.b]))]
     .filter((team) => !team.startsWith("الفائز"));
   return teams.filter((team) => translateDataNames(team).toLowerCase().includes(normalizedQuery) || team.toLowerCase().includes(normalizedQuery));
 }
@@ -6010,6 +6447,13 @@ function matchIdentityHtml(match) {
   `;
 }
 
+function matchRoundMetaHtml(match) {
+  const items = [];
+  if (match.legLabel) items.push(match.legLabel);
+  if (match.stageLabel && match.stageLabel !== match.roundLabel) items.push(match.stageLabel);
+  return items.length ? `<span class="muted match-round-meta">${items.join(" · ")}</span>` : "";
+}
+
 function pickBoardWorkflow(tournament, round, matches, budgetState = {}) {
   if (!matches.length) return "";
   const sortedMatches = sortPredictionMatches(tournament.id, round, matches);
@@ -6020,7 +6464,7 @@ function pickBoardWorkflow(tournament, round, matches, budgetState = {}) {
   const totalBudget = tournament.budget || 0;
   const minPoints = tournament.minPoints || 0;
   const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
-  const roundLockAt = getRoundPredictionLockAt(round);
+  const roundLockAt = getRoundPredictionLockAtForTournament(tournament, round);
   const rule = getTournamentPointRules(tournament)[round] || {};
   const playerGuide = pointRulePlayerGuide(rule, { hasDraw, totalBudget, minPoints, matchCount: matches.length });
   const used = budgetState.used ?? getUsedBudget(tournament.id, round);
@@ -6109,6 +6553,7 @@ function pickBoardCard(tournament, round, match, locked) {
         </div>
         <div class="prediction-row-info">
           <span class="prediction-status ${statusClass}">${statusText}</span>
+          ${matchRoundMetaHtml(match)}
           ${selectedOutcome ? `<span>التوقع: <strong>${selectedLabel}</strong></span>` : ""}
           ${allocated ? `<span>النقاط: <strong>${allocated}</strong></span>` : ""}
         </div>
@@ -6145,8 +6590,9 @@ function predictionDrawButton(tournament, round, match, selectedOutcome, locked)
 }
 
 function confirmInlinePrediction(tournament, round, matchId) {
-  const match = state.matches[round].find((item) => item.id === matchId);
-  if (!match || isPredictionLocked(state.matches[round] || [])) return;
+  const matches = getTournamentMatches(tournament, round);
+  const match = matches.find((item) => item.id === matchId);
+  if (!match || isPredictionLocked(matches)) return;
   const rule = getPointRuleForRound(tournament, round);
   if (!supportsInlinePrediction(rule)) {
     predictionModal(tournament, round, matchId);
@@ -6193,16 +6639,16 @@ function predictionOutcomeCompactHtml(outcome, match) {
 }
 
 function matchTemplate(tournament, round, match) {
-  const locked = isPredictionLocked(state.matches[round] || [match]);
+  const locked = isPredictionLocked(getTournamentMatches(tournament, round).length ? getTournamentMatches(tournament, round) : [match]);
   const existing = state.predictions[`${tournament.id}:${round}:${match.id}`] || {};
   const pickedOutcome = getPredictionOutcome(existing);
   const points = getPredictionPoints(existing);
-  const lockAt = getRoundPredictionLockAt(round);
+  const lockAt = getRoundPredictionLockAtForTournament(tournament, round);
   return `
     <article class="match-card">
       <div class="match-top">
         <strong>${matchIdentityHtml(match)}</strong>
-        <span class="muted">${formatDate(match.kickoff)}</span>
+        <span class="muted">${formatDate(match.kickoff)}${match.legLabel ? ` · ${match.legLabel}` : ""}</span>
       </div>
       <div class="match-countdown" data-match-countdown data-kickoff="${match.kickoff}" data-lock-at="${lockAt}" data-score="${match.score || ""}">
         <span data-countdown-label>يتم حساب الوقت</span>
@@ -6222,8 +6668,9 @@ function matchTemplate(tournament, round, match) {
 }
 
 function predictionModal(tournament, round, matchId) {
-  const match = state.matches[round].find((item) => item.id === matchId);
-  if (isPredictionLocked(state.matches[round] || [])) return;
+  const matches = getTournamentMatches(tournament, round);
+  const match = matches.find((item) => item.id === matchId);
+  if (!match || isPredictionLocked(matches)) return;
   const key = `${tournament.id}:${round}:${match.id}`;
   const existing = state.predictions[key] || {};
   const rule = getPointRuleForRound(tournament, round);
@@ -6294,7 +6741,7 @@ function getAutoPredictionPoints(tournament, round, match, outcome, rule) {
     return Math.max(1, Math.round(getFixedMatchPointTotal(rule) / 2));
   }
 
-  const matches = state.matches[round] || [];
+  const matches = getTournamentMatches(tournament, round);
   const matchCount = Math.max(1, matches.length);
   const roundBudget = rule.pointSource === "grant" ? Number(rule.budget || tournament.budget || 0) : Number(tournament.points || tournament.budget || rule.budget || 0);
   const perMatch = roundBudget / matchCount;
@@ -6421,6 +6868,10 @@ async function refreshLiveApiResults(tournament, round) {
     const payload = await response.json();
     const events = normalizeApiSportsLivePayload(payload);
     const applied = applyLiveResultEvents(tournament, round, events);
+    if (tournament && isRoundCompleted(tournament, round)) {
+      await refreshTournamentFixturesFromApi(tournament);
+      syncTournamentCurrentRound(tournament);
+    }
     state.liveApi.lastEvents = events;
     state.liveApi.lastFetchAt = Date.now();
     state.liveApi.lastStatus = applied
@@ -6492,7 +6943,7 @@ function normalizeApiSportsLivePayload(payload) {
 }
 
 function applyLiveResultEvents(tournament, round, events) {
-  const matches = state.matches[round] || [];
+  const matches = getTournamentMatches(tournament, round);
   let applied = 0;
   events.forEach((event) => {
     if (!isRelevantResultEvent(event)) return;
@@ -6516,6 +6967,7 @@ function applyLiveResultEvents(tournament, round, events) {
     }
     if (event.fixtureId) match.fixtureId = event.fixtureId;
   });
+  setTournamentMatches(tournament, round, matches);
   return applied;
 }
 
@@ -6525,6 +6977,7 @@ function isRelevantResultEvent(event) {
 }
 
 function isSameFixture(match, event) {
+  if (match.fixtureId && event.fixtureId && String(match.fixtureId) === String(event.fixtureId)) return true;
   const home = normalizeName(event.homeName);
   const away = normalizeName(event.awayName);
   const a = normalizeName(match.a);
@@ -6617,13 +7070,6 @@ function isPredictionLocked(matches) {
   if (!matches.length) return false;
   const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
   return Date.now() >= firstKickoff - PREDICTION_LOCK_MINUTES * 60 * 1000;
-}
-
-function getRoundPredictionLockAt(round) {
-  const matches = state.matches[round] || [];
-  if (!matches.length) return "";
-  const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
-  return String(firstKickoff - PREDICTION_LOCK_MINUTES * 60 * 1000);
 }
 
 function startMatchCountdowns() {
@@ -6824,7 +7270,7 @@ function setupLiveTournamentSwipe(tournaments) {
 
 function getTournamentLiveMatches(tournament) {
   const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = state.matches[round] || [];
+  const matches = getTournamentMatches(tournament, round);
   return matches.slice(0, 3).map((match, index) => {
     const prediction = state.quickPicks[`${tournament.id}:${round}:${match.id}`];
     const score = match.score || "";
@@ -6855,6 +7301,7 @@ function liveMatchCard(match) {
         <span>${match.score || "—"}</span>
         ${teamIdentityHtml(match.b, "compact", match.logoB || "")}
       </div>
+      ${matchRoundMetaHtml(match)}
       <div class="stat-line"><span>أثرها على رصيدك</span><strong>${match.impact}</strong></div>
     </article>
   `;
@@ -7001,12 +7448,8 @@ function confirmDeleteDraft(tournamentId) {
 }
 
 function renderUser(username) {
-  const user = state.users.find((item) => item.username === username) || {
-    name: toDisplayName(username),
-    username,
-    handle: `@${username}`,
-    relation: isFollowingPerson(toDisplayName(username).split(" ")[0]) ? "Unfollow" : "Follow back"
-  };
+  const user = state.users.find((item) => item.username === username);
+  if (!user) return renderNotFoundPage("المستخدم غير موجود", "/search");
   const profile = publicProfileData(user);
   const publicTournaments = publicTournamentsForUser(user);
   app.innerHTML = `
@@ -7115,21 +7558,14 @@ function publicProfileTournamentCard(tournament) {
 }
 
 function publicProfileData(user) {
-  const samples = {
-    noura: { accuracy: 91, followersCount: 128, followingCount: 84, favoriteTeam: "الهلال", avatar: "ن" },
-    ali: { accuracy: 86, followersCount: 97, followingCount: 65, favoriteTeam: "النصر", avatar: "ع" },
-    maryam: { accuracy: 88, followersCount: 112, followingCount: 71, favoriteTeam: "العين", avatar: "م" },
-    khaled: { accuracy: 82, followersCount: 74, followingCount: 58, favoriteTeam: "الوصل", avatar: "خ" }
-  };
-  const fallback = samples[user.username] || {};
   return {
     ...user,
-    avatar: user.avatar || fallback.avatar || user.name.charAt(0),
+    avatar: user.avatar || user.name.charAt(0),
     avatarUrl: user.avatarUrl || "",
-    accuracy: user.accuracy || fallback.accuracy || 78,
-    followersCount: user.followersCount || fallback.followersCount || 0,
-    followingCount: user.followingCount || fallback.followingCount || 0,
-    favoriteTeam: user.favoriteTeam || fallback.favoriteTeam || ""
+    accuracy: user.accuracy || 0,
+    followersCount: user.followersCount || 0,
+    followingCount: user.followingCount || 0,
+    favoriteTeam: user.favoriteTeam || ""
   };
 }
 
@@ -7147,6 +7583,17 @@ function renderNotFound() {
     <section class="card panel stack">
       <h1 class="section-title">الصفحة غير موجودة</h1>
       <button class="btn accent" data-route="/">العودة للرئيسية</button>
+    </section>
+  `;
+}
+
+function renderNotFoundPage(title = "الصفحة غير موجودة", route = "/") {
+  app.innerHTML = `
+    ${templateTopbar()}
+    <section class="card panel stack">
+      <h1 class="section-title">${title}</h1>
+      <p class="muted">لا توجد بيانات حقيقية مرتبطة بهذا الرابط حالياً.</p>
+      <button class="btn accent" data-route="${route}">الانتقال للصفحة المناسبة</button>
     </section>
   `;
 }
@@ -7466,7 +7913,7 @@ function settleTournamentLeaderboard(tournament) {
 
   tournamentRounds.forEach((round, roundIndex) => {
     const rule = rules[round.id];
-    const matches = (state.matches[round.id] || []).filter((match) => getMatchResultOutcome(match, round.id));
+    const matches = getTournamentMatches(tournament, round.id).filter((match) => getMatchResultOutcome(match, round.id));
     if (!matches.length) return;
     if (roundIndex === 0 && rule.pointSource === "carry") rule.pointSource = "grant";
     if (rule.pointSource === "grant") {
@@ -7488,13 +7935,10 @@ function settleTournamentLeaderboard(tournament) {
     });
   });
 
-  if (!tournamentRounds.some((round) => (state.matches[round.id] || []).some((match) => getMatchResultOutcome(match, round.id)))) {
-    const basePoints = Number(tournament.points) || Number(tournament.budget) || 0;
-    return rows.map((row, index) => ({
+  if (!tournamentRounds.some((round) => getTournamentMatches(tournament, round.id).some((match) => getMatchResultOutcome(match, round.id)))) {
+    return rows.map((row) => ({
       ...row,
-      points: basePoints - index * 45,
-      correct: Math.max(0, Number(tournament.correct || 0) + (index % 3)),
-      wrong: Math.max(0, Number(tournament.wrong || 0) + (index % 2))
+      points: Math.round(row.points)
     }));
   }
 
@@ -7518,8 +7962,8 @@ function getMatchResultOutcome(match, round) {
 function simulatedParticipantPrediction(tournament, round, match, rule, row, matchIndex, matchCount, roundStartBalance) {
   const key = `${tournament.id}:${round}:${match.id}`;
   const actual = row.name === state.currentUser.name ? state.predictions[key] : null;
-  const outcome = actual ? getPredictionOutcome(actual) : deterministicOutcomeForPlayer(row, match, matchIndex, round);
-  const points = actual ? getPredictionPoints(actual) : getRuleStakeForOutcome(tournament, round, match, outcome, rule, matchCount, roundStartBalance);
+  const outcome = actual ? getPredictionOutcome(actual) : "";
+  const points = actual ? getPredictionPoints(actual) : 0;
   return {
     userId: row.id,
     outcome,
@@ -7527,11 +7971,6 @@ function simulatedParticipantPrediction(tournament, round, match, rule, row, mat
     submitted: Boolean(outcome),
     joker: Boolean(actual?.joker)
   };
-}
-
-function deterministicOutcomeForPlayer(row, match, matchIndex, round) {
-  const choices = predictionOutcomes(round, match).map((outcome) => outcome.value);
-  return choices[(row.seedIndex + matchIndex) % choices.length];
 }
 
 function getRuleStakeForOutcome(tournament, round, match, outcome, rule, matchCount, roundStartBalance) {
@@ -7678,31 +8117,7 @@ function escapePrintable(value) {
 }
 
 function liveLeaderboardImpacts(tournament, round) {
-  const matches = state.matches[round || tournament.currentRound] || [];
-  if (!tournament.active || !matches.length) return {};
-  const activeMatches = matches.filter((match) => match.score || ["HT", "FT", "AET", "PEN"].includes(String(match.statusShort || "").toUpperCase())).slice(0, 2);
-  const impacts = {};
-
-  activeMatches.forEach((match, matchIndex) => {
-    const [homeGoals, awayGoals] = parseMatchScore(match.score);
-    if (homeGoals === null || awayGoals === null) return;
-    const leader = homeGoals === awayGoals ? "draw" : homeGoals > awayGoals ? match.a : match.b;
-    const simulatedPicks = [
-      getPredictionOutcome(state.predictions[`${tournament.id}:${round}:${match.id}`] || {}) || match.a,
-      match.b,
-      match.a,
-      matchIndex % 2 ? match.a : match.b,
-      matchIndex % 2 ? match.b : match.a
-    ];
-
-    simulatedPicks.forEach((pick, index) => {
-      const correctNow = pick === leader;
-      const swing = correctNow ? 18 + (matchIndex * 6) : -10 - (matchIndex * 4);
-      impacts[index] = (impacts[index] || 0) + swing;
-    });
-  });
-
-  return impacts;
+  return {};
 }
 
 function parseMatchScore(score) {
@@ -7799,7 +8214,7 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:" && !["1
   });
 }
 
-render();
+initializeBackend().finally(render);
 
 function cleanupLocalServiceWorker() {
   if (!("serviceWorker" in navigator)) return;

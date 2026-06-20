@@ -1,4 +1,4 @@
-const API_SPORTS_LIVE_ENDPOINT = "https://v3.football.api-sports.io/odds/live";
+const API_SPORTS_LIVE_ENDPOINT = "https://v3.football.api-sports.io/fixtures?live=all";
 
 module.exports = async function handler(request, response) {
   if (request.method !== "GET") {
@@ -13,10 +13,8 @@ module.exports = async function handler(request, response) {
     });
   }
 
-  const endpoint = process.env.API_SPORTS_LIVE_ENDPOINT || API_SPORTS_LIVE_ENDPOINT;
-
   try {
-    const upstream = await fetch(endpoint, {
+    const upstream = await fetch(API_SPORTS_LIVE_ENDPOINT, {
       headers: {
         "x-apisports-key": apiKey
       }

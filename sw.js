@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260620-api-proxy1";
+const CACHE_NAME = "pick-a-side-20260620-live-fixtures1";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -30,6 +30,8 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith("/api/")) return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return cached || fetch(event.request).then((response) => {

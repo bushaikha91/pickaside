@@ -271,6 +271,11 @@ const state = {
   selectedLiveTournamentId: "",
   competitionSearchQuery: "",
   selectedCompetitionId: "",
+  apiCompetitions: [],
+  competitionCatalogRequested: false,
+  competitionSearchStatus: "",
+  competitionSearchError: "",
+  competitionSearchTimer: null,
   liveApi: {
     endpoint: "/api/live-results",
     lastFetchAt: 0,
@@ -2046,9 +2051,10 @@ function joinTournament(tournamentId) {
 
 function searchOfficialCompetitions(query) {
   const normalized = query.trim().toLowerCase();
-  if (!normalized) return officialCompetitions.slice(0, 3);
+  const source = state.apiCompetitions;
+  if (!normalized) return source.slice(0, 12);
 
-  const competitions = officialCompetitions.filter((competition) => {
+  const competitions = source.filter((competition) => {
     return competition.name.toLowerCase().includes(normalized)
       || competition.code.toLowerCase().includes(normalized)
       || competition.region.toLowerCase().includes(normalized);
@@ -2057,13 +2063,17 @@ function searchOfficialCompetitions(query) {
 }
 
 function getSelectedCompetition() {
-  return officialCompetitions.find((competition) => competition.id === state.selectedCompetitionId);
+  return state.apiCompetitions.find((competition) => competition.id === state.selectedCompetitionId);
 }
 
 function competitionResultsHtml(query) {
   const competitions = searchOfficialCompetitions(query);
+  if (state.competitionSearchStatus === "loading") {
+    return `<div class="competition-empty">جاري تحميل البطولات الرسمية من API-Football...</div>`;
+  }
   if (!competitions.length) {
-    return `<div class="competition-empty">لا توجد بطولة مطابقة من المصدر الرسمي.</div>`;
+    const message = state.competitionSearchError || "اكتب اسم البطولة للبحث في جميع البطولات الفعلية لكرة القدم.";
+    return `<div class="competition-empty">${message}</div>`;
   }
 
   return competitions.map((competition) => `
@@ -2072,7 +2082,7 @@ function competitionResultsHtml(query) {
         <strong>${competition.name}</strong>
         <small>${competition.region} · موسم ${competition.season}</small>
       </span>
-      <b>${competition.code}</b>
+      <b>${competition.code || competition.apiId}</b>
     </button>
   `).join("");
 }
@@ -2094,7 +2104,7 @@ function selectedCompetitionSummary() {
 }
 
 function selectOfficialCompetition(competitionId) {
-  const competition = officialCompetitions.find((item) => item.id === competitionId);
+  const competition = state.apiCompetitions.find((item) => item.id === competitionId);
   if (!competition) return;
 
   state.selectedCompetitionId = competition.id;
@@ -2127,6 +2137,84 @@ function validateCompetitionSelection() {
   const error = document.querySelector("#create-error");
   if (error) error.textContent = "اختر بطولة رسمية من القائمة أولاً حتى يتم ربط المباريات وقوائم اللاعبين.";
   return false;
+}
+
+function ensureOfficialCompetitionCatalog() {
+  if (state.competitionCatalogRequested || state.apiCompetitions.length) return;
+  state.competitionCatalogRequested = true;
+  state.competitionSearchStatus = "loading";
+  const results = document.querySelector("#competition-results");
+  if (results) results.innerHTML = competitionResultsHtml(state.competitionSearchQuery);
+  fetchOfficialCompetitions("");
+}
+
+function scheduleOfficialCompetitionSearch(query) {
+  window.clearTimeout(state.competitionSearchTimer);
+  const normalized = query.trim();
+  if (normalized.length < 2) {
+    state.competitionSearchStatus = "";
+    state.competitionSearchError = "";
+    document.querySelector("#competition-results").innerHTML = competitionResultsHtml(query);
+    return;
+  }
+  state.competitionSearchStatus = "loading";
+  state.competitionSearchError = "";
+  document.querySelector("#competition-results").innerHTML = competitionResultsHtml(query);
+  state.competitionSearchTimer = window.setTimeout(() => fetchOfficialCompetitions(normalized), 450);
+}
+
+async function fetchOfficialCompetitions(query) {
+  try {
+    const response = await fetch(`${competitionsApiEndpoint()}?search=${encodeURIComponent(officialCompetitionSearchTerm(query))}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    state.apiCompetitions = normalizeCompetitionPayload(payload);
+    state.competitionSearchStatus = "";
+    state.competitionSearchError = state.apiCompetitions.length ? "" : "لا توجد بطولة مطابقة من المصدر الرسمي.";
+  } catch (error) {
+    state.competitionSearchStatus = "";
+    state.competitionCatalogRequested = false;
+    state.competitionSearchError = "تعذر جلب البطولات الرسمية حالياً. جرّب بعد قليل أو ابحث باسم إنجليزي مثل World Cup.";
+  }
+  const results = document.querySelector("#competition-results");
+  if (results) results.innerHTML = competitionResultsHtml(state.competitionSearchQuery);
+}
+
+function officialCompetitionSearchTerm(query) {
+  const normalized = String(query || "").trim().toLowerCase();
+  if (/كأس|كاس/.test(normalized) && /العالم/.test(normalized)) return "world cup";
+  if (/دوري/.test(normalized) && /ابطال|أبطال/.test(normalized)) return "champions league";
+  if (/كوبا/.test(normalized) || /امريكا|أمريكا/.test(normalized)) return "copa america";
+  if (/امم|أمم/.test(normalized) && /اوروبا|أوروبا/.test(normalized)) return "euro";
+  if (/اسيا|آسيا/.test(normalized)) return "asian cup";
+  return query;
+}
+
+function competitionsApiEndpoint() {
+  if (window.location.protocol === "file:") return "https://www.pickaside.mobile/api/competitions";
+  return "/api/competitions";
+}
+
+function normalizeCompetitionPayload(payload) {
+  const list = Array.isArray(payload?.response) ? payload.response : [];
+  return list.map((item) => {
+    const league = item.league || item;
+    const country = item.country || {};
+    const seasons = Array.isArray(item.seasons) ? item.seasons : [];
+    const season = seasons.find((entry) => entry.current) || seasons[seasons.length - 1] || {};
+    const type = league.type ? `${league.type}` : "League";
+    return {
+      id: `api-league-${league.id}`,
+      apiId: league.id,
+      name: league.name || "Official competition",
+      code: league.id ? `#${league.id}` : type,
+      region: country.name || type,
+      season: season.year || new Date().getFullYear(),
+      defaultStart: "group",
+      logoUrl: league.logo || "",
+      countryFlag: country.flag || ""
+    };
+  }).filter((competition) => competition.apiId && competition.name);
 }
 
 function renderChampionshipsPage() {
@@ -2691,9 +2779,10 @@ function renderCreateTournament() {
     state.selectedCompetitionId = "";
     document.querySelector("#competition-id").value = "";
     document.querySelector("#selected-competition").innerHTML = selectedCompetitionSummary();
-    document.querySelector("#competition-results").innerHTML = competitionResultsHtml(event.target.value);
     document.querySelector("#create-error").textContent = "";
+    scheduleOfficialCompetitionSearch(event.target.value);
   });
+  ensureOfficialCompetitionCatalog();
   privacy.addEventListener("click", () => {
     const isOn = !privacy.classList.contains("on");
     privacy.classList.toggle("on", isOn);
@@ -2938,6 +3027,14 @@ function renderTournament(id, options = {}) {
           </div>
           ${nextRound ? `<button class="btn warn" data-advance-round="${tournament.id}">محاكاة اعتماد نتائج الدور</button>` : ""}
         </div>
+        ${showingAwards || isLocked ? "" : `
+          <div class="live-api-bar compact-live-api-bar">
+            <span>${liveApiStatusText()}</span>
+            <div class="live-api-actions">
+              <button class="btn accent compact-btn" type="button" data-live-api-refresh="${tournament.id}" data-live-api-round="${selectedRound}">تحديث نتائج الدور</button>
+            </div>
+          </div>
+        `}
         ${isPredictionLocked(matches) ? `<div class="notice danger-notice">تم قفل توقعات هذا الدور. اللاعبون بدون توقعات مكتملة يعتبرون خاسرين لنقاط الجولة عند التسوية.</div>` : ""}
       </div>
       ${tournamentFinished ? tournamentFinalAwardResults(tournament) : showingAwards ? awardNominationWorkflow(tournament) : `
@@ -2983,9 +3080,6 @@ function renderTournament(id, options = {}) {
   });
   document.querySelectorAll("[data-full-leaderboard]").forEach((button) => {
     button.addEventListener("click", () => leaderboardModal(getTournamentById(button.dataset.fullLeaderboard)));
-  });
-  document.querySelectorAll("[data-live-api-key]").forEach((button) => {
-    button.addEventListener("click", liveApiKeyModal);
   });
   document.querySelectorAll("[data-live-api-refresh]").forEach((button) => {
     button.addEventListener("click", () => refreshLiveApiResults(getTournamentById(button.dataset.liveApiRefresh), button.dataset.liveApiRound));
@@ -5851,7 +5945,7 @@ function teamLogoDataUri(label, primary, textColor) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-function getTeamIdentity(teamName) {
+function getTeamIdentity(teamName, logoUrl = "") {
   const flags = {
     "الإمارات": "🇦🇪",
     "السعودية": "🇸🇦",
@@ -5887,13 +5981,14 @@ function getTeamIdentity(teamName) {
     "شباب الأهلي": "ش",
     "اتحاد كلباء": "ك"
   };
+  if (logoUrl) return { type: "logo", mark: crestLabels[teamName] || teamName.trim().charAt(0) || "•", logoUrl };
   if (apiTeam?.logoUrl) return { type: "logo", mark: crestLabels[teamName] || teamName.trim().charAt(0) || "•", logoUrl: apiTeam.logoUrl };
   if (flags[teamName]) return { type: "flag", mark: flags[teamName] };
   return { type: "crest", mark: crestLabels[teamName] || teamName.trim().charAt(0) || "•" };
 }
 
-function teamIdentityHtml(teamName, className = "") {
-  const identity = getTeamIdentity(teamName);
+function teamIdentityHtml(teamName, className = "", logoUrl = "") {
+  const identity = getTeamIdentity(teamName, logoUrl);
   const emblem = identity.logoUrl
     ? `<span class="team-emblem logo" aria-hidden="true"><img src="${identity.logoUrl}" alt="" loading="lazy" onerror="this.closest('.team-emblem').classList.add('fallback'); this.remove();"></span>`
     : `<span class="team-emblem ${identity.type}" aria-hidden="true">${identity.mark}</span>`;
@@ -5908,9 +6003,9 @@ function teamIdentityHtml(teamName, className = "") {
 function matchIdentityHtml(match) {
   return `
     <span class="match-title">
-      ${teamIdentityHtml(match.a)}
+      ${teamIdentityHtml(match.a, "", match.logoA || "")}
       <span class="match-versus">VS</span>
-      ${teamIdentityHtml(match.b)}
+      ${teamIdentityHtml(match.b, "", match.logoB || "")}
     </span>
   `;
 }
@@ -6030,11 +6125,12 @@ function supportsInlinePrediction(rule) {
 }
 
 function predictionTeamButton(tournament, round, match, team, selectedOutcome, locked, inlinePick) {
-  if (!inlinePick) return `<span>${teamIdentityHtml(team)}</span>`;
+  const logoUrl = team === match.a ? match.logoA : match.logoB;
+  if (!inlinePick) return `<span>${teamIdentityHtml(team, "", logoUrl || "")}</span>`;
   const selected = selectedOutcome === team ? "selected" : "";
   return `
     <button class="prediction-team-pick ${selected}" type="button" data-inline-pick="${match.id}" data-outcome="${team}" ${locked ? "disabled" : ""}>
-      ${teamIdentityHtml(team)}
+      ${teamIdentityHtml(team, "", logoUrl || "")}
     </button>
   `;
 }
@@ -6296,25 +6392,26 @@ function incrementApiSportsQuota() {
 }
 
 async function refreshLiveApiResults(tournament, round) {
-  const endpoint = state.liveApi.endpoint || "/api/live-results";
-  const usesBackendProxy = endpoint.startsWith("/api/");
+  const endpoint = liveApiEndpoint();
+  const usesBackendProxy = isBackendProxyEndpoint(endpoint);
   const key = getApiSportsKey();
   if (!usesBackendProxy && !key) {
-    state.liveApi.lastError = "أدخل مفتاح API أولاً";
-    liveApiKeyModal();
+    state.liveApi.lastStatus = "فشل تحديث النتائج";
+    state.liveApi.lastError = "هذا الرابط يحتاج مفتاح API. استخدم ربط Vercel الرسمي.";
+    renderLiveApiTarget(tournament);
     return;
   }
   const quota = getApiSportsQuota();
   if (quota.count >= 100) {
     state.liveApi.lastStatus = "تم إيقاف التحديث";
     state.liveApi.lastError = "وصلت إلى 100 طلب اليوم";
-    renderTournament(tournament.id);
+    renderLiveApiTarget(tournament);
     return;
   }
 
   state.liveApi.lastStatus = "جاري تحديث النتائج";
   state.liveApi.lastError = "";
-  renderTournament(tournament.id);
+  renderLiveApiTarget(tournament);
 
   try {
     const headers = usesBackendProxy ? {} : { "x-apisports-key": key };
@@ -6335,7 +6432,33 @@ async function refreshLiveApiResults(tournament, round) {
     state.liveApi.lastStatus = "فشل تحديث النتائج";
     state.liveApi.lastError = error.message || "خطأ غير معروف";
   }
-  renderTournament(tournament.id);
+  renderLiveApiTarget(tournament);
+}
+
+function liveApiEndpoint() {
+  const endpoint = state.liveApi.endpoint || "/api/live-results";
+  if (window.location.protocol === "file:" && endpoint.startsWith("/api/")) {
+    return `https://www.pickaside.mobile${endpoint}`;
+  }
+  return endpoint;
+}
+
+function isBackendProxyEndpoint(endpoint) {
+  if (String(endpoint || "").startsWith("/api/")) return true;
+  try {
+    const url = new URL(endpoint);
+    return /(^|\.)pickaside\.mobile$/i.test(url.hostname) && url.pathname.startsWith("/api/");
+  } catch {
+    return false;
+  }
+}
+
+function renderLiveApiTarget(tournament) {
+  if (state.route === "/live") {
+    renderLive();
+    return;
+  }
+  if (tournament?.id) renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
 }
 
 function normalizeApiSportsLivePayload(payload) {
@@ -6343,6 +6466,7 @@ function normalizeApiSportsLivePayload(payload) {
   return list.map((item) => {
     const fixture = item.fixture || item;
     const teams = item.teams || fixture.teams || {};
+    const league = item.league || fixture.league || {};
     const goals = item.goals || fixture.goals || {};
     const score = item.score || fixture.score || {};
     const status = fixture.status || item.status || {};
@@ -6353,6 +6477,11 @@ function normalizeApiSportsLivePayload(payload) {
     return {
       homeName,
       awayName,
+      homeLogo: teams.home?.logo || "",
+      awayLogo: teams.away?.logo || "",
+      leagueName: league.name || "",
+      leagueLogo: league.logo || "",
+      fixtureId: fixture.id || item.id || "",
       score: homeGoals !== undefined && awayGoals !== undefined ? `${homeGoals} - ${awayGoals}` : "",
       statusShort: status.short || item.statusShort || "",
       statusLong: status.long || item.statusLong || "",
@@ -6371,6 +6500,7 @@ function applyLiveResultEvents(tournament, round, events) {
     if (!match) return;
     const nextScore = event.score || match.score;
     const nextStatus = event.statusShort || event.statusLong || "";
+    const homeIsA = sameTeamName(normalizeName(event.homeName), normalizeName(match.a));
     if (nextScore && nextScore !== match.score) {
       match.score = nextScore;
       applied += 1;
@@ -6380,6 +6510,11 @@ function applyLiveResultEvents(tournament, round, events) {
       match.minute = event.elapsed || match.minute || "";
       applied += 1;
     }
+    if (event.homeLogo || event.awayLogo) {
+      match.logoA = homeIsA ? event.homeLogo : event.awayLogo;
+      match.logoB = homeIsA ? event.awayLogo : event.homeLogo;
+    }
+    if (event.fixtureId) match.fixtureId = event.fixtureId;
   });
   return applied;
 }
@@ -6589,9 +6724,11 @@ function renderLive() {
       ` : ""}
     </div>
     <section class="grid">
-      <div class="card panel">
-        <h1 class="section-title">المباشر</h1>
-        <p class="muted">تظهر هنا فقط البطولات التي أنت مشارك فيها. اختر بطولة لعرض نتائجها الحية وتأثيرها على رصيدك.</p>
+      <div class="live-api-bar">
+        <span>${liveApiStatusText()}</span>
+        <div class="live-api-actions">
+          <button class="btn accent compact-btn" type="button" data-live-api-refresh-page="${selectedTournament?.id || ""}">تحديث النتائج</button>
+        </div>
       </div>
       ${joinedTournaments.length ? `
         <div class="championship-page-slider live-page-slider" id="live-page-slider" style="--championship-index: ${activeIndex}; --tab-count: ${joinedTournaments.length};">
@@ -6610,6 +6747,7 @@ function renderLive() {
                     <div class="live-grid">
                       ${liveMatches.map(liveMatchCard).join("")}
                     </div>
+                    ${apiLiveFeedHtml(tournament)}
                   </div>
                 </section>
               `;
@@ -6628,6 +6766,13 @@ function renderLive() {
   document.querySelectorAll("[data-live-tournament]").forEach((button) => {
     button.addEventListener("click", () => {
       setLiveTournament(button.dataset.liveTournament);
+    });
+  });
+  document.querySelectorAll("[data-live-api-refresh-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tournament = getTournamentById(button.dataset.liveApiRefreshPage || state.selectedLiveTournamentId);
+      const round = tournament.currentRound || tournament.startingRound || "round16";
+      refreshLiveApiResults(tournament, round);
     });
   });
 
@@ -6681,16 +6826,16 @@ function getTournamentLiveMatches(tournament) {
   const round = tournament.currentRound || tournament.startingRound || "round16";
   const matches = state.matches[round] || [];
   return matches.slice(0, 3).map((match, index) => {
-    const score = match.score || (index === 0 ? "2 - 1" : index === 1 ? "0 - 0" : "1 - 1");
-    const minute = index === 0 ? "67" : index === 1 ? "52" : "83";
     const prediction = state.quickPicks[`${tournament.id}:${round}:${match.id}`];
+    const score = match.score || "";
+    const minute = match.minute || "";
     const impact = prediction
       ? prediction === match.a ? "+80 محتملة" : "-45 حالياً"
       : "لا يوجد توقع";
     return {
       ...match,
       tournamentName: tournament.name,
-      minute: match.minute || minute,
+      minute,
       statusShort: match.statusShort || "",
       score,
       impact
@@ -6699,23 +6844,72 @@ function getTournamentLiveMatches(tournament) {
 }
 
 function liveMatchCard(match) {
+  const status = match.statusShort ? liveStatusLabel(match.statusShort) : match.minute ? `الدقيقة ${match.minute}` : "بانتظار الربط";
   return `
     <article class="match-card">
       <div class="match-top">
-        <span class="badge">${match.statusShort ? liveStatusLabel(match.statusShort) : `الدقيقة ${match.minute}`}</span>
+        <span class="badge">${status}</span>
       </div>
       <div class="live-score">
-        ${teamIdentityHtml(match.a, "compact")}
-        <span>${match.score}</span>
-        ${teamIdentityHtml(match.b, "compact")}
+        ${teamIdentityHtml(match.a, "compact", match.logoA || "")}
+        <span>${match.score || "—"}</span>
+        ${teamIdentityHtml(match.b, "compact", match.logoB || "")}
       </div>
       <div class="stat-line"><span>أثرها على رصيدك</span><strong>${match.impact}</strong></div>
     </article>
   `;
 }
 
-function liveStatusLabel(status) {
+function apiLiveFeedHtml(tournament) {
+  const events = (state.liveApi.lastEvents || []).slice(0, 8);
+  if (!events.length) {
+    return `
+      <div class="live-api-feed-empty">
+        اضغط تحديث النتائج لعرض المباريات المباشرة من الربط الرياضي.
+      </div>
+    `;
+  }
+  return `
+    <section class="live-api-feed">
+      <div class="compact-section-head">
+        <h3 class="section-title">نتائج مباشرة من الربط</h3>
+        <span>${events.length} مباراة</span>
+      </div>
+      <div class="live-api-feed-list">
+        ${events.map(apiLiveEventCard).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function apiLiveEventCard(event) {
+  const status = liveEventStatusText(event);
+  return `
+    <article class="match-card api-live-card">
+      <div class="match-top">
+        <span class="badge">${status}</span>
+        <span class="muted">${event.leagueName || ""}</span>
+      </div>
+      <div class="live-score">
+        ${teamIdentityHtml(event.homeName || "الفريق الأول", "compact", event.homeLogo || "")}
+        <span>${event.score || "—"}</span>
+        ${teamIdentityHtml(event.awayName || "الفريق الثاني", "compact", event.awayLogo || "")}
+      </div>
+    </article>
+  `;
+}
+
+function liveEventStatusText(event) {
+  if (event.statusShort) return liveStatusLabel(event.statusShort, event.elapsed);
+  if (event.statusLong) return event.statusLong;
+  return event.elapsed ? `الدقيقة ${event.elapsed}` : "مباشر";
+}
+
+function liveStatusLabel(status, elapsed = "") {
   const value = String(status || "").toUpperCase();
+  if (value === "NS") return "لم تبدأ";
+  if (value === "1H") return elapsed ? `الشوط الأول · ${elapsed}` : "الشوط الأول";
+  if (value === "2H") return elapsed ? `الشوط الثاني · ${elapsed}` : "الشوط الثاني";
   if (value === "HT") return "نهاية الشوط الأول";
   if (value === "FT") return "نهاية المباراة";
   if (value === "AET") return "نهاية الأشواط الإضافية";

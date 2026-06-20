@@ -1,4 +1,4 @@
-const API_SPORTS_LIVE_ENDPOINT = "https://v3.football.api-sports.io/fixtures?live=all";
+const API_SPORTS_LEAGUES_ENDPOINT = "https://v3.football.api-sports.io/leagues";
 
 module.exports = async function handler(request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,19 +21,23 @@ module.exports = async function handler(request, response) {
     });
   }
 
+  const search = String(request.query?.search || "").trim();
+  const url = new URL(API_SPORTS_LEAGUES_ENDPOINT);
+  if (search) url.searchParams.set("search", search);
+
   try {
-    const upstream = await fetch(API_SPORTS_LIVE_ENDPOINT, {
+    const upstream = await fetch(url, {
       headers: {
         "x-apisports-key": apiKey
       }
     });
 
     const payload = await upstream.json().catch(() => ({}));
-    response.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
+    response.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=604800");
     return response.status(upstream.status).json(payload);
   } catch (error) {
     return response.status(502).json({
-      error: "Failed to fetch live results",
+      error: "Failed to fetch official competitions",
       message: error.message || "Unknown error"
     });
   }

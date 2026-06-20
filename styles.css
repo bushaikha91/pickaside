@@ -3082,6 +3082,10 @@ h1.section-title {
   gap: 6px;
 }
 
+.compact-live-api-bar {
+  margin: 0;
+}
+
 .leaderboard-card {
   display: grid;
   gap: 10px;
@@ -5254,6 +5258,40 @@ h1.section-title {
 
 .live-score .team-identity:last-child {
   justify-content: flex-end;
+}
+
+.live-api-feed {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.live-api-feed .compact-section-head {
+  padding: 0 2px;
+}
+
+.live-api-feed-list {
+  display: grid;
+  gap: 8px;
+}
+
+.live-api-feed-empty {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft-bg);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.api-live-card {
+  gap: 9px;
+}
+
+.api-live-card .match-top {
+  margin-bottom: 0;
 }
 
 .modal-backdrop {

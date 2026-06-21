@@ -18,16 +18,21 @@ module.exports = async function handler(req, res) {
 
   const league = String(req.query.league || "").trim();
   const season = String(req.query.season || new Date().getFullYear()).trim();
+  const live = String(req.query.live || "").trim();
 
-  if (!league || !season) {
-    res.status(400).json({ errors: { query: "league and season are required" }, response: [] });
+  if (!league) {
+    res.status(400).json({ errors: { query: "league is required" }, response: [] });
     return;
   }
 
   try {
     const url = new URL(API_BASE_URL);
     url.searchParams.set("league", league);
-    url.searchParams.set("season", season);
+    if (live) {
+      url.searchParams.set("live", live);
+    } else {
+      url.searchParams.set("season", season);
+    }
 
     const response = await fetch(url, {
       headers: {

@@ -21,6 +21,7 @@ const state = {
   currentUser: {
     name: "Pick A Side User",
     handle: "@user",
+    phone: "",
     avatar: "P",
     avatarUrl: "",
     favoriteTeam: "",
@@ -1296,7 +1297,7 @@ async function loadCurrentUserProfile(session) {
   if (!user || !state.backend.client) return;
   const { data, error } = await state.backend.client
     .from("profiles")
-    .select("id, username, display_name, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
+    .select("id, username, display_name, phone_number, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -1304,7 +1305,8 @@ async function loadCurrentUserProfile(session) {
   if (!data) {
     await upsertCurrentUserProfile(user, {
       username: user.user_metadata?.username || user.email?.split("@")[0] || "user",
-      displayName: user.user_metadata?.display_name || user.email?.split("@")[0] || "Pick A Side User"
+      displayName: user.user_metadata?.display_name || user.email?.split("@")[0] || "Pick A Side User",
+      phone: user.user_metadata?.phone || ""
     });
     return;
   }
@@ -1317,14 +1319,15 @@ async function upsertCurrentUserProfile(user, profile) {
     id: user.id,
     username: profile.username,
     display_name: profile.displayName,
-    avatar_url: "",
-    favorite_team: "",
+    phone_number: profile.phone || "",
+    avatar_url: profile.avatarUrl || "",
+    favorite_team: profile.favoriteTeam || "",
     updated_at: new Date().toISOString()
   };
   const { data, error } = await state.backend.client
     .from("profiles")
     .upsert(row, { onConflict: "id" })
-    .select("id, username, display_name, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
+    .select("id, username, display_name, phone_number, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
     .single();
   if (!error && data) state.currentUser = profileToCurrentUser(data);
 }
@@ -1334,6 +1337,7 @@ function profileToCurrentUser(profile) {
   return {
     name: displayName,
     handle: `@${profile.username || "user"}`,
+    phone: profile.phone_number || "",
     avatar: displayName.trim().charAt(0).toUpperCase() || "P",
     avatarUrl: profile.avatar_url || "",
     favoriteTeam: profile.favorite_team || "",
@@ -1570,6 +1574,10 @@ function renderAuth(route) {
           <div class="field">
             <label>الاسم الظاهر</label>
             <input class="input" id="auth-display-name" type="text" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label>رقم الهاتف</label>
+            <input class="input" id="auth-phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="+9715XXXXXXXX">
           </div>` : ""}
         <div class="field">
           <label>كلمة المرور</label>
@@ -1609,6 +1617,7 @@ async function handleAuthSubmit(isSignup) {
   const password = document.querySelector("#auth-password")?.value;
   const username = document.querySelector("#auth-username")?.value.trim().replace(/^@/, "").toLowerCase();
   const displayName = document.querySelector("#auth-display-name")?.value.trim();
+  const phone = document.querySelector("#auth-phone")?.value.trim();
 
   if (!state.backend.configured || !state.backend.client) {
     errorBox.textContent = "لا يمكن إنشاء حساب حقيقي قبل تفعيل Supabase في Vercel.";
@@ -1617,19 +1626,24 @@ async function handleAuthSubmit(isSignup) {
 
   try {
     if (isSignup) {
+      if (!phone) {
+        errorBox.textContent = "رقم الهاتف مطلوب لإنشاء الحساب.";
+        return;
+      }
       const { data, error } = await state.backend.client.auth.signUp({
         email,
         password,
         options: {
           data: {
             username,
-            display_name: displayName || username
+            display_name: displayName || username,
+            phone
           }
         }
       });
       if (error) throw error;
       if (data.user) {
-        await upsertCurrentUserProfile(data.user, { username, displayName: displayName || username });
+        await upsertCurrentUserProfile(data.user, { username, displayName: displayName || username, phone });
       }
       if (!data.session) {
         errorBox.textContent = "تم إنشاء الحساب. إذا كان تأكيد البريد مفعلاً، افتح بريدك لتأكيد الحساب ثم سجل الدخول.";
@@ -2249,7 +2263,7 @@ function selectedCompetitionSummary() {
     : state.selectedCompetitionFixtureStatus === "loaded"
       ? `<small>تم ربط ${countMatchesByRound(state.selectedCompetitionMatchesByRound)} مباراة من موسم ${competition.season}</small>`
       : state.selectedCompetitionFixtureStatus === "empty"
-        ? `<small>لم تظهر مباريات لهذا الموسم من المصدر الرسمي حتى الآن.</small>`
+        ? `<small>${state.selectedCompetitionFixtureError || "لم تظهر مباريات لهذا الموسم من المصدر الرسمي حتى الآن."}</small>`
         : state.selectedCompetitionFixtureError
           ? `<small>${state.selectedCompetitionFixtureError}</small>`
           : "";
@@ -2372,13 +2386,23 @@ async function loadOfficialCompetitionFixtures(competition) {
   if (summary) summary.innerHTML = selectedCompetitionSummary();
 
   try {
-    const url = `${fixturesApiEndpoint()}?league=${encodeURIComponent(competition.apiId)}&season=${encodeURIComponent(competition.season || new Date().getFullYear())}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    const matchesByRound = normalizeFixturePayload(payload);
+    const season = competition.season || new Date().getFullYear();
+    let payload = await fetchCompetitionFixturesPayload(competition.apiId, { season });
+    let matchesByRound = normalizeFixturePayload(payload);
+    if (!countMatchesByRound(matchesByRound)) {
+      const livePayload = await fetchCompetitionFixturesPayload(competition.apiId, { live: "all" });
+      const liveMatchesByRound = normalizeFixturePayload(livePayload);
+      if (countMatchesByRound(liveMatchesByRound)) {
+        payload = livePayload;
+        matchesByRound = liveMatchesByRound;
+      }
+    }
+    const apiError = apiFootballErrorMessage(payload);
     state.selectedCompetitionMatchesByRound = matchesByRound;
     state.selectedCompetitionFixtureStatus = countMatchesByRound(matchesByRound) ? "loaded" : "empty";
+    state.selectedCompetitionFixtureError = countMatchesByRound(matchesByRound)
+      ? ""
+      : (apiError || "لم تظهر مباريات لهذا الموسم أو مباريات حية لهذه البطولة من المصدر الرسمي.");
     syncStartingRoundSelectWithApiRounds();
   } catch (error) {
     state.selectedCompetitionMatchesByRound = emptyMatchesByRound();
@@ -2388,6 +2412,26 @@ async function loadOfficialCompetitionFixtures(competition) {
 
   const nextSummary = document.querySelector("#selected-competition");
   if (nextSummary) nextSummary.innerHTML = selectedCompetitionSummary();
+}
+
+async function fetchCompetitionFixturesPayload(apiId, options = {}) {
+  const params = new URLSearchParams({ league: String(apiId) });
+  if (options.live) params.set("live", options.live);
+  else params.set("season", String(options.season || new Date().getFullYear()));
+  const response = await fetch(`${fixturesApiEndpoint()}?${params.toString()}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+function apiFootballErrorMessage(payload) {
+  const errors = payload?.errors;
+  if (!errors) return "";
+  if (typeof errors === "string") return errors;
+  if (Array.isArray(errors)) return errors.join(" ");
+  if (typeof errors === "object") {
+    return Object.values(errors).filter(Boolean).join(" ");
+  }
+  return "";
 }
 
 function syncStartingRoundSelectWithApiRounds() {
@@ -3295,6 +3339,14 @@ async function saveTournament(draft = false) {
   const competitionMatchesByRound = selectedCompetition.apiId
     ? (state.selectedCompetitionMatchesByRound || emptyMatchesByRound())
     : null;
+  if (selectedCompetition.apiId && state.selectedCompetitionFixtureStatus === "loading") {
+    document.querySelector("#create-error").textContent = "انتظر حتى يكتمل جلب مباريات البطولة من الربط الرياضي.";
+    return "";
+  }
+  if (selectedCompetition.apiId && !countMatchesByRound(competitionMatchesByRound)) {
+    document.querySelector("#create-error").textContent = state.selectedCompetitionFixtureError || "لم يتم جلب أي مباراة لهذه البطولة من الربط الرياضي، لذلك لا يمكن إنشاء بطولة توقعات واقعية منها حالياً.";
+    return "";
+  }
   const tournamentRoundIds = (roundOptionsFromMatches(competitionMatchesByRound).length
     ? roundOptionsFromMatches(competitionMatchesByRound)
     : createStartingRoundOptions()).map((round) => round.id);
@@ -6120,15 +6172,23 @@ async function refreshTournamentFixturesFromApi(tournament) {
   if (!tournament?.officialCompetitionApiId) return false;
   try {
     const season = tournament.officialCompetitionSeason || new Date().getFullYear();
-    const url = `${fixturesApiEndpoint()}?league=${encodeURIComponent(tournament.officialCompetitionApiId)}&season=${encodeURIComponent(season)}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    const latestMatches = normalizeFixturePayload(payload);
+    let payload = await fetchCompetitionFixturesPayload(tournament.officialCompetitionApiId, { season });
+    let latestMatches = normalizeFixturePayload(payload);
+    if (!countMatchesByRound(latestMatches)) {
+      const livePayload = await fetchCompetitionFixturesPayload(tournament.officialCompetitionApiId, { live: "all" });
+      const liveMatches = normalizeFixturePayload(livePayload);
+      if (countMatchesByRound(liveMatches)) {
+        payload = livePayload;
+        latestMatches = liveMatches;
+      }
+    }
     tournament.matchesByRound = mergeTournamentMatchesByRound(tournament.matchesByRound || emptyMatchesByRound(), latestMatches);
     const apiRounds = roundOptionsFromMatches(tournament.matchesByRound).map((round) => round.id);
     if (apiRounds.length) tournament.roundIds = apiRounds;
     tournament.fixturesStatus = countMatchesByRound(tournament.matchesByRound) ? "loaded" : "empty";
+    if (!countMatchesByRound(tournament.matchesByRound)) {
+      state.liveApi.lastError = apiFootballErrorMessage(payload) || "لم تظهر مباريات من الربط لهذه البطولة.";
+    }
     return true;
   } catch (error) {
     state.liveApi.lastError = error.message || "تعذر جلب مباريات البطولة";
@@ -7739,6 +7799,10 @@ function editProfileModal() {
         <input class="input" id="profile-handle" required value="${user.handle}">
       </div>
       <div class="field">
+        <label>رقم الهاتف</label>
+        <input class="input" id="profile-phone" type="tel" autocomplete="tel" inputmode="tel" required value="${user.phone || ""}">
+      </div>
+      <div class="field">
         <label>الفريق المفضل</label>
         <input class="input" id="profile-team" value="${user.favoriteTeam || ""}">
       </div>
@@ -7767,14 +7831,15 @@ function editProfileModal() {
     });
     reader.readAsDataURL(file);
   });
-  document.querySelector("#edit-profile-form").addEventListener("submit", (event) => {
+  document.querySelector("#edit-profile-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const name = document.querySelector("#profile-name").value.trim();
     let handle = document.querySelector("#profile-handle").value.trim();
+    const phone = document.querySelector("#profile-phone").value.trim();
     const favoriteTeam = document.querySelector("#profile-team").value.trim();
 
-    if (!name || !handle) {
-      document.querySelector("#profile-error").textContent = tr("Name and username are required.");
+    if (!name || !handle || !phone) {
+      document.querySelector("#profile-error").textContent = "الاسم واسم المستخدم ورقم الهاتف مطلوبة.";
       return;
     }
     if (!handle.startsWith("@")) handle = `@${handle}`;
@@ -7783,16 +7848,37 @@ function editProfileModal() {
       return;
     }
 
-    state.currentUser = {
+    const nextUser = {
       ...state.currentUser,
       name,
       handle,
+      phone,
       avatar: name[0],
       avatarUrl: selectedAvatarUrl,
       favoriteTeam
     };
-    closeModal();
-    render();
+    try {
+      if (isBackendReady()) {
+        const username = handle.replace("@", "");
+        const { error } = await state.backend.client
+          .from("profiles")
+          .update({
+            username,
+            display_name: name,
+            phone_number: phone,
+            avatar_url: selectedAvatarUrl,
+            favorite_team: favoriteTeam,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", state.backend.session.user.id);
+        if (error) throw error;
+      }
+      state.currentUser = nextUser;
+      closeModal();
+      render();
+    } catch (error) {
+      document.querySelector("#profile-error").textContent = error.message || "تعذر حفظ الملف الشخصي.";
+    }
   });
 }
 

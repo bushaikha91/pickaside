@@ -4,6 +4,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text not null unique,
   display_name text not null,
+  phone_number text not null default '',
   avatar_url text,
   favorite_team text,
   followers_count integer not null default 0,
@@ -57,6 +58,7 @@ alter table public.tournaments add column if not exists round_ids text[] not nul
 alter table public.tournaments add column if not exists prizes jsonb not null default '[]'::jsonb;
 alter table public.tournaments add column if not exists award_categories text[] not null default '{}'::text[];
 alter table public.tournaments add column if not exists settings jsonb not null default '{}'::jsonb;
+alter table public.profiles add column if not exists phone_number text not null default '';
 
 create table if not exists public.tournament_participants (
   tournament_id uuid not null references public.tournaments(id) on delete cascade,

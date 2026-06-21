@@ -2300,6 +2300,21 @@ function selectedCompetitionSummary() {
   `;
 }
 
+function refreshCreateSubmitState() {
+  const createButton = document.querySelector("#create-tournament-form button[type=\"submit\"]");
+  if (!createButton) return;
+  const hasCompetition = Boolean(state.selectedCompetitionId);
+  const isLoading = state.selectedCompetitionFixtureStatus === "loading";
+  const hasMatches = countMatchesByRound(state.selectedCompetitionMatchesByRound) > 0;
+  const blocked = hasCompetition && !isLoading && !hasMatches;
+  createButton.disabled = isLoading || blocked;
+  createButton.textContent = isLoading
+    ? "جاري جلب المباريات"
+    : blocked
+      ? "المباريات غير متاحة"
+      : "إنشاء البطولة";
+}
+
 function selectOfficialCompetition(competitionId) {
   const competition = state.apiCompetitions.find((item) => item.id === competitionId);
   if (!competition) return;
@@ -2327,6 +2342,7 @@ function selectOfficialCompetition(competitionId) {
     if (preview) preview.textContent = `مرحلة البداية: سيتم جلب مباريات ${label} من الربط الرياضي، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.`;
   }
   if (error) error.textContent = "";
+  refreshCreateSubmitState();
   loadOfficialCompetitionFixtures(competition);
 }
 
@@ -2407,6 +2423,7 @@ async function loadOfficialCompetitionFixtures(competition) {
   state.selectedCompetitionMatchesByRound = null;
   const summary = document.querySelector("#selected-competition");
   if (summary) summary.innerHTML = selectedCompetitionSummary();
+  refreshCreateSubmitState();
 
   try {
     const season = competition.season || new Date().getFullYear();
@@ -2435,6 +2452,7 @@ async function loadOfficialCompetitionFixtures(competition) {
 
   const nextSummary = document.querySelector("#selected-competition");
   if (nextSummary) nextSummary.innerHTML = selectedCompetitionSummary();
+  refreshCreateSubmitState();
 }
 
 async function fetchCompetitionFixturesPayload(apiId, options = {}) {
@@ -2449,12 +2467,25 @@ async function fetchCompetitionFixturesPayload(apiId, options = {}) {
 function apiFootballErrorMessage(payload) {
   const errors = payload?.errors;
   if (!errors) return "";
-  if (typeof errors === "string") return errors;
-  if (Array.isArray(errors)) return errors.join(" ");
+  if (typeof errors === "string") return localizeApiFootballError(errors);
+  if (Array.isArray(errors)) return localizeApiFootballError(errors.join(" "));
   if (typeof errors === "object") {
-    return Object.values(errors).filter(Boolean).join(" ");
+    return localizeApiFootballError(Object.values(errors).filter(Boolean).join(" "));
   }
   return "";
+}
+
+function localizeApiFootballError(message) {
+  const text = String(message || "");
+  if (/Free plans do not have access to this season/i.test(text)) {
+    const years = text.match(/try from\s+([0-9]{4})\s+to\s+([0-9]{4})/i);
+    const range = years ? ` من ${years[1]} إلى ${years[2]}` : "";
+    return `خطة API-Football المجانية لا تسمح بجلب مباريات هذا الموسم. للتجربة اختر موسماً متاحاً${range} أو قم بترقية خطة API-Football.`;
+  }
+  if (/Missing application key/i.test(text)) {
+    return "مفتاح API-Football غير مضاف في إعدادات الخادم.";
+  }
+  return text;
 }
 
 function syncStartingRoundSelectWithApiRounds() {
@@ -3204,9 +3235,13 @@ function renderCreateTournament() {
   document.querySelector("#competition-search").addEventListener("input", (event) => {
     state.competitionSearchQuery = event.target.value;
     state.selectedCompetitionId = "";
+    state.selectedCompetitionMatchesByRound = null;
+    state.selectedCompetitionFixtureStatus = "";
+    state.selectedCompetitionFixtureError = "";
     document.querySelector("#competition-id").value = "";
     document.querySelector("#selected-competition").innerHTML = selectedCompetitionSummary();
     document.querySelector("#create-error").textContent = "";
+    refreshCreateSubmitState();
     scheduleOfficialCompetitionSearch(event.target.value);
   });
   privacy.addEventListener("click", () => {

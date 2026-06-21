@@ -2433,20 +2433,25 @@ async function loadOfficialCompetitionFixtures(competition) {
     const season = competition.season || new Date().getFullYear();
     let payload = await fetchCompetitionFixturesPayload(competition.apiId, { season });
     let matchesByRound = normalizeFixturePayload(payload);
+    let futureAccessError = apiFootballErrorMessage(payload);
     if (!countPredictableMatchesByRound(matchesByRound)) {
       const windowPayload = await fetchUpcomingCompetitionFixturesPayload(competition.apiId, season);
       const windowMatchesByRound = normalizeFixturePayload(windowPayload);
+      futureAccessError = futureAccessError || apiFootballErrorMessage(windowPayload);
       if (countPredictableMatchesByRound(windowMatchesByRound)) {
         payload = windowPayload;
         matchesByRound = windowMatchesByRound;
+        futureAccessError = "";
       }
     }
     if (!countPredictableMatchesByRound(matchesByRound)) {
       const upcomingPayload = await fetchCompetitionFixturesPayload(competition.apiId, { next: 80 });
       const upcomingMatchesByRound = normalizeFixturePayload(upcomingPayload);
+      futureAccessError = futureAccessError || apiFootballErrorMessage(upcomingPayload);
       if (countPredictableMatchesByRound(upcomingMatchesByRound)) {
         payload = upcomingPayload;
         matchesByRound = upcomingMatchesByRound;
+        futureAccessError = "";
       }
     }
     if (!countPredictableMatchesByRound(matchesByRound)) {
@@ -2465,7 +2470,7 @@ async function loadOfficialCompetitionFixtures(competition) {
     state.selectedCompetitionFixtureError = predictableCount
       ? ""
       : totalCount
-        ? "الربط رجع مباريات مباشرة/منتهية فقط. لإنشاء بطولة توقعات نحتاج مباريات قادمة لم تبدأ بعد."
+        ? (futureAccessError || "الربط رجع مباريات مباشرة/منتهية فقط. لإنشاء بطولة توقعات نحتاج مباريات قادمة لم تبدأ بعد.")
         : (apiError || "لم تظهر مباريات قادمة أو مباريات حية لهذه البطولة من المصدر الرسمي.");
     syncStartingRoundSelectWithApiRounds();
   } catch (error) {

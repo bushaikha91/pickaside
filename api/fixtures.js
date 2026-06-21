@@ -19,6 +19,7 @@ module.exports = async function handler(req, res) {
   const league = String(req.query.league || "").trim();
   const season = String(req.query.season || new Date().getFullYear()).trim();
   const live = String(req.query.live || "").trim();
+  const next = String(req.query.next || "").trim();
 
   if (!league) {
     res.status(400).json({ errors: { query: "league is required" }, response: [] });
@@ -30,6 +31,8 @@ module.exports = async function handler(req, res) {
     url.searchParams.set("league", league);
     if (live) {
       url.searchParams.set("live", live);
+    } else if (next) {
+      url.searchParams.set("next", next);
     } else {
       url.searchParams.set("season", season);
     }

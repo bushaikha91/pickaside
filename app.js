@@ -2277,14 +2277,18 @@ function selectedCompetitionSummary() {
     return `<span class="muted">اختر بطولة من القائمة حتى يتم جلب مبارياتها، أدوارها، وقوائم اللاعبين من الربط الرياضي.</span>`;
   }
 
-  const apiRounds = roundOptionsFromMatches(state.selectedCompetitionMatchesByRound);
+  const apiRounds = createStartingRoundOptions();
   const startRound = apiRounds.length
     ? apiRounds.map((round) => round.label).join("، ")
     : "حسب بيانات الربط";
+  const matchCount = countMatchesByRound(state.selectedCompetitionMatchesByRound);
+  const predictableCount = countPredictableMatchesByRound(state.selectedCompetitionMatchesByRound);
   const fixtureStatus = state.selectedCompetitionFixtureStatus === "loading"
     ? `<small>جاري جلب مباريات البطولة من الربط...</small>`
     : state.selectedCompetitionFixtureStatus === "loaded"
-      ? `<small>تم ربط ${countMatchesByRound(state.selectedCompetitionMatchesByRound)} مباراة من موسم ${competition.season}</small>`
+      ? `<small>تم ربط ${matchCount} مباراة، منها ${predictableCount} مباراة متاحة للتوقع.</small>`
+      : state.selectedCompetitionFixtureStatus === "live-only"
+        ? `<small>${state.selectedCompetitionFixtureError || "ظهرت مباريات مباشرة فقط، ولا توجد مباريات قادمة متاحة للتوقع حالياً."}</small>`
       : state.selectedCompetitionFixtureStatus === "empty"
         ? `<small>${state.selectedCompetitionFixtureError || "لم تظهر مباريات لهذا الموسم من المصدر الرسمي حتى الآن."}</small>`
         : state.selectedCompetitionFixtureError
@@ -2305,8 +2309,8 @@ function refreshCreateSubmitState() {
   if (!createButton) return;
   const hasCompetition = Boolean(state.selectedCompetitionId);
   const isLoading = state.selectedCompetitionFixtureStatus === "loading";
-  const hasMatches = countMatchesByRound(state.selectedCompetitionMatchesByRound) > 0;
-  const blocked = hasCompetition && !isLoading && !hasMatches;
+  const hasPredictableMatches = countPredictableMatchesByRound(state.selectedCompetitionMatchesByRound) > 0;
+  const blocked = hasCompetition && !isLoading && !hasPredictableMatches;
   createButton.disabled = isLoading || blocked;
   createButton.textContent = isLoading
     ? "جاري جلب المباريات"
@@ -2429,7 +2433,15 @@ async function loadOfficialCompetitionFixtures(competition) {
     const season = competition.season || new Date().getFullYear();
     let payload = await fetchCompetitionFixturesPayload(competition.apiId, { season });
     let matchesByRound = normalizeFixturePayload(payload);
-    if (!countMatchesByRound(matchesByRound)) {
+    if (!countPredictableMatchesByRound(matchesByRound)) {
+      const upcomingPayload = await fetchCompetitionFixturesPayload(competition.apiId, { next: 80 });
+      const upcomingMatchesByRound = normalizeFixturePayload(upcomingPayload);
+      if (countPredictableMatchesByRound(upcomingMatchesByRound)) {
+        payload = upcomingPayload;
+        matchesByRound = upcomingMatchesByRound;
+      }
+    }
+    if (!countPredictableMatchesByRound(matchesByRound)) {
       const livePayload = await fetchCompetitionFixturesPayload(competition.apiId, { live: "all" });
       const liveMatchesByRound = normalizeFixturePayload(livePayload);
       if (countMatchesByRound(liveMatchesByRound)) {
@@ -2439,10 +2451,14 @@ async function loadOfficialCompetitionFixtures(competition) {
     }
     const apiError = apiFootballErrorMessage(payload);
     state.selectedCompetitionMatchesByRound = matchesByRound;
-    state.selectedCompetitionFixtureStatus = countMatchesByRound(matchesByRound) ? "loaded" : "empty";
-    state.selectedCompetitionFixtureError = countMatchesByRound(matchesByRound)
+    const predictableCount = countPredictableMatchesByRound(matchesByRound);
+    const totalCount = countMatchesByRound(matchesByRound);
+    state.selectedCompetitionFixtureStatus = predictableCount ? "loaded" : totalCount ? "live-only" : "empty";
+    state.selectedCompetitionFixtureError = predictableCount
       ? ""
-      : (apiError || "لم تظهر مباريات لهذا الموسم أو مباريات حية لهذه البطولة من المصدر الرسمي.");
+      : totalCount
+        ? "الربط رجع مباريات مباشرة/منتهية فقط. لإنشاء بطولة توقعات نحتاج مباريات قادمة لم تبدأ بعد."
+        : (apiError || "لم تظهر مباريات قادمة أو مباريات حية لهذه البطولة من المصدر الرسمي.");
     syncStartingRoundSelectWithApiRounds();
   } catch (error) {
     state.selectedCompetitionMatchesByRound = emptyMatchesByRound();
@@ -2458,6 +2474,7 @@ async function loadOfficialCompetitionFixtures(competition) {
 async function fetchCompetitionFixturesPayload(apiId, options = {}) {
   const params = new URLSearchParams({ league: String(apiId) });
   if (options.live) params.set("live", options.live);
+  else if (options.next) params.set("next", String(options.next));
   else params.set("season", String(options.season || new Date().getFullYear()));
   const response = await fetch(`${fixturesApiEndpoint()}?${params.toString()}`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -2550,6 +2567,22 @@ function countMatchesByRound(matchesByRound) {
   return Object.values(matchesByRound).reduce((sum, matches) => sum + (Array.isArray(matches) ? matches.length : 0), 0);
 }
 
+function countPredictableMatchesByRound(matchesByRound) {
+  if (!matchesByRound) return 0;
+  return Object.values(matchesByRound).reduce((sum, matches) => {
+    if (!Array.isArray(matches)) return sum;
+    return sum + matches.filter(isPredictableFixtureMatch).length;
+  }, 0);
+}
+
+function isPredictableFixtureMatch(match) {
+  const status = String(match?.statusShort || "").toUpperCase();
+  if (["NS", "TBD", "PST"].includes(status)) return true;
+  if (["1H", "2H", "HT", "ET", "BT", "P", "SUSP", "INT", "FT", "AET", "PEN", "CANC", "ABD", "AWD", "WO"].includes(status)) return false;
+  const kickoff = new Date(match?.kickoff || "").getTime();
+  return Number.isFinite(kickoff) && kickoff > Date.now();
+}
+
 function roundOptionsFromMatches(matchesByRound) {
   if (!matchesByRound) return [];
   return rounds.filter((round) => Array.isArray(matchesByRound[round.id]) && matchesByRound[round.id].length);
@@ -2557,7 +2590,32 @@ function roundOptionsFromMatches(matchesByRound) {
 
 function createStartingRoundOptions() {
   const apiRoundOptions = roundOptionsFromMatches(state.selectedCompetitionMatchesByRound);
-  return apiRoundOptions.length ? apiRoundOptions : rounds;
+  const inferredRoundOptions = inferCompetitionRoundOptions(getSelectedCompetition(), apiRoundOptions);
+  return inferredRoundOptions.length ? inferredRoundOptions : rounds;
+}
+
+function inferCompetitionRoundOptions(competition, apiRoundOptions = []) {
+  const apiIds = apiRoundOptions.map((round) => round.id);
+  const name = `${competition?.name || ""} ${competition?.region || ""}`.toLowerCase();
+  let inferredIds = apiIds;
+
+  if (/world cup/.test(name) && Number(competition?.season) >= 2026) {
+    inferredIds = mergeRoundIds(apiIds, ["group", "round32", "round16", "quarter", "semi", "third-place", "final"]);
+  } else if (apiIds.includes("group")) {
+    inferredIds = mergeRoundIds(apiIds, ["group", "round16", "quarter", "semi", "final"]);
+  } else if (apiIds.includes("round32")) {
+    inferredIds = mergeRoundIds(apiIds, ["round32", "round16", "quarter", "semi", "final"]);
+  } else if (apiIds.includes("round16")) {
+    inferredIds = mergeRoundIds(apiIds, ["round16", "quarter", "semi", "final"]);
+  }
+
+  return rounds.filter((round) => inferredIds.includes(round.id));
+}
+
+function mergeRoundIds(primaryIds, inferredIds) {
+  return rounds
+    .map((round) => round.id)
+    .filter((id) => primaryIds.includes(id) || inferredIds.includes(id));
 }
 
 function normalizeStartingRoundValue(value, options = rounds) {
@@ -3401,13 +3459,11 @@ async function saveTournament(draft = false) {
     document.querySelector("#create-error").textContent = "انتظر حتى يكتمل جلب مباريات البطولة من الربط الرياضي.";
     return "";
   }
-  if (selectedCompetition.apiId && !countMatchesByRound(competitionMatchesByRound)) {
-    document.querySelector("#create-error").textContent = state.selectedCompetitionFixtureError || "لم يتم جلب أي مباراة لهذه البطولة من الربط الرياضي، لذلك لا يمكن إنشاء بطولة توقعات واقعية منها حالياً.";
+  if (selectedCompetition.apiId && !countPredictableMatchesByRound(competitionMatchesByRound)) {
+    document.querySelector("#create-error").textContent = state.selectedCompetitionFixtureError || "لم يتم جلب مباريات قادمة لم تبدأ بعد لهذه البطولة، لذلك لا يمكن إنشاء بطولة توقعات واقعية منها حالياً.";
     return "";
   }
-  const tournamentRoundIds = (roundOptionsFromMatches(competitionMatchesByRound).length
-    ? roundOptionsFromMatches(competitionMatchesByRound)
-    : createStartingRoundOptions()).map((round) => round.id);
+  const tournamentRoundIds = createStartingRoundOptions().map((round) => round.id);
   const startingRound = normalizeStartingRoundValue(document.querySelector("#starting-round").value, rounds.filter((round) => tournamentRoundIds.includes(round.id)));
   const tournament = {
     id,
@@ -6232,6 +6288,14 @@ async function refreshTournamentFixturesFromApi(tournament) {
     const season = tournament.officialCompetitionSeason || new Date().getFullYear();
     let payload = await fetchCompetitionFixturesPayload(tournament.officialCompetitionApiId, { season });
     let latestMatches = normalizeFixturePayload(payload);
+    if (!countPredictableMatchesByRound(latestMatches)) {
+      const upcomingPayload = await fetchCompetitionFixturesPayload(tournament.officialCompetitionApiId, { next: 80 });
+      const upcomingMatches = normalizeFixturePayload(upcomingPayload);
+      if (countPredictableMatchesByRound(upcomingMatches)) {
+        payload = upcomingPayload;
+        latestMatches = upcomingMatches;
+      }
+    }
     if (!countMatchesByRound(latestMatches)) {
       const livePayload = await fetchCompetitionFixturesPayload(tournament.officialCompetitionApiId, { live: "all" });
       const liveMatches = normalizeFixturePayload(livePayload);
@@ -6241,7 +6305,11 @@ async function refreshTournamentFixturesFromApi(tournament) {
       }
     }
     tournament.matchesByRound = mergeTournamentMatchesByRound(tournament.matchesByRound || emptyMatchesByRound(), latestMatches);
-    const apiRounds = roundOptionsFromMatches(tournament.matchesByRound).map((round) => round.id);
+    const apiRounds = inferCompetitionRoundOptions({
+      name: tournament.officialCompetitionName || tournament.name,
+      region: "",
+      season: tournament.officialCompetitionSeason
+    }, roundOptionsFromMatches(tournament.matchesByRound)).map((round) => round.id);
     if (apiRounds.length) tournament.roundIds = apiRounds;
     tournament.fixturesStatus = countMatchesByRound(tournament.matchesByRound) ? "loaded" : "empty";
     if (!countMatchesByRound(tournament.matchesByRound)) {

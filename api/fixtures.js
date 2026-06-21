@@ -20,6 +20,9 @@ module.exports = async function handler(req, res) {
   const season = String(req.query.season || new Date().getFullYear()).trim();
   const live = String(req.query.live || "").trim();
   const next = String(req.query.next || "").trim();
+  const date = String(req.query.date || "").trim();
+  const from = String(req.query.from || "").trim();
+  const to = String(req.query.to || "").trim();
 
   if (!league) {
     res.status(400).json({ errors: { query: "league is required" }, response: [] });
@@ -33,6 +36,13 @@ module.exports = async function handler(req, res) {
       url.searchParams.set("live", live);
     } else if (next) {
       url.searchParams.set("next", next);
+    } else if (date) {
+      url.searchParams.set("season", season);
+      url.searchParams.set("date", date);
+    } else if (from || to) {
+      url.searchParams.set("season", season);
+      if (from) url.searchParams.set("from", from);
+      if (to) url.searchParams.set("to", to);
     } else {
       url.searchParams.set("season", season);
     }

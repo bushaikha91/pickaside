@@ -2434,6 +2434,14 @@ async function loadOfficialCompetitionFixtures(competition) {
     let payload = await fetchCompetitionFixturesPayload(competition.apiId, { season });
     let matchesByRound = normalizeFixturePayload(payload);
     if (!countPredictableMatchesByRound(matchesByRound)) {
+      const windowPayload = await fetchUpcomingCompetitionFixturesPayload(competition.apiId, season);
+      const windowMatchesByRound = normalizeFixturePayload(windowPayload);
+      if (countPredictableMatchesByRound(windowMatchesByRound)) {
+        payload = windowPayload;
+        matchesByRound = windowMatchesByRound;
+      }
+    }
+    if (!countPredictableMatchesByRound(matchesByRound)) {
       const upcomingPayload = await fetchCompetitionFixturesPayload(competition.apiId, { next: 80 });
       const upcomingMatchesByRound = normalizeFixturePayload(upcomingPayload);
       if (countPredictableMatchesByRound(upcomingMatchesByRound)) {
@@ -2475,10 +2483,34 @@ async function fetchCompetitionFixturesPayload(apiId, options = {}) {
   const params = new URLSearchParams({ league: String(apiId) });
   if (options.live) params.set("live", options.live);
   else if (options.next) params.set("next", String(options.next));
-  else params.set("season", String(options.season || new Date().getFullYear()));
+  else {
+    params.set("season", String(options.season || new Date().getFullYear()));
+    if (options.date) params.set("date", options.date);
+    if (options.from) params.set("from", options.from);
+    if (options.to) params.set("to", options.to);
+  }
   const response = await fetch(`${fixturesApiEndpoint()}?${params.toString()}`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
+}
+
+async function fetchUpcomingCompetitionFixturesPayload(apiId, season) {
+  const today = new Date();
+  return fetchCompetitionFixturesPayload(apiId, {
+    season,
+    from: formatApiDate(today),
+    to: formatApiDate(addDays(today, 90))
+  });
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function formatApiDate(date) {
+  return date.toISOString().slice(0, 10);
 }
 
 function apiFootballErrorMessage(payload) {
@@ -2498,6 +2530,9 @@ function localizeApiFootballError(message) {
     const years = text.match(/try from\s+([0-9]{4})\s+to\s+([0-9]{4})/i);
     const range = years ? ` من ${years[1]} إلى ${years[2]}` : "";
     return `خطة API-Football المجانية لا تسمح بجلب مباريات هذا الموسم. للتجربة اختر موسماً متاحاً${range} أو قم بترقية خطة API-Football.`;
+  }
+  if (/Free plans do not have access to the Next parameter/i.test(text)) {
+    return "خطة API-Football المجانية لا تسمح بجلب المباريات القادمة بهذه الطريقة. نحتاج صلاحية جلب المباريات القادمة لإنشاء بطولة توقعات واقعية.";
   }
   if (/Missing application key/i.test(text)) {
     return "مفتاح API-Football غير مضاف في إعدادات الخادم.";
@@ -6288,6 +6323,14 @@ async function refreshTournamentFixturesFromApi(tournament) {
     const season = tournament.officialCompetitionSeason || new Date().getFullYear();
     let payload = await fetchCompetitionFixturesPayload(tournament.officialCompetitionApiId, { season });
     let latestMatches = normalizeFixturePayload(payload);
+    if (!countPredictableMatchesByRound(latestMatches)) {
+      const windowPayload = await fetchUpcomingCompetitionFixturesPayload(tournament.officialCompetitionApiId, season);
+      const windowMatches = normalizeFixturePayload(windowPayload);
+      if (countPredictableMatchesByRound(windowMatches)) {
+        payload = windowPayload;
+        latestMatches = windowMatches;
+      }
+    }
     if (!countPredictableMatchesByRound(latestMatches)) {
       const upcomingPayload = await fetchCompetitionFixturesPayload(tournament.officialCompetitionApiId, { next: 80 });
       const upcomingMatches = normalizeFixturePayload(upcomingPayload);

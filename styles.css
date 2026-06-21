@@ -127,6 +127,10 @@ button:disabled {
   padding: calc(22px + env(safe-area-inset-top)) 16px calc(104px + env(safe-area-inset-bottom));
 }
 
+body.auth-screen .app-shell {
+  padding-bottom: calc(22px + env(safe-area-inset-bottom));
+}
+
 .page {
   min-height: calc(100vh - 126px);
   min-height: calc(100dvh - 126px);
@@ -5358,6 +5362,10 @@ h1.section-title {
   backdrop-filter: blur(22px) saturate(145%);
   -webkit-backdrop-filter: blur(22px) saturate(145%);
   box-shadow: 0 12px 34px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+body.auth-screen .bottom-nav {
+  display: none;
 }
 
 .nav-btn {

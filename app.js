@@ -1188,7 +1188,9 @@ function updateNotificationBadges() {
 function render() {
   stopCountdownTimer();
   closeModal();
-  const route = state.route;
+  const route = normalizeAuthRoute(state.route);
+  state.route = route;
+  syncRouteHash(route);
   updateBottomNav(route);
   window.setTimeout(() => applyTranslations(app), 0);
 
@@ -1210,7 +1212,28 @@ function render() {
   renderNotFound();
 }
 
+function normalizeAuthRoute(route = state.route) {
+  if (state.backend.loading) return route;
+  if (!state.backend.configured) return route;
+  if (state.backend.session?.user?.id) {
+    return route === "/login" || route === "/signup" ? "/" : route;
+  }
+  return isPublicAuthRoute(route) ? route : "/login";
+}
+
+function isPublicAuthRoute(route = state.route) {
+  return route === "/login" || route === "/signup";
+}
+
+function syncRouteHash(route) {
+  const currentHashRoute = window.location.hash.startsWith("#/") ? window.location.hash.slice(1) : "";
+  if (currentHashRoute === route) return;
+  state.isHistoryNavigation = true;
+  window.location.hash = route;
+}
+
 function updateBottomNav(route) {
+  document.body.classList.toggle("auth-screen", isPublicAuthRoute(route));
   document.querySelectorAll(".bottom-nav [data-route]").forEach((button) => {
     const target = button.dataset.route;
     const isHome = target === "/" && (route === "/" || route === "/home");

@@ -1295,11 +1295,20 @@ async function initializeBackend() {
 async function loadCurrentUserProfile(session) {
   const user = session?.user;
   if (!user || !state.backend.client) return;
-  const { data, error } = await state.backend.client
+  let { data, error } = await state.backend.client
     .from("profiles")
     .select("id, username, display_name, phone_number, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
     .eq("id", user.id)
     .maybeSingle();
+  if (isMissingPhoneColumnError(error)) {
+    const fallback = await state.backend.client
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
+      .eq("id", user.id)
+      .maybeSingle();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) return;
   if (!data) {
@@ -1324,11 +1333,21 @@ async function upsertCurrentUserProfile(user, profile) {
     favorite_team: profile.favoriteTeam || "",
     updated_at: new Date().toISOString()
   };
-  const { data, error } = await state.backend.client
+  let { data, error } = await state.backend.client
     .from("profiles")
     .upsert(row, { onConflict: "id" })
     .select("id, username, display_name, phone_number, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
     .single();
+  if (isMissingPhoneColumnError(error)) {
+    const { phone_number, ...fallbackRow } = row;
+    const fallback = await state.backend.client
+      .from("profiles")
+      .upsert(fallbackRow, { onConflict: "id" })
+      .select("id, username, display_name, avatar_url, favorite_team, followers_count, following_count, correct_predictions, total_predictions")
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (!error && data) state.currentUser = profileToCurrentUser(data);
 }
 
@@ -1346,6 +1365,10 @@ function profileToCurrentUser(profile) {
     followers: Array.from({ length: Number(profile.followers_count) || 0 }, (_, index) => `follower-${index + 1}`),
     following: Array.from({ length: Number(profile.following_count) || 0 }, (_, index) => `following-${index + 1}`)
   };
+}
+
+function isMissingPhoneColumnError(error) {
+  return Boolean(error && /phone_number|column/i.test(error.message || ""));
 }
 
 function isBackendReady() {
@@ -7860,17 +7883,26 @@ function editProfileModal() {
     try {
       if (isBackendReady()) {
         const username = handle.replace("@", "");
-        const { error } = await state.backend.client
+        const payload = {
+          username,
+          display_name: name,
+          phone_number: phone,
+          avatar_url: selectedAvatarUrl,
+          favorite_team: favoriteTeam,
+          updated_at: new Date().toISOString()
+        };
+        let { error } = await state.backend.client
           .from("profiles")
-          .update({
-            username,
-            display_name: name,
-            phone_number: phone,
-            avatar_url: selectedAvatarUrl,
-            favorite_team: favoriteTeam,
-            updated_at: new Date().toISOString()
-          })
+          .update(payload)
           .eq("id", state.backend.session.user.id);
+        if (isMissingPhoneColumnError(error)) {
+          const { phone_number, ...fallbackPayload } = payload;
+          const fallback = await state.backend.client
+            .from("profiles")
+            .update(fallbackPayload)
+            .eq("id", state.backend.session.user.id);
+          error = fallback.error;
+        }
         if (error) throw error;
       }
       state.currentUser = nextUser;

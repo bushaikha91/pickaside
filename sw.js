@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260621-fixture-window2";
+const CACHE_NAME = "pick-a-side-20260622-espn-wc1";
 const APP_SHELL = [
   "./",
   "./index.html",

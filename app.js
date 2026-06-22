@@ -1805,7 +1805,7 @@ function getHomePendingVoteTasks() {
     .flatMap((tournament) => {
       const round = tournament.currentRound || tournament.startingRound || "round16";
       const roundLabel = rounds.find((item) => item.id === round)?.label || "الدور الحالي";
-      const matches = getTournamentMatches(tournament, round);
+      const matches = getTournamentPredictionMatches(tournament, round);
       return matches
         .filter((match) => !isPredictionComplete(tournament.id, round, match.id))
         .map((match) => {
@@ -2726,7 +2726,7 @@ function setTournamentMatches(tournament, round, matches) {
 }
 
 function getRoundPredictionLockAtForTournament(tournament, round) {
-  const matches = getTournamentMatches(tournament, round);
+  const matches = getTournamentPredictionMatches(tournament, round);
   if (!matches.length) return "";
   const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
   return String(firstKickoff - PREDICTION_LOCK_MINUTES * 60 * 1000);
@@ -2922,7 +2922,7 @@ function tournamentsTopbar() {
 function tournamentNeedsUserVote(tournament) {
   if (!tournament.joined || tournament.draft) return false;
   const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = getTournamentMatches(tournament, round);
+  const matches = getTournamentPredictionMatches(tournament, round);
   if (!matches.length || isPredictionLocked(matches)) return false;
   return matches.some((match) => !isPredictionComplete(tournament.id, round, match.id));
 }
@@ -2935,7 +2935,7 @@ function activeChampionshipCard(tournament) {
 
 function activeVoteTaskCard(tournament) {
   const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = sortPredictionMatches(tournament.id, round, getTournamentMatches(tournament, round));
+  const matches = sortPredictionMatches(tournament.id, round, getTournamentPredictionMatches(tournament, round));
   const roundLabel = rounds.find((item) => item.id === round)?.label || "الجولة الحالية";
   const completedCount = matches.filter((match) => isPredictionComplete(tournament.id, round, match.id)).length;
   const pendingCount = Math.max(0, matches.length - completedCount);
@@ -3585,7 +3585,7 @@ function renderTournament(id, options = {}) {
   const activeRoundIndex = rounds.findIndex((round) => round.id === activeRound);
   const selectedTournamentRoundIndex = Math.max(0, tournamentTabs.findIndex((tab) => tab.id === selectedView));
   const isLocked = selectedRoundIndex > activeRoundIndex;
-  const matches = showingAwards || isLocked ? [] : getTournamentMatches(tournament, selectedRound);
+  const matches = showingAwards || isLocked ? [] : getTournamentPredictionMatches(tournament, selectedRound);
   const used = getUsedBudget(tournament.id, selectedRound);
   const nextRound = getNextRound(tournament);
   const tournamentFinished = isTournamentFinished(tournament);
@@ -6847,7 +6847,7 @@ function predictionDrawButton(tournament, round, match, selectedOutcome, locked)
 }
 
 function confirmInlinePrediction(tournament, round, matchId) {
-  const matches = getTournamentMatches(tournament, round);
+  const matches = getTournamentPredictionMatches(tournament, round);
   const match = matches.find((item) => item.id === matchId);
   if (!match || isPredictionLocked(matches)) return;
   const rule = getPointRuleForRound(tournament, round);
@@ -6896,7 +6896,8 @@ function predictionOutcomeCompactHtml(outcome, match) {
 }
 
 function matchTemplate(tournament, round, match) {
-  const locked = isPredictionLocked(getTournamentMatches(tournament, round).length ? getTournamentMatches(tournament, round) : [match]);
+  const predictionMatches = getTournamentPredictionMatches(tournament, round);
+  const locked = isPredictionLocked(predictionMatches.length ? predictionMatches : [match]);
   const existing = state.predictions[`${tournament.id}:${round}:${match.id}`] || {};
   const pickedOutcome = getPredictionOutcome(existing);
   const points = getPredictionPoints(existing);
@@ -6925,7 +6926,7 @@ function matchTemplate(tournament, round, match) {
 }
 
 function predictionModal(tournament, round, matchId) {
-  const matches = getTournamentMatches(tournament, round);
+  const matches = getTournamentPredictionMatches(tournament, round);
   const match = matches.find((item) => item.id === matchId);
   if (!match || isPredictionLocked(matches)) return;
   const key = `${tournament.id}:${round}:${match.id}`;
@@ -6998,7 +6999,7 @@ function getAutoPredictionPoints(tournament, round, match, outcome, rule) {
     return Math.max(1, Math.round(getFixedMatchPointTotal(rule) / 2));
   }
 
-  const matches = getTournamentMatches(tournament, round);
+  const matches = getTournamentPredictionMatches(tournament, round);
   const matchCount = Math.max(1, matches.length);
   const roundBudget = rule.pointSource === "grant" ? Number(rule.budget || tournament.budget || 0) : Number(tournament.points || tournament.budget || rule.budget || 0);
   const perMatch = roundBudget / matchCount;
@@ -7562,6 +7563,12 @@ function liveMatchCard(match) {
       <div class="stat-line"><span>أثرها على رصيدك</span><strong>${match.impact}</strong></div>
     </article>
   `;
+}
+
+function getTournamentPredictionMatches(tournament, round) {
+  return getTournamentMatches(tournament, round)
+    .filter(isPredictableFixtureMatch)
+    .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
 }
 
 function apiLiveFeedHtml(tournament) {

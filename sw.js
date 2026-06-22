@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260622-espn-wc1";
+const CACHE_NAME = "pick-a-side-20260623-predict-upcoming1";
 const APP_SHELL = [
   "./",
   "./index.html",

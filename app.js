@@ -1,6 +1,7 @@
 ﻿const app = document.querySelector("#app");
 const modalRoot = document.querySelector("#modal-root");
 let mainChromeScrollHandler = null;
+let liveAutoRefreshTimer = null;
 
 const state = {
   selectedChampionshipsTab: "active",
@@ -73,9 +74,10 @@ const state = {
   liveApi: {
     endpoint: "/api/live-results",
     lastFetchAt: 0,
-    lastStatus: "لم يتم الربط بعد",
+    lastStatus: "تحديث تلقائي كل 5 ثواني",
     lastError: "",
-    lastEvents: []
+    lastEvents: [],
+    isRefreshing: false
   },
   language: "ar",
   theme: "dark",
@@ -1188,6 +1190,7 @@ function updateNotificationBadges() {
 
 function render() {
   stopCountdownTimer();
+  stopLiveAutoRefresh();
   closeModal();
   const route = normalizeAuthRoute(state.route);
   state.route = route;
@@ -7033,10 +7036,9 @@ function predictionPointExplanation(tournament, round, rule, autoPoints) {
 }
 
 function liveApiStatusText() {
-  const quota = getApiSportsQuota();
   const time = state.liveApi.lastFetchAt ? ` · آخر تحديث ${formatDate(new Date(state.liveApi.lastFetchAt).toISOString())}` : "";
   const error = state.liveApi.lastError ? ` · ${state.liveApi.lastError}` : "";
-  return `${state.liveApi.lastStatus}${time} · ${quota.count}/100 طلب اليوم${error}`;
+  return `${state.liveApi.lastStatus}${time}${error}`;
 }
 
 function liveApiKeyModal() {
@@ -7097,6 +7099,7 @@ function incrementApiSportsQuota() {
 }
 
 async function refreshLiveApiResults(tournament, round) {
+  if (state.liveApi.isRefreshing) return;
   const endpoint = liveApiEndpoint();
   const usesBackendProxy = isBackendProxyEndpoint(endpoint);
   const key = getApiSportsKey();
@@ -7107,13 +7110,14 @@ async function refreshLiveApiResults(tournament, round) {
     return;
   }
   const quota = getApiSportsQuota();
-  if (quota.count >= 100) {
+  if (!usesBackendProxy && quota.count >= 100) {
     state.liveApi.lastStatus = "تم إيقاف التحديث";
     state.liveApi.lastError = "وصلت إلى 100 طلب اليوم";
     renderLiveApiTarget(tournament);
     return;
   }
 
+  state.liveApi.isRefreshing = true;
   state.liveApi.lastStatus = "جاري تحديث النتائج";
   state.liveApi.lastError = "";
   renderLiveApiTarget(tournament);
@@ -7121,7 +7125,7 @@ async function refreshLiveApiResults(tournament, round) {
   try {
     const headers = usesBackendProxy ? {} : { "x-apisports-key": key };
     const response = await fetch(endpoint, { headers });
-    incrementApiSportsQuota();
+    if (!usesBackendProxy) incrementApiSportsQuota();
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     const events = normalizeApiSportsLivePayload(payload);
@@ -7140,6 +7144,8 @@ async function refreshLiveApiResults(tournament, round) {
     state.liveApi.lastFetchAt = Date.now();
     state.liveApi.lastStatus = "فشل تحديث النتائج";
     state.liveApi.lastError = error.message || "خطأ غير معروف";
+  } finally {
+    state.liveApi.isRefreshing = false;
   }
   renderLiveApiTarget(tournament);
 }
@@ -7172,7 +7178,7 @@ function renderLiveApiTarget(tournament) {
 
 function normalizeApiSportsLivePayload(payload) {
   const list = Array.isArray(payload?.response) ? payload.response : [];
-  return list.map((item) => {
+  const events = list.map((item) => {
     const fixture = item.fixture || item;
     const teams = item.teams || fixture.teams || {};
     const league = item.league || fixture.league || {};
@@ -7198,6 +7204,19 @@ function normalizeApiSportsLivePayload(payload) {
       raw: item
     };
   }).filter((event) => event.homeName || event.awayName || event.score || event.statusShort);
+  return uniqueLiveEvents(events);
+}
+
+function uniqueLiveEvents(events) {
+  const seen = new Set();
+  return events.filter((event) => {
+    const key = event.fixtureId
+      ? `fixture:${event.fixtureId}`
+      : `teams:${normalizeName(event.homeName)}:${normalizeName(event.awayName)}:${event.leagueName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function applyLiveResultEvents(tournament, round, events) {
@@ -7430,9 +7449,6 @@ function renderLive() {
     <section class="grid">
       <div class="live-api-bar">
         <span>${liveApiStatusText()}</span>
-        <div class="live-api-actions">
-          <button class="btn accent compact-btn" type="button" data-live-api-refresh-page="${selectedTournament?.id || ""}">تحديث النتائج</button>
-        </div>
       </div>
       ${joinedTournaments.length ? `
         <div class="championship-page-slider live-page-slider" id="live-page-slider" style="--championship-index: ${activeIndex}; --tab-count: ${joinedTournaments.length};">
@@ -7451,7 +7467,6 @@ function renderLive() {
                     <div class="live-grid">
                       ${liveMatches.map(liveMatchCard).join("")}
                     </div>
-                    ${apiLiveFeedHtml(tournament)}
                   </div>
                 </section>
               `;
@@ -7472,21 +7487,35 @@ function renderLive() {
       setLiveTournament(button.dataset.liveTournament);
     });
   });
-  document.querySelectorAll("[data-live-api-refresh-page]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const tournament = getTournamentById(button.dataset.liveApiRefreshPage || state.selectedLiveTournamentId);
-      const round = tournament.currentRound || tournament.startingRound || "round16";
-      refreshLiveApiResults(tournament, round);
-    });
-  });
-
   setupLiveTournamentSwipe(joinedTournaments);
   setupMainChromeAutoHide(".main-auto-hide-chrome");
+  setupLiveAutoRefresh(selectedTournament);
 }
 
 function setLiveTournament(tournamentId) {
   state.selectedLiveTournamentId = tournamentId;
   render();
+}
+
+function setupLiveAutoRefresh(tournament) {
+  stopLiveAutoRefresh();
+  if (state.route !== "/live" || !tournament) return;
+  const refreshSelected = () => {
+    const selected = getTournamentById(state.selectedLiveTournamentId) || tournament;
+    if (!selected) return;
+    const round = selected.currentRound || selected.startingRound || "round16";
+    refreshLiveApiResults(selected, round);
+  };
+  if (!state.liveApi.lastFetchAt || Date.now() - state.liveApi.lastFetchAt > 4000) {
+    window.setTimeout(refreshSelected, 100);
+  }
+  liveAutoRefreshTimer = window.setInterval(refreshSelected, 5000);
+}
+
+function stopLiveAutoRefresh() {
+  if (!liveAutoRefreshTimer) return;
+  window.clearInterval(liveAutoRefreshTimer);
+  liveAutoRefreshTimer = null;
 }
 
 function getAdjacentLiveTournament(tournaments, direction) {
@@ -7569,51 +7598,6 @@ function getTournamentPredictionMatches(tournament, round) {
   return getTournamentMatches(tournament, round)
     .filter(isPredictableFixtureMatch)
     .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
-}
-
-function apiLiveFeedHtml(tournament) {
-  const events = (state.liveApi.lastEvents || []).slice(0, 8);
-  if (!events.length) {
-    return `
-      <div class="live-api-feed-empty">
-        اضغط تحديث النتائج لعرض المباريات المباشرة من الربط الرياضي.
-      </div>
-    `;
-  }
-  return `
-    <section class="live-api-feed">
-      <div class="compact-section-head">
-        <h3 class="section-title">نتائج مباشرة من الربط</h3>
-        <span>${events.length} مباراة</span>
-      </div>
-      <div class="live-api-feed-list">
-        ${events.map(apiLiveEventCard).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function apiLiveEventCard(event) {
-  const status = liveEventStatusText(event);
-  return `
-    <article class="match-card api-live-card">
-      <div class="match-top">
-        <span class="badge">${status}</span>
-        <span class="muted">${event.leagueName || ""}</span>
-      </div>
-      <div class="live-score">
-        ${teamIdentityHtml(event.homeName || "الفريق الأول", "compact", event.homeLogo || "")}
-        <span>${event.score || "—"}</span>
-        ${teamIdentityHtml(event.awayName || "الفريق الثاني", "compact", event.awayLogo || "")}
-      </div>
-    </article>
-  `;
-}
-
-function liveEventStatusText(event) {
-  if (event.statusShort) return liveStatusLabel(event.statusShort, event.elapsed);
-  if (event.statusLong) return event.statusLong;
-  return event.elapsed ? `الدقيقة ${event.elapsed}` : "مباشر";
 }
 
 function liveStatusLabel(status, elapsed = "") {

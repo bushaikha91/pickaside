@@ -1808,13 +1808,15 @@ function getHomePendingVoteTasks() {
     .flatMap((tournament) => {
       const round = tournament.currentRound || tournament.startingRound || "round16";
       const roundLabel = rounds.find((item) => item.id === round)?.label || "الدور الحالي";
-      const matches = getTournamentPredictionMatches(tournament, round);
+      const roundMatches = getTournamentPredictionMatches(tournament, round);
+      const matches = getVisiblePredictionMatchesForRound(tournament, round, roundMatches);
       return matches
         .filter((match) => !isPredictionComplete(tournament.id, round, match.id))
         .map((match) => {
           const kickoff = new Date(match.kickoff).getTime();
           const lockAt = kickoff - PREDICTION_LOCK_MINUTES * 60 * 1000;
-          return { tournament, round, roundLabel, match, lockAt, kickoff };
+          const displayRoundLabel = round === "group" ? `${roundLabel} · ${getGroupMatchdayLabel(match, roundMatches)}` : roundLabel;
+          return { tournament, round, roundLabel: displayRoundLabel, match, lockAt, kickoff };
         })
         .filter((task) => Date.now() < task.lockAt);
     })
@@ -2572,6 +2574,7 @@ function normalizeFixturePayload(payload) {
     const score = item.score || {};
     const status = fixture.status || {};
     const roundDetails = parseApiRoundDetails(league.round || "");
+    const groupRound = parseApiGroupRound(league.round || "");
     const round = roundDetails.id;
     const homeGoals = goals.home ?? score.fulltime?.home ?? score.halftime?.home;
     const awayGoals = goals.away ?? score.fulltime?.away ?? score.halftime?.away;
@@ -2589,13 +2592,26 @@ function normalizeFixturePayload(payload) {
       apiRound: league.round || "",
       roundLabel: roundDetails.label,
       legLabel: roundDetails.legLabel,
-      stageLabel: roundDetails.stageLabel
+      stageLabel: roundDetails.stageLabel,
+      groupRoundId: groupRound.id,
+      groupRoundLabel: groupRound.label
     });
   });
   Object.keys(byRound).forEach((round) => {
     byRound[round].sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
   });
   return byRound;
+}
+
+function parseApiGroupRound(value) {
+  const text = String(value || "").trim();
+  const numberMatch = text.match(/(?:group stage|regular season|league stage|matchday|round|week)\s*[-:]?\s*(\d+)/i)
+    || text.match(/-\s*(\d+)\s*$/)
+    || text.match(/الجولة\s*(\d+)/);
+  if (!numberMatch) return { id: "", label: "" };
+  const number = Number(numberMatch[1]);
+  if (!Number.isFinite(number)) return { id: "", label: "" };
+  return { id: `group-matchday-${number}`, label: `الجولة ${number}` };
 }
 
 function emptyMatchesByRound() {
@@ -2731,8 +2747,32 @@ function setTournamentMatches(tournament, round, matches) {
 function getRoundPredictionLockAtForTournament(tournament, round) {
   const matches = getTournamentPredictionMatches(tournament, round);
   if (!matches.length) return "";
+  if (round === "group") {
+    const nextOpenMatch = matches.find((match) => !isMatchPredictionLocked(match)) || matches[0];
+    return String(getMatchPredictionLockAt(nextOpenMatch));
+  }
   const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
   return String(firstKickoff - PREDICTION_LOCK_MINUTES * 60 * 1000);
+}
+
+function getMatchPredictionLockAt(match) {
+  const kickoff = new Date(match?.kickoff || "").getTime();
+  return Number.isFinite(kickoff) ? kickoff - PREDICTION_LOCK_MINUTES * 60 * 1000 : 0;
+}
+
+function isMatchPredictionLocked(match) {
+  const lockAt = getMatchPredictionLockAt(match);
+  return Boolean(lockAt && Date.now() >= lockAt);
+}
+
+function isPredictionLockedForMatch(round, match, roundMatches = []) {
+  if (round === "group") return isMatchPredictionLocked(match);
+  return isPredictionLocked(roundMatches.length ? roundMatches : [match]);
+}
+
+function getUnlockedPredictionMatches(tournament, round) {
+  return getTournamentPredictionMatches(tournament, round)
+    .filter((match) => !isPredictionLockedForMatch(round, match, [match]));
 }
 
 function normalizeCompetitionPayload(payload) {
@@ -2926,8 +2966,9 @@ function tournamentNeedsUserVote(tournament) {
   if (!tournament.joined || tournament.draft) return false;
   const round = tournament.currentRound || tournament.startingRound || "round16";
   const matches = getTournamentPredictionMatches(tournament, round);
-  if (!matches.length || isPredictionLocked(matches)) return false;
-  return matches.some((match) => !isPredictionComplete(tournament.id, round, match.id));
+  if (!matches.length) return false;
+  const visibleMatches = getVisiblePredictionMatchesForRound(tournament, round, matches);
+  return visibleMatches.some((match) => !isPredictionComplete(tournament.id, round, match.id) && !isPredictionLockedForMatch(round, match, visibleMatches));
 }
 
 function activeChampionshipCard(tournament) {
@@ -2938,24 +2979,29 @@ function activeChampionshipCard(tournament) {
 
 function activeVoteTaskCard(tournament) {
   const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = sortPredictionMatches(tournament.id, round, getTournamentPredictionMatches(tournament, round));
+  const roundMatches = getTournamentPredictionMatches(tournament, round);
+  const visibleRoundMatches = getVisiblePredictionMatchesForRound(tournament, round, roundMatches);
+  const matches = sortPredictionMatches(tournament.id, round, visibleRoundMatches);
   const roundLabel = rounds.find((item) => item.id === round)?.label || "الجولة الحالية";
   const completedCount = matches.filter((match) => isPredictionComplete(tournament.id, round, match.id)).length;
-  const pendingCount = Math.max(0, matches.length - completedCount);
-  const lockAt = getRoundPredictionLockAtForTournament(tournament, round);
+  const pendingMatches = matches.filter((match) => !isPredictionComplete(tournament.id, round, match.id) && !isPredictionLockedForMatch(round, match, matches));
+  const pendingCount = pendingMatches.length;
+  const nextPendingMatch = pendingMatches[0] || matches.find((match) => !isPredictionComplete(tournament.id, round, match.id)) || matches[0];
+  const lockAt = nextPendingMatch ? String(getMatchPredictionLockAt(nextPendingMatch)) : getRoundPredictionLockAtForTournament(tournament, round);
+  const taskLabel = round === "group" && nextPendingMatch ? `${roundLabel} · ${getGroupMatchdayLabel(nextPendingMatch, matches)}` : roundLabel;
   return `
     <article class="active-vote-card" data-card-route="/tournament/${tournament.id}/player" role="button" tabindex="0" aria-label="فتح تصويت ${tournament.name}">
       <div class="active-vote-main">
         <span class="active-vote-kicker">تحتاج تصويتك</span>
         <strong>${tournament.name}</strong>
-        <small>${roundLabel}</small>
+        <small>${taskLabel}</small>
       </div>
       <div class="active-vote-stats">
         <span><b>${pendingCount}</b><small>مباريات متبقية</small></span>
         <span><b>${completedCount}/${matches.length}</b><small>مكتمل</small></span>
       </div>
       <div class="active-vote-footer">
-        <span class="match-countdown mini-vote-countdown" data-match-countdown data-countdown-mode="round" data-kickoff="${matches[0] ? new Date(matches[0].kickoff).toISOString() : ""}" data-lock-at="${lockAt}">
+        <span class="match-countdown mini-vote-countdown" data-match-countdown data-countdown-mode="${round === "group" ? "match" : "round"}" data-kickoff="${nextPendingMatch ? new Date(nextPendingMatch.kickoff).toISOString() : ""}" data-lock-at="${lockAt}">
           <small data-countdown-label>يغلق التصويت</small>
           <b data-countdown-value>--:--:--</b>
           <small data-countdown-lock></small>
@@ -3589,6 +3635,8 @@ function renderTournament(id, options = {}) {
   const selectedTournamentRoundIndex = Math.max(0, tournamentTabs.findIndex((tab) => tab.id === selectedView));
   const isLocked = selectedRoundIndex > activeRoundIndex;
   const matches = showingAwards || isLocked ? [] : getTournamentPredictionMatches(tournament, selectedRound);
+  const visibleMatches = showingAwards || isLocked ? [] : getVisiblePredictionMatchesForRound(tournament, selectedRound, matches);
+  const selectedPredictionClosed = visibleMatches.length && visibleMatches.every((match) => isPredictionLockedForMatch(selectedRound, match, visibleMatches));
   const used = getUsedBudget(tournament.id, selectedRound);
   const nextRound = getNextRound(tournament);
   const tournamentFinished = isTournamentFinished(tournament);
@@ -3625,7 +3673,7 @@ function renderTournament(id, options = {}) {
             </div>
           </div>
         `}
-        ${isPredictionLocked(matches) ? `<div class="notice danger-notice">تم قفل توقعات هذا الدور. اللاعبون بدون توقعات مكتملة يعتبرون خاسرين لنقاط الجولة عند التسوية.</div>` : ""}
+        ${selectedPredictionClosed ? `<div class="notice danger-notice">${selectedRound === "group" ? "تم قفل توقعات مباريات هذه الجولة. اللاعبون بدون توقعات مكتملة في المباراة المقفلة يعتبرون خاسرين لنقاطها عند التسوية." : "تم قفل توقعات هذا الدور. اللاعبون بدون توقعات مكتملة يعتبرون خاسرين لنقاط الجولة عند التسوية."}</div>` : ""}
       </div>
       ${tournamentFinished ? tournamentFinalAwardResults(tournament) : showingAwards ? awardNominationWorkflow(tournament) : `
         ${matches.length ? "" : `<div class="card panel">${emptyRoundMatchesMessage(tournament, isLocked)}</div>`}
@@ -6716,17 +6764,25 @@ function matchRoundMetaHtml(match) {
 
 function pickBoardWorkflow(tournament, round, matches, budgetState = {}) {
   if (!matches.length) return "";
-  const sortedMatches = sortPredictionMatches(tournament.id, round, matches);
-  const pickedCount = matches.filter((match) => isPredictionComplete(tournament.id, round, match.id)).length;
-  const locked = isPredictionLocked(matches);
+  const visibleMatches = getVisiblePredictionMatchesForRound(tournament, round, matches);
+  const sortedMatches = sortPredictionMatches(tournament.id, round, visibleMatches);
+  const pickedCount = visibleMatches.filter((match) => isPredictionComplete(tournament.id, round, match.id)).length;
+  const locked = round === "group"
+    ? visibleMatches.every((match) => isPredictionLockedForMatch(round, match, visibleMatches))
+    : isPredictionLocked(visibleMatches);
   const roundLabel = rounds.find((item) => item.id === round)?.label || "الجولة الحالية";
-  const hasDraw = predictionOutcomes(round, matches[0]).some((outcome) => outcome.value === "draw");
+  const groupMatchdayLabel = round === "group" ? getGroupMatchdayLabel(visibleMatches[0], matches) : "";
+  const displayRoundLabel = groupMatchdayLabel ? `${roundLabel} · ${groupMatchdayLabel}` : roundLabel;
+  const hasDraw = predictionOutcomes(round, visibleMatches[0]).some((outcome) => outcome.value === "draw");
   const totalBudget = tournament.budget || 0;
   const minPoints = tournament.minPoints || 0;
-  const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
-  const roundLockAt = getRoundPredictionLockAtForTournament(tournament, round);
+  const nextOpenMatch = visibleMatches.find((match) => !isPredictionComplete(tournament.id, round, match.id) && !isPredictionLockedForMatch(round, match, visibleMatches))
+    || visibleMatches.find((match) => !isPredictionComplete(tournament.id, round, match.id))
+    || visibleMatches[0];
+  const firstKickoff = new Date(nextOpenMatch.kickoff).getTime();
+  const roundLockAt = round === "group" ? String(getMatchPredictionLockAt(nextOpenMatch)) : getRoundPredictionLockAtForTournament(tournament, round);
   const rule = getTournamentPointRules(tournament)[round] || {};
-  const playerGuide = pointRulePlayerGuide(rule, { hasDraw, totalBudget, minPoints, matchCount: matches.length });
+  const playerGuide = pointRulePlayerGuide(rule, { hasDraw, totalBudget, minPoints, matchCount: visibleMatches.length });
   const used = budgetState.used ?? getUsedBudget(tournament.id, round);
   const roundBudget = getRoundBudgetForPlayer(tournament, round, rule) || tournament.budget || 0;
   const pct = budgetState.pct ?? Math.min(100, Math.round((used / Math.max(1, roundBudget)) * 100));
@@ -6736,10 +6792,11 @@ function pickBoardWorkflow(tournament, round, matches, budgetState = {}) {
       <div class="pick-board-hero">
         <div>
           <div class="pick-board-title-line">
-            <h2 class="section-title">توقع النتائج - ${roundLabel}</h2>
-            <span class="prediction-progress-chip">${pickedCount}/${matches.length} ${locked ? "مقفلة" : "مكتملة"}</span>
+            <h2 class="section-title">توقع النتائج - ${displayRoundLabel}</h2>
+            <span class="prediction-progress-chip">${pickedCount}/${visibleMatches.length} ${locked ? "مقفلة" : "مكتملة"}</span>
           </div>
           <p class="muted">${playerGuide.summary}</p>
+          ${round === "group" ? `<p class="muted compact-helper">دور المجموعات يفتح جولة بجولة. كل مباراة تقفل قبل بدايتها بـ ${PREDICTION_LOCK_MINUTES} دقيقة حسب توقيت الإمارات.</p>` : ""}
         </div>
       </div>
 
@@ -6752,10 +6809,10 @@ function pickBoardWorkflow(tournament, round, matches, budgetState = {}) {
         <div class="budget-bar" style="--pct: ${pct}%"><span></span></div>
       </div>
 
-      <div class="match-countdown round-vote-countdown" data-match-countdown data-countdown-mode="round" data-kickoff="${new Date(firstKickoff).toISOString()}" data-lock-at="${roundLockAt}">
-        <span data-countdown-label>يتم حساب وقت قفل الجولة</span>
+      <div class="match-countdown round-vote-countdown" data-match-countdown data-countdown-mode="${round === "group" ? "group-matchday" : "round"}" data-kickoff="${new Date(firstKickoff).toISOString()}" data-lock-at="${roundLockAt}">
+        <span data-countdown-label>يتم حساب وقت القفل</span>
         <strong data-countdown-value>--:--:--</strong>
-        <small data-countdown-lock>قفل التصويت قبل أول مباراة في الجولة بـ ${PREDICTION_LOCK_MINUTES} دقيقة</small>
+        <small data-countdown-lock>${round === "group" ? "قفل المباراة القادمة" : "قفل التصويت قبل أول مباراة في الجولة"} بـ ${PREDICTION_LOCK_MINUTES} دقيقة · توقيت الإمارات</small>
       </div>
 
       <div class="prediction-list">
@@ -6775,7 +6832,7 @@ function predictionMatchGroups(tournament, round, matches, locked) {
 
   return Object.entries(groups).map(([kickoff, groupMatches]) => `
     <section class="prediction-time-group">
-      <h3 class="prediction-time-title">${formatDate(kickoff)}</h3>
+      <h3 class="prediction-time-title">${formatUaeDate(kickoff)} <small>توقيت الإمارات</small></h3>
       <div class="prediction-time-list">
         ${groupMatches.map((match) => pickBoardCard(tournament, round, match, locked)).join("")}
       </div>
@@ -6784,6 +6841,7 @@ function predictionMatchGroups(tournament, round, matches, locked) {
 }
 
 function pickBoardCard(tournament, round, match, locked) {
+  const matchLocked = isPredictionLockedForMatch(round, match, getTournamentPredictionMatches(tournament, round));
   const key = `${tournament.id}:${round}:${match.id}`;
   const picked = state.quickPicks[key];
   const prediction = state.predictions[key] || {};
@@ -6792,24 +6850,24 @@ function pickBoardCard(tournament, round, match, locked) {
   const inlinePick = supportsInlinePrediction(rule);
   const allocated = getPredictionPoints(prediction);
   const completed = isPredictionComplete(tournament.id, round, match.id);
-  const missed = !completed && locked;
+  const missed = !completed && matchLocked;
   const statusText = completed ? "مكتمل" : missed ? "لم يتم التصويت" : "بانتظار التصويت";
   const statusClass = completed ? "done" : missed ? "missed" : "todo";
   const selectedOutcome = picked || getPredictionOutcome(prediction);
   const selectedLabel = selectedOutcome ? outcomeText(selectedOutcome, match) : "لم يتم الاختيار";
-  const actionLabel = locked ? "مقفل" : completed ? "تعديل" : "تصويت";
+  const actionLabel = matchLocked ? "مقفل" : completed ? "تعديل" : "تصويت";
   const errorText = state.predictionErrors[key] || "";
 
   return `
     <article class="prediction-row-card ${completed ? "completed" : "pending"} ${inlinePick ? "inline-pick" : "manual-points"}">
       <div class="prediction-controls">
-        <button class="btn accent compact-btn prediction-confirm-btn" ${inlinePick ? `data-inline-confirm="${match.id}"` : `data-predict="${match.id}"`} ${locked ? "disabled" : ""}>${actionLabel}</button>
+        <button class="btn accent compact-btn prediction-confirm-btn" ${inlinePick ? `data-inline-confirm="${match.id}"` : `data-predict="${match.id}"`} ${matchLocked ? "disabled" : ""}>${actionLabel}</button>
       </div>
       <div class="prediction-row-main">
         <div class="prediction-teams">
-          ${predictionTeamButton(tournament, round, match, match.a, selectedOutcome, locked, inlinePick)}
-          ${isDrawAllowed(round) && inlinePick ? predictionDrawButton(tournament, round, match, selectedOutcome, locked) : `<b>VS</b>`}
-          ${predictionTeamButton(tournament, round, match, match.b, selectedOutcome, locked, inlinePick)}
+          ${predictionTeamButton(tournament, round, match, match.a, selectedOutcome, matchLocked, inlinePick)}
+          ${isDrawAllowed(round) && inlinePick ? predictionDrawButton(tournament, round, match, selectedOutcome, matchLocked) : `<b>VS</b>`}
+          ${predictionTeamButton(tournament, round, match, match.b, selectedOutcome, matchLocked, inlinePick)}
         </div>
         <div class="prediction-row-info">
           <span class="prediction-status ${statusClass}">${statusText}</span>
@@ -6852,7 +6910,7 @@ function predictionDrawButton(tournament, round, match, selectedOutcome, locked)
 function confirmInlinePrediction(tournament, round, matchId) {
   const matches = getTournamentPredictionMatches(tournament, round);
   const match = matches.find((item) => item.id === matchId);
-  if (!match || isPredictionLocked(matches)) return;
+  if (!match || isPredictionLockedForMatch(round, match, matches)) return;
   const rule = getPointRuleForRound(tournament, round);
   if (!supportsInlinePrediction(rule)) {
     predictionModal(tournament, round, matchId);
@@ -6892,6 +6950,58 @@ function sortPredictionMatches(tournamentId, round, matches) {
   });
 }
 
+function getGroupMatchdayGroups(matches) {
+  const sorted = [...matches].sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
+  const fallbackIndexes = new Map();
+  return sorted.reduce((groups, match) => {
+    const parsed = match.groupRoundId
+      ? { id: match.groupRoundId, label: match.groupRoundLabel || "" }
+      : parseApiGroupRound(match.apiRound || match.stageLabel || "");
+    const dateKey = formatUaeDateKey(match.kickoff);
+    const key = parsed.id || `group-date-${dateKey}`;
+    if (!fallbackIndexes.has(key)) fallbackIndexes.set(key, fallbackIndexes.size + 1);
+    const fallbackLabel = `الجولة ${fallbackIndexes.get(key)}`;
+    const label = parsed.label || match.groupRoundLabel || fallbackLabel;
+    let group = groups.find((item) => item.id === key);
+    if (!group) {
+      group = { id: key, label, matches: [] };
+      groups.push(group);
+    }
+    group.matches.push(match);
+    return groups;
+  }, []);
+}
+
+function getGroupMatchdayLabel(match, matches = []) {
+  if (match?.groupRoundLabel) return match.groupRoundLabel;
+  const groups = getGroupMatchdayGroups(matches.length ? matches : [match]);
+  return groups.find((group) => group.matches.some((item) => item.id === match?.id))?.label || "الجولة الحالية";
+}
+
+function getVisiblePredictionMatchesForRound(tournament, round, matches) {
+  if (round !== "group") return matches;
+  const groups = getGroupMatchdayGroups(matches);
+  if (!groups.length) return matches;
+  const activeGroup = groups.find((group) => group.matches.some((match) => !isMatchFinal(match)))
+    || groups[0];
+  return activeGroup.matches;
+}
+
+function formatUaeDateKey(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "unknown";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Dubai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 function predictionOutcomeCompactHtml(outcome, match) {
   if (outcome.value === "draw") return `<span><b>تعادل</b><small>نقطة وسط</small></span>`;
   const teamName = outcome.value === match.a ? match.a : match.b;
@@ -6900,11 +7010,11 @@ function predictionOutcomeCompactHtml(outcome, match) {
 
 function matchTemplate(tournament, round, match) {
   const predictionMatches = getTournamentPredictionMatches(tournament, round);
-  const locked = isPredictionLocked(predictionMatches.length ? predictionMatches : [match]);
+  const locked = isPredictionLockedForMatch(round, match, predictionMatches.length ? predictionMatches : [match]);
   const existing = state.predictions[`${tournament.id}:${round}:${match.id}`] || {};
   const pickedOutcome = getPredictionOutcome(existing);
   const points = getPredictionPoints(existing);
-  const lockAt = getRoundPredictionLockAtForTournament(tournament, round);
+  const lockAt = round === "group" ? String(getMatchPredictionLockAt(match)) : getRoundPredictionLockAtForTournament(tournament, round);
   return `
     <article class="match-card">
       <div class="match-top">
@@ -6931,7 +7041,7 @@ function matchTemplate(tournament, round, match) {
 function predictionModal(tournament, round, matchId) {
   const matches = getTournamentPredictionMatches(tournament, round);
   const match = matches.find((item) => item.id === matchId);
-  if (!match || isPredictionLocked(matches)) return;
+  if (!match || isPredictionLockedForMatch(round, match, matches)) return;
   const key = `${tournament.id}:${round}:${match.id}`;
   const existing = state.predictions[key] || {};
   const rule = getPointRuleForRound(tournament, round);
@@ -7345,7 +7455,11 @@ function outcomeText(outcome, match) {
 
 function isPredictionLocked(matches) {
   if (!matches.length) return false;
-  const firstKickoff = Math.min(...matches.map((match) => new Date(match.kickoff).getTime()));
+  const kickoffTimes = matches
+    .map((match) => new Date(match.kickoff).getTime())
+    .filter(Number.isFinite);
+  if (!kickoffTimes.length) return false;
+  const firstKickoff = Math.min(...kickoffTimes);
   return Date.now() >= firstKickoff - PREDICTION_LOCK_MINUTES * 60 * 1000;
 }
 
@@ -7375,22 +7489,27 @@ function updateMatchCountdowns() {
     const lock = box.querySelector("[data-countdown-lock]");
 
     box.classList.toggle("locked", now >= lockAt);
-    box.classList.toggle("live", mode !== "round" && now >= kickoff && now < resultAt);
-    box.classList.toggle("finished", mode !== "round" && now >= resultAt);
+    const isRoundMode = mode === "round" || mode === "group-matchday";
+    box.classList.toggle("live", !isRoundMode && now >= kickoff && now < resultAt);
+    box.classList.toggle("finished", !isRoundMode && now >= resultAt);
 
     if (now < lockAt) {
-      label.textContent = mode === "round" ? "ينتهي تصويت الجولة بعد" : "ينتهي التصويت بعد";
+      label.textContent = mode === "round" ? "ينتهي تصويت الجولة بعد" : mode === "group-matchday" ? "ينتهي تصويت المباراة القادمة بعد" : "ينتهي التصويت بعد";
       value.textContent = formatCountdown(lockAt - now);
       lock.textContent = mode === "round"
         ? `قفل الجولة قبل أول مباراة بـ ${PREDICTION_LOCK_MINUTES} دقيقة`
-        : `قفل الجولة قبل أول مباراة. هذه المباراة تبدأ بعد ${formatCountdown(kickoff - now)}`;
+        : mode === "group-matchday"
+          ? `كل مباراة في دور المجموعات تقفل قبل بدايتها بـ ${PREDICTION_LOCK_MINUTES} دقيقة حسب توقيت الإمارات`
+          : `قفل هذه المباراة قبل بدايتها بـ ${PREDICTION_LOCK_MINUTES} دقيقة. تبدأ بعد ${formatCountdown(kickoff - now)}`;
       return;
     }
 
-    if (mode === "round") {
-      label.textContent = "تصويت الجولة مقفل";
+    if (isRoundMode) {
+      label.textContent = mode === "group-matchday" ? "تصويت المباراة القادمة مقفل" : "تصويت الجولة مقفل";
       value.textContent = "مغلق";
-      lock.textContent = "لا يمكن تعديل توقعات أي مباراة في هذه الجولة بعد القفل.";
+      lock.textContent = mode === "group-matchday"
+        ? "المباريات اللاحقة في نفس دور المجموعات تبقى مفتوحة حتى وقت قفلها."
+        : "لا يمكن تعديل توقعات أي مباراة في هذه الجولة بعد القفل.";
       return;
     }
 
@@ -8480,6 +8599,18 @@ function formatDate(value) {
     minute: "2-digit",
     day: "2-digit",
     month: "short"
+  }).format(new Date(value));
+}
+
+function formatUaeDate(value, options = {}) {
+  return new Intl.DateTimeFormat(state.language === "en" ? "en-AE" : "ar-AE", {
+    timeZone: "Asia/Dubai",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "short",
+    ...options
   }).format(new Date(value));
 }
 

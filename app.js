@@ -7574,7 +7574,7 @@ function applyLiveResultEvents(tournament, round, events) {
     if (!isRelevantResultEvent(event)) return;
     const match = matches.find((item) => isSameFixture(item, event));
     if (!match) return;
-    const nextScore = event.score || match.score;
+    const nextScore = scoreForMatchOrder(match, event) || match.score;
     const nextStatus = event.statusShort || event.statusLong || "";
     const homeIsA = sameTeamName(normalizeName(event.homeName), normalizeName(match.a));
     if (nextScore && nextScore !== match.score) {
@@ -7594,6 +7594,19 @@ function applyLiveResultEvents(tournament, round, events) {
   });
   setTournamentMatches(tournament, round, matches);
   return applied;
+}
+
+function scoreForMatchOrder(match, event) {
+  if (!event.score) return "";
+  const [homeGoals, awayGoals] = parseMatchScore(event.score);
+  if (homeGoals === null || awayGoals === null) return event.score;
+  const home = normalizeName(event.homeName);
+  const away = normalizeName(event.awayName);
+  const a = normalizeName(match.a);
+  const b = normalizeName(match.b);
+  if (sameTeamName(home, a) && sameTeamName(away, b)) return `${homeGoals} - ${awayGoals}`;
+  if (sameTeamName(home, b) && sameTeamName(away, a)) return `${awayGoals} - ${homeGoals}`;
+  return event.score;
 }
 
 function isRelevantResultEvent(event) {

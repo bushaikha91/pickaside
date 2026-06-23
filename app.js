@@ -1549,13 +1549,18 @@ function mergeBackendTournaments(backendTournaments) {
   const localById = new Map(state.tournaments.map((tournament) => [tournament.id, tournament]));
   const mergedBackend = backendTournaments.map((backendTournament) => {
     const localTournament = localById.get(backendTournament.id);
-    if (localTournament && !localTournament.backendSynced) {
-      return { ...backendTournament, ...localTournament };
+    if (localTournament) {
+      return {
+        ...backendTournament,
+        ...localTournament,
+        backendSynced: localTournament.backendSynced !== false,
+        backendSyncError: localTournament.backendSyncError || ""
+      };
     }
     return backendTournament;
   });
   const backendIds = new Set(backendTournaments.map((tournament) => tournament.id));
-  const localOnly = state.tournaments.filter((tournament) => !backendIds.has(tournament.id) && !tournament.backendSynced);
+  const localOnly = state.tournaments.filter((tournament) => !backendIds.has(tournament.id));
   state.tournaments = [...mergedBackend, ...localOnly];
   saveLocalAppState();
 }
@@ -1621,6 +1626,7 @@ function dbTournamentToApp(row, participation, ownerProfile) {
     invitedUsers: settings.invitedUsers || [],
     sentInvites: settings.sentInvites || [],
     adminTeam: settings.adminTeam || [],
+    localUpdatedAt: settings.localUpdatedAt || row.updated_at || "",
     backendSynced: true
   };
 }
@@ -1678,6 +1684,7 @@ function appTournamentToDb(tournament) {
       cancelled: Boolean(tournament.cancelled),
       cancelReason: tournament.cancelReason || "",
       resultsVoided: Boolean(tournament.resultsVoided),
+      localUpdatedAt: tournament.localUpdatedAt || new Date().toISOString(),
       predictions: tournamentScopedState(state.predictions, tournament.id),
       quickPicks: tournamentScopedState(state.quickPicks, tournament.id),
       awardPicks: tournamentScopedState(state.awardPicks, tournament.id)
@@ -1715,6 +1722,7 @@ async function persistTournamentToBackend(tournament) {
 function queueTournamentPersist(tournament) {
   if (!tournament) return;
   tournament.backendSynced = false;
+  tournament.localUpdatedAt = new Date().toISOString();
   saveLocalAppState();
   if (!isBackendReady()) return;
   persistTournamentToBackend(tournament).catch((error) => {
@@ -3759,6 +3767,7 @@ async function saveTournament(draft = false) {
     awardCategories: [],
     prizes: [],
     joinRequests: [],
+    localUpdatedAt: new Date().toISOString(),
     backendSynced: false
   };
   state.tournaments.unshift(tournament);
@@ -4321,6 +4330,7 @@ function sendOwnerNotification(tournament) {
   });
 
   updateNotificationBadge();
+  saveLocalAppState();
   if (status) {
     status.textContent = "تم إرسال الإشعار للأعضاء.";
     status.classList.remove("form-error-inline");

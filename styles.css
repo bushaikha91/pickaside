@@ -530,6 +530,7 @@ body.auth-screen .app-shell {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  unicode-bidi: plaintext;
 }
 
 .match-title {
@@ -5587,5 +5588,62 @@ body.auth-screen .bottom-nav {
     width: 100%;
     max-height: min(720px, 88dvh);
     padding: 16px;
+  }
+}
+
+@media (max-width: 430px) {
+  .live-score {
+    grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+    gap: 6px;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .live-score > span:nth-child(2) {
+    min-width: 48px;
+    padding: 4px 6px;
+    font-size: 14px;
+  }
+
+  .live-score .team-identity,
+  .prediction-teams .team-identity {
+    gap: 5px;
+  }
+
+  .live-score .team-emblem,
+  .prediction-teams .team-emblem {
+    width: 25px;
+    min-width: 25px;
+    height: 25px;
+    font-size: 12px;
+  }
+
+  .live-score .team-emblem.flag,
+  .prediction-teams .team-emblem.flag {
+    font-size: 20px;
+  }
+
+  .live-score .team-name,
+  .prediction-teams .team-name {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  .prediction-teams {
+    grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .prediction-team-pick,
+  .prediction-draw-pick {
+    min-height: 32px;
+    padding: 4px 5px;
   }
 }

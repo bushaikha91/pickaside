@@ -1831,6 +1831,25 @@ body.auth-screen .app-shell {
   touch-action: pan-y;
 }
 
+.rules-round-tabs {
+  margin: 2px 0 12px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rules-round-tabs .round-segment-btn {
+  min-width: 112px;
+}
+
+.rules-round-tabs .round-segment-btn strong {
+  font-size: 12px;
+}
+
+.rules-screen .voting-swipe-pane {
+  display: grid;
+  gap: 10px;
+}
+
 .rules-round-card .leader-row {
   background: var(--surface);
 }

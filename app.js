@@ -7,6 +7,8 @@ const state = {
   selectedChampionshipsTab: "active",
   selectedPointRuleRound: "",
   editingPointRuleRound: "",
+  selectedRulesRound: "",
+  editingRulesRound: "",
   selectedPredictionViewer: "",
   selectedVotingRound: "",
   predictionPlayerQuery: "",
@@ -851,8 +853,8 @@ document.body.addEventListener("click", (event) => {
     const tournament = getTournamentById(tournamentId);
     const roundId = editRulesRoundButton.dataset.editRulesRound;
     if (tournament && isPointRuleRoundLocked(tournament, roundId)) return;
-    state.selectedPointRuleRound = roundId;
-    state.editingPointRuleRound = roundId;
+    state.selectedRulesRound = roundId;
+    state.editingRulesRound = roundId;
     if (tournament) renderTournamentManageSection(tournament, "rules");
     return;
   }
@@ -4520,9 +4522,9 @@ function renderTournamentManageSection(tournament, section) {
   });
   document.querySelectorAll("[data-rules-round-tab]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.selectedPointRuleRound = button.dataset.rulesRoundTab;
-      if (state.editingPointRuleRound && state.editingPointRuleRound !== button.dataset.rulesRoundTab) {
-        state.editingPointRuleRound = "";
+      state.selectedRulesRound = button.dataset.rulesRoundTab;
+      if (state.editingRulesRound && state.editingRulesRound !== button.dataset.rulesRoundTab) {
+        state.editingRulesRound = "";
       }
       renderTournamentManageSection(tournament, "rules");
     });
@@ -4936,26 +4938,26 @@ function downloadIcon() {
 
 function ownerRulesPage(tournament) {
   const tournamentRounds = getTournamentRounds(tournament);
-  const selectedRoundId = tournamentRounds.some((round) => round.id === state.selectedPointRuleRound)
-    ? state.selectedPointRuleRound
+  const selectedRoundId = tournamentRounds.some((round) => round.id === state.selectedRulesRound)
+    ? state.selectedRulesRound
     : tournamentRounds[0]?.id;
-  state.selectedPointRuleRound = selectedRoundId || "";
+  state.selectedRulesRound = selectedRoundId || "";
   const selectedIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === selectedRoundId));
   const selectedRound = tournamentRounds[selectedIndex] || tournamentRounds[0];
   const selectedLocked = selectedRound ? isPointRuleRoundLocked(tournament, selectedRound.id) : false;
   const selectedSaved = selectedRound ? isPointRuleRoundSaved(tournament, selectedRound.id) : false;
-  const selectedEditing = selectedRound ? state.editingPointRuleRound === selectedRound.id : false;
+  const selectedEditing = selectedRound ? state.editingRulesRound === selectedRound.id : false;
   const showEditor = Boolean(selectedRound && !selectedLocked && (!selectedSaved || selectedEditing));
   return `
     <section class="voting-screen rules-screen" data-rules-swipe>
       <p class="muted">القوانين التي تظهر للمشاركين داخل البطولة حسب كل دور.</p>
-      <div class="voting-role-tabs" style="--tab-count:${tournamentRounds.length}; --active-index:${selectedIndex};">
+      <div class="championship-segment round-segment rules-round-tabs" role="tablist" aria-label="أدوار البطولة" style="--tab-count:${tournamentRounds.length}; --active-index:${selectedIndex};">
         ${tournamentRounds.map((round) => `
-          <button class="voting-role-tab ${round.id === selectedRound?.id ? "active" : ""}" type="button" data-rules-round-tab="${round.id}">
-            ${round.label}
+          <button class="championship-segment-btn round-segment-btn ${round.id === selectedRound?.id ? "active" : ""}" type="button" role="tab" aria-selected="${round.id === selectedRound?.id}" data-rules-round-tab="${round.id}">
+            <strong>${round.label}</strong>
           </button>
         `).join("")}
-        <span class="voting-role-indicator" aria-hidden="true"></span>
+        <span class="championship-segment-indicator" aria-hidden="true"></span>
       </div>
       <div class="voting-swipe-pane">
         ${selectedRound ? (showEditor ? pointRuleCard(tournament, selectedRound) : ownerRulesRoundPanel(tournament, selectedRound)) : ""}
@@ -5143,12 +5145,15 @@ function bindVotingSwipe(tournament) {
   let startX = 0;
   let startY = 0;
   let isHorizontal = false;
+  let ignoreSwipe = false;
   pane.addEventListener("pointerdown", (event) => {
+    ignoreSwipe = isInteractiveTarget(event.target) || Boolean(closestElement(event.target, "[data-rules-round-tab]"));
     startX = event.clientX;
     startY = event.clientY;
     isHorizontal = false;
   });
   pane.addEventListener("pointermove", (event) => {
+    if (ignoreSwipe) return;
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
     if (Math.abs(deltaX) > 16 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
@@ -5156,6 +5161,10 @@ function bindVotingSwipe(tournament) {
     }
   });
   pane.addEventListener("pointerup", (event) => {
+    if (ignoreSwipe) {
+      ignoreSwipe = false;
+      return;
+    }
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
     if (!isHorizontal || Math.abs(deltaX) < 48 || Math.abs(deltaY) > Math.abs(deltaX)) return;
@@ -5191,12 +5200,12 @@ function bindRulesSwipe(tournament) {
     const deltaY = event.clientY - startY;
     if (!isHorizontal || Math.abs(deltaX) < 48 || Math.abs(deltaY) > Math.abs(deltaX)) return;
     const tournamentRounds = getTournamentRounds(tournament);
-    const currentIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === state.selectedPointRuleRound));
+    const currentIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === state.selectedRulesRound));
     const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
     if (!tournamentRounds[nextIndex]) return;
-    state.selectedPointRuleRound = tournamentRounds[nextIndex].id;
-    if (state.editingPointRuleRound && state.editingPointRuleRound !== state.selectedPointRuleRound) {
-      state.editingPointRuleRound = "";
+    state.selectedRulesRound = tournamentRounds[nextIndex].id;
+    if (state.editingRulesRound && state.editingRulesRound !== state.selectedRulesRound) {
+      state.editingRulesRound = "";
     }
     renderTournamentManageSection(tournament, "rules");
   });
@@ -5879,7 +5888,9 @@ function ownerPointsPage(tournament) {
 
 function savePointRules(tournament) {
   const rules = getTournamentPointRules(tournament);
-  const selectedRoundId = state.selectedPointRuleRound || getTournamentRounds(tournament)[0]?.id;
+  const selectedRoundId = currentManageSection() === "rules"
+    ? state.selectedRulesRound || getTournamentRounds(tournament)[0]?.id
+    : state.selectedPointRuleRound || getTournamentRounds(tournament)[0]?.id;
   const selectedRule = selectedRoundId ? rules[selectedRoundId] : null;
   if (!selectedRoundId || !selectedRule) return;
   const saved = getPointRulesSaved(tournament);
@@ -5889,6 +5900,7 @@ function savePointRules(tournament) {
   tournament.minPoints = Number(selectedRule?.minPoints || tournament.minPoints || 0);
   tournament.points = tournament.points || tournament.budget || 0;
   state.editingPointRuleRound = "";
+  state.editingRulesRound = "";
   queueTournamentPersist(tournament);
   renderTournamentManageSection(tournament, currentManageSection() || "points");
 }
@@ -5987,7 +5999,7 @@ function pointRuleCard(tournament, round) {
   const roundIndex = getTournamentRounds(tournament).findIndex((item) => item.id === round.id);
   const locked = isPointRuleRoundLocked(tournament, round.id);
   const saved = isPointRuleRoundSaved(tournament, round.id);
-  const editing = state.editingPointRuleRound === round.id;
+  const editing = state.editingPointRuleRound === round.id || state.editingRulesRound === round.id;
   const readOnly = locked || (saved && !editing);
   if (roundIndex === 0 && rule.pointSource === "carry") rule.pointSource = "grant";
   rule.__readOnly = readOnly;
@@ -6027,7 +6039,9 @@ function isPointRuleRoundLocked(tournament, roundId) {
 
 function isPointRuleRoundControlsReadOnly(tournament, roundId) {
   if (isPointRuleRoundLocked(tournament, roundId)) return true;
-  return Boolean(isPointRuleRoundSaved(tournament, roundId) && state.editingPointRuleRound !== roundId);
+  return Boolean(isPointRuleRoundSaved(tournament, roundId)
+    && state.editingPointRuleRound !== roundId
+    && state.editingRulesRound !== roundId);
 }
 
 function pointRuleTypeOption(roundId, selectedType, value, label) {

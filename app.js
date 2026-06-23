@@ -3805,6 +3805,7 @@ function renderTournament(id, options = {}) {
   const selectedPredictionClosed = visibleMatches.length && visibleMatches.every((match) => isPredictionLockedForMatch(selectedRound, match, visibleMatches));
   const used = getUsedBudget(tournament.id, selectedRound);
   const nextRound = getNextRound(tournament);
+  const canAdvanceRound = isTournamentOwner(tournament) && !forcePlayerView;
   const tournamentFinished = isTournamentFinished(tournament);
   const selectedRule = getTournamentPointRules(tournament)[selectedRound] || {};
 
@@ -3829,7 +3830,7 @@ function renderTournament(id, options = {}) {
             <strong>الدور الحالي: ${rounds.find((round) => round.id === activeRound).label}</strong>
             <p class="muted">${nextRound ? `الدور التالي يفتح بعد اعتماد نتائج ${rounds.find((round) => round.id === activeRound).label} من الـ API.` : "هذه آخر مرحلة في البطولة."}</p>
           </div>
-          ${nextRound ? `<button class="btn warn" data-advance-round="${tournament.id}">تحديث واعتماد الدور</button>` : ""}
+          ${nextRound && canAdvanceRound ? `<button class="btn warn" data-advance-round="${tournament.id}">تحديث واعتماد الدور</button>` : ""}
         </div>
         ${selectedPredictionClosed ? `<div class="notice danger-notice">${selectedRound === "group" ? "تم قفل توقعات مباريات هذه الجولة. اللاعبون بدون توقعات مكتملة في المباراة المقفلة يعتبرون خاسرين لنقاطها عند التسوية." : "تم قفل توقعات هذا الدور. اللاعبون بدون توقعات مكتملة يعتبرون خاسرين لنقاط الجولة عند التسوية."}</div>` : ""}
       </div>

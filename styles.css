@@ -4714,6 +4714,27 @@ h1.section-title {
   box-shadow: 0 0 10px rgba(213, 255, 64, .35);
 }
 
+.matchday-segment,
+.live-round-segment {
+  margin-top: 4px;
+  padding: 5px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.matchday-segment .round-segment-btn,
+.live-round-segment .round-segment-btn {
+  min-width: 96px;
+  min-height: 30px;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.live-match-time {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .championship-segment-indicator {
   position: absolute;
   inset-inline-start: calc(6px + ((100% - 12px) / var(--tab-count)) * var(--active-index));

@@ -2,6 +2,9 @@
 const modalRoot = document.querySelector("#modal-root");
 let mainChromeScrollHandler = null;
 let liveAutoRefreshTimer = null;
+let localStateLoaded = false;
+
+const LOCAL_STATE_KEY = "pickaside_local_state_v1";
 
 const state = {
   selectedChampionshipsTab: "active",
@@ -666,6 +669,7 @@ function currentLogoSrc() {
 function setLanguage(language) {
   state.language = language;
   applyAppPreferences();
+  saveLocalAppState();
   render();
 }
 
@@ -691,6 +695,7 @@ function setTheme(theme) {
   if (!["dark", "light"].includes(theme)) return;
   state.theme = theme;
   applyAppPreferences();
+  saveLocalAppState();
   profileSettingsModal();
   updateNotificationBadges();
 }
@@ -1069,6 +1074,7 @@ function notificationSettingsModal() {
 
 function toggleNotificationPreference(preferenceId) {
   state.notificationPreferences[preferenceId] = !state.notificationPreferences[preferenceId];
+  saveLocalAppState();
   notificationSettingsModal();
   updateNotificationBadges();
 }
@@ -1076,6 +1082,7 @@ function toggleNotificationPreference(preferenceId) {
 function openNotification(notificationId, route) {
   const notification = state.notifications.find((item) => item.id === notificationId);
   if (notification) notification.unread = false;
+  saveLocalAppState();
   updateNotificationBadges();
   closeModal();
   navigate(route);
@@ -1106,6 +1113,7 @@ function handleNotificationAction(notificationId, action) {
     notificationsModal();
     updateNotificationBadges();
     updateProfileCounters();
+    saveLocalAppState();
     return;
   }
 
@@ -1131,6 +1139,7 @@ function handleNotificationAction(notificationId, action) {
 
   notificationsModal();
   updateNotificationBadges();
+  saveLocalAppState();
 }
 
 function followBackFromNotification(notification) {
@@ -1138,6 +1147,7 @@ function followBackFromNotification(notification) {
   const displayName = user ? user.name.split(" ")[0] : notification.followerName;
   state.currentUser.following = [...new Set([...state.currentUser.following, displayName])];
   if (user) user.relation = "Unfollow";
+  saveLocalAppState();
 }
 
 function unfollowFromNotification(notification) {
@@ -1145,6 +1155,7 @@ function unfollowFromNotification(notification) {
   const displayName = user ? user.name.split(" ")[0] : notification.followerName;
   state.currentUser.following = state.currentUser.following.filter((name) => name !== displayName);
   if (user) user.relation = "Follow back";
+  saveLocalAppState();
 }
 
 function approveJoinRequest(notification) {
@@ -1271,6 +1282,7 @@ function appConfigEndpoint() {
 }
 
 async function initializeBackend() {
+  loadLocalAppState();
   state.backend.loading = true;
   state.backend.error = "";
   try {
@@ -1333,7 +1345,15 @@ async function loadCurrentUserProfile(session) {
     });
     return;
   }
-  state.currentUser = profileToCurrentUser(data);
+  const backendUser = profileToCurrentUser(data);
+  state.currentUser = {
+    ...state.currentUser,
+    ...backendUser,
+    phone: backendUser.phone || state.currentUser.phone,
+    avatarUrl: backendUser.avatarUrl || state.currentUser.avatarUrl,
+    favoriteTeam: backendUser.favoriteTeam || state.currentUser.favoriteTeam
+  };
+  saveLocalAppState();
 }
 
 async function upsertCurrentUserProfile(user, profile) {
@@ -1362,7 +1382,10 @@ async function upsertCurrentUserProfile(user, profile) {
     data = fallback.data;
     error = fallback.error;
   }
-  if (!error && data) state.currentUser = profileToCurrentUser(data);
+  if (!error && data) {
+    state.currentUser = profileToCurrentUser(data);
+    saveLocalAppState();
+  }
 }
 
 function profileToCurrentUser(profile) {
@@ -1390,8 +1413,77 @@ function isBackendReady() {
 }
 
 function makeTournamentId() {
-  if (isBackendReady() && window.crypto?.randomUUID) return window.crypto.randomUUID();
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return `t-${Date.now()}`;
+}
+
+function safeJsonParse(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function mergeTournamentSnapshots(primary = [], secondary = []) {
+  const byId = new Map();
+  [...secondary, ...primary].forEach((tournament) => {
+    if (!tournament?.id) return;
+    const previous = byId.get(tournament.id) || {};
+    byId.set(tournament.id, { ...previous, ...tournament });
+  });
+  return Array.from(byId.values());
+}
+
+function localStateSnapshot() {
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    language: state.language,
+    theme: state.theme,
+    currentUser: state.currentUser,
+    tournaments: state.tournaments,
+    predictions: state.predictions,
+    quickPicks: state.quickPicks,
+    awardPicks: state.awardPicks,
+    notifications: state.notifications,
+    notificationPreferences: state.notificationPreferences,
+    searchHistory: state.searchHistory
+  };
+}
+
+function loadLocalAppState() {
+  if (localStateLoaded) return;
+  localStateLoaded = true;
+  let saved = null;
+  try {
+    saved = safeJsonParse(localStorage.getItem(LOCAL_STATE_KEY), null);
+  } catch {
+    saved = null;
+  }
+  if (!saved || typeof saved !== "object") return;
+  if (saved.language) state.language = saved.language;
+  if (saved.theme) state.theme = saved.theme;
+  if (saved.currentUser) state.currentUser = { ...state.currentUser, ...saved.currentUser };
+  if (Array.isArray(saved.tournaments)) {
+    state.tournaments = mergeTournamentSnapshots(saved.tournaments, state.tournaments);
+  }
+  if (saved.predictions && typeof saved.predictions === "object") state.predictions = { ...state.predictions, ...saved.predictions };
+  if (saved.quickPicks && typeof saved.quickPicks === "object") state.quickPicks = { ...state.quickPicks, ...saved.quickPicks };
+  if (saved.awardPicks && typeof saved.awardPicks === "object") state.awardPicks = { ...state.awardPicks, ...saved.awardPicks };
+  if (Array.isArray(saved.notifications)) state.notifications = saved.notifications;
+  if (saved.notificationPreferences && typeof saved.notificationPreferences === "object") {
+    state.notificationPreferences = { ...state.notificationPreferences, ...saved.notificationPreferences };
+  }
+  if (Array.isArray(saved.searchHistory)) state.searchHistory = saved.searchHistory;
+}
+
+function saveLocalAppState() {
+  try {
+    localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify(localStateSnapshot()));
+  } catch {
+    state.backend.error = "تعذر حفظ البيانات محلياً على هذا الجهاز.";
+  }
 }
 
 function profileMapById(profiles = []) {
@@ -1454,9 +1546,18 @@ function mergeStoredTournamentState(settings = {}) {
 }
 
 function mergeBackendTournaments(backendTournaments) {
+  const localById = new Map(state.tournaments.map((tournament) => [tournament.id, tournament]));
+  const mergedBackend = backendTournaments.map((backendTournament) => {
+    const localTournament = localById.get(backendTournament.id);
+    if (localTournament && !localTournament.backendSynced) {
+      return { ...backendTournament, ...localTournament };
+    }
+    return backendTournament;
+  });
   const backendIds = new Set(backendTournaments.map((tournament) => tournament.id));
   const localOnly = state.tournaments.filter((tournament) => !backendIds.has(tournament.id) && !tournament.backendSynced);
-  state.tournaments = [...backendTournaments, ...localOnly];
+  state.tournaments = [...mergedBackend, ...localOnly];
+  saveLocalAppState();
 }
 
 function dbTournamentToApp(row, participation, ownerProfile) {
@@ -1606,14 +1707,20 @@ async function persistTournamentToBackend(tournament) {
     .upsert(participantRow, { onConflict: "tournament_id,profile_id" });
   if (participantError) throw participantError;
   tournament.backendSynced = true;
+  tournament.backendSyncError = "";
+  saveLocalAppState();
   return true;
 }
 
 function queueTournamentPersist(tournament) {
-  if (!isBackendReady() || !tournament) return;
+  if (!tournament) return;
+  tournament.backendSynced = false;
+  saveLocalAppState();
+  if (!isBackendReady()) return;
   persistTournamentToBackend(tournament).catch((error) => {
     tournament.backendSyncError = error.message || "تعذر حفظ البطولة في قاعدة البيانات.";
     state.backend.error = tournament.backendSyncError;
+    saveLocalAppState();
   });
 }
 
@@ -2130,6 +2237,7 @@ function renderSearch() {
   if (clearSearchHistoryButton) {
     clearSearchHistoryButton.addEventListener("click", () => {
       state.searchHistory = [];
+      saveLocalAppState();
       renderSearch();
     });
   }
@@ -2192,10 +2300,12 @@ function saveSearchHistory(query) {
   const value = query.trim();
   if (!value) return;
   state.searchHistory = [value, ...state.searchHistory.filter((item) => item !== value)].slice(0, 6);
+  saveLocalAppState();
 }
 
 function deleteSearchHistoryItem(index) {
   state.searchHistory = state.searchHistory.filter((_, itemIndex) => itemIndex !== index);
+  saveLocalAppState();
 }
 
 function setupMainChromeAutoHide(selector = ".main-auto-hide-chrome") {
@@ -2282,6 +2392,7 @@ function toggleFollowUser(username, rerenderSearch = true) {
   } else {
     state.currentUser.following = [...new Set([...state.currentUser.following, user.name.split(" ")[0]])];
   }
+  saveLocalAppState();
   if (rerenderSearch) renderSearch();
 }
 
@@ -3651,14 +3762,17 @@ async function saveTournament(draft = false) {
     backendSynced: false
   };
   state.tournaments.unshift(tournament);
+  saveLocalAppState();
   try {
     await persistTournamentToBackend(tournament);
   } catch (error) {
     tournament.backendSyncError = error.message || "تعذر حفظ البطولة في قاعدة البيانات.";
     state.backend.error = tournament.backendSyncError;
+    saveLocalAppState();
   }
   state.pendingCreateCoverImage = null;
   state.createFormDraft = {};
+  saveLocalAppState();
   return id;
 }
 
@@ -7933,6 +8047,7 @@ function confirmDeleteDraft(tournamentId) {
   document.querySelector("#cancel-delete-draft").addEventListener("click", closeModal);
   document.querySelector("#confirm-delete-draft").addEventListener("click", async () => {
     state.tournaments = state.tournaments.filter((tournament) => tournament.id !== tournamentId);
+    saveLocalAppState();
     try {
       await deleteTournamentFromBackend(tournamentId);
     } catch (error) {
@@ -8151,11 +8266,13 @@ function updatePeopleRelation(name, action) {
   if (action === "follow-back") {
     state.currentUser.following = [...new Set([...state.currentUser.following, name])];
     syncUserRelation(name, "Unfollow");
+    saveLocalAppState();
     return;
   }
 
   state.currentUser.following = state.currentUser.following.filter((item) => item !== name);
   syncUserRelation(name, "Follow back");
+  saveLocalAppState();
 }
 
 function isFollowingPerson(name) {
@@ -8296,6 +8413,7 @@ function editProfileModal() {
         if (error) throw error;
       }
       state.currentUser = nextUser;
+      saveLocalAppState();
       closeModal();
       render();
     } catch (error) {
@@ -8743,6 +8861,7 @@ function formatUaeDate(value, options = {}) {
   }).format(new Date(value));
 }
 
+loadLocalAppState();
 applyAppPreferences();
 
 if (["127.0.0.1", "localhost"].includes(window.location.hostname)) {

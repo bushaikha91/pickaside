@@ -817,8 +817,10 @@ document.body.addEventListener("click", (event) => {
   const awardPlayerButton = closestElement(event.target, "[data-award-player]");
   if (awardPlayerButton) {
     event.preventDefault();
-    state.awardPicks[awardPlayerButton.dataset.awardKey] = awardPlayerButton.dataset.awardPlayer;
-    state.awardSearchQueries[awardPlayerButton.dataset.awardKey] = "";
+    const awardKey = awardPlayerButton.dataset.awardKey;
+    state.awardPicks[awardKey] = awardPlayerButton.dataset.awardPlayer;
+    state.awardSearchQueries[awardKey] = "";
+    queueTournamentPersist(getTournamentById(awardKey.split(":")[0]));
     render();
     return;
   }
@@ -826,8 +828,10 @@ document.body.addEventListener("click", (event) => {
   const awardTeamButton = closestElement(event.target, "[data-award-team]");
   if (awardTeamButton) {
     event.preventDefault();
-    state.awardPicks[awardTeamButton.dataset.awardKey] = awardTeamButton.dataset.awardTeam;
-    state.awardSearchQueries[awardTeamButton.dataset.awardKey] = "";
+    const awardKey = awardTeamButton.dataset.awardKey;
+    state.awardPicks[awardKey] = awardTeamButton.dataset.awardTeam;
+    state.awardSearchQueries[awardKey] = "";
+    queueTournamentPersist(getTournamentById(awardKey.split(":")[0]));
     render();
     return;
   }
@@ -1150,9 +1154,13 @@ function approveJoinRequest(notification) {
       notification.status = "declined";
       return;
     }
-    tournament.joinRequests = (tournament.joinRequests || []).filter((name) => name !== notification.requesterName);
+    tournament.joinRequests = (tournament.joinRequests || []).filter((request) => {
+      const name = typeof request === "string" ? request : request.name;
+      return name !== notification.requesterName;
+    });
     tournament.participants = [...new Set([...(tournament.participants || []), notification.requesterName])];
     tournament.friends = Math.max(tournament.friends || 0, tournament.participants.length);
+    queueTournamentPersist(tournament);
   }
 }
 
@@ -1170,6 +1178,7 @@ function acceptTournamentInvite(notification) {
   tournament.friends = (tournament.friends || 0) + 1;
   tournament.rank = tournament.rank || tournament.friends;
   notification.route = `/tournament/${tournament.id}`;
+  queueTournamentPersist(tournament);
 }
 
 function updateNotificationBadges() {
@@ -1425,9 +1434,21 @@ async function loadBackendTournaments() {
   const ownersById = profileMapById(owners);
   const participantByTournament = new Map((participants || []).map((participant) => [participant.tournament_id, participant]));
   const backendTournaments = (tournaments || []).map((row) => {
+    mergeStoredTournamentState(row.settings || {});
     return dbTournamentToApp(row, participantByTournament.get(row.id), ownersById.get(row.owner_id));
   });
   mergeBackendTournaments(backendTournaments);
+}
+
+function tournamentScopedState(source, tournamentId) {
+  const prefix = `${tournamentId}:`;
+  return Object.fromEntries(Object.entries(source || {}).filter(([key]) => key.startsWith(prefix)));
+}
+
+function mergeStoredTournamentState(settings = {}) {
+  Object.assign(state.predictions, settings.predictions || {});
+  Object.assign(state.quickPicks, settings.quickPicks || {});
+  Object.assign(state.awardPicks, settings.awardPicks || {});
 }
 
 function mergeBackendTournaments(backendTournaments) {
@@ -1465,6 +1486,10 @@ function dbTournamentToApp(row, participation, ownerProfile) {
     active: row.is_active,
     draft: row.is_draft,
     setupIncomplete: row.setup_incomplete,
+    cancelled: Boolean(settings.cancelled),
+    cancelReason: settings.cancelReason || "",
+    resultsVoided: Boolean(settings.resultsVoided),
+    joinClosed: Boolean(settings.joinClosed),
     activationReady: Boolean(settings.activationReady),
     startDate: row.start_date,
     hasPrizes: row.has_prizes,
@@ -1480,6 +1505,8 @@ function dbTournamentToApp(row, participation, ownerProfile) {
     wrong: Number(participation?.wrong_predictions ?? settings.wrong ?? 0),
     budget: settings.budget ?? null,
     minPoints: settings.minPoints ?? null,
+    pointRules: settings.pointRules || {},
+    pointRulesSaved: settings.pointRulesSaved || {},
     rulesConfigured: Boolean(settings.rulesConfigured),
     roundIds,
     startingRound: row.starting_round,
@@ -1488,6 +1515,9 @@ function dbTournamentToApp(row, participation, ownerProfile) {
     awardCategories: row.award_categories || [],
     prizes: row.prizes || [],
     joinRequests: settings.joinRequests || [],
+    invitedUsers: settings.invitedUsers || [],
+    sentInvites: settings.sentInvites || [],
+    adminTeam: settings.adminTeam || [],
     backendSynced: true
   };
 }
@@ -1511,7 +1541,7 @@ function appTournamentToDb(tournament) {
     current_round: tournament.currentRound || tournament.startingRound || "group",
     start_date: tournament.startDate,
     has_prizes: Boolean(tournament.hasPrizes),
-    is_active: Boolean(tournament.active),
+    is_active: Boolean(tournament.active && !tournament.cancelled),
     is_draft: Boolean(tournament.draft),
     setup_incomplete: Boolean(tournament.setupIncomplete),
     matches_by_round: tournament.matchesByRound || emptyMatchesByRound(),
@@ -1534,8 +1564,20 @@ function appTournamentToDb(tournament) {
       wrong: tournament.wrong || 0,
       budget: tournament.budget ?? null,
       minPoints: tournament.minPoints ?? null,
+      pointRules: tournament.pointRules || {},
+      pointRulesSaved: tournament.pointRulesSaved || {},
       rulesConfigured: Boolean(tournament.rulesConfigured),
-      joinRequests: tournament.joinRequests || []
+      joinRequests: tournament.joinRequests || [],
+      invitedUsers: tournament.invitedUsers || [],
+      sentInvites: tournament.sentInvites || [],
+      adminTeam: tournament.adminTeam || [],
+      joinClosed: Boolean(tournament.joinClosed),
+      cancelled: Boolean(tournament.cancelled),
+      cancelReason: tournament.cancelReason || "",
+      resultsVoided: Boolean(tournament.resultsVoided),
+      predictions: tournamentScopedState(state.predictions, tournament.id),
+      quickPicks: tournamentScopedState(state.quickPicks, tournament.id),
+      awardPicks: tournamentScopedState(state.awardPicks, tournament.id)
     },
     updated_at: new Date().toISOString()
   };
@@ -1571,6 +1613,15 @@ function queueTournamentPersist(tournament) {
     tournament.backendSyncError = error.message || "تعذر حفظ البطولة في قاعدة البيانات.";
     state.backend.error = tournament.backendSyncError;
   });
+}
+
+async function deleteTournamentFromBackend(tournamentId) {
+  if (!isBackendReady() || !tournamentId) return false;
+  const client = state.backend.client;
+  await client.from("tournament_participants").delete().eq("tournament_id", tournamentId);
+  const { error } = await client.from("tournaments").delete().eq("id", tournamentId);
+  if (error) throw error;
+  return true;
 }
 
 function renderAuth(route) {
@@ -1692,7 +1743,7 @@ async function handleAuthSubmit(isSignup) {
 function renderHome() {
   const user = state.currentUser;
   const efficiency = user.totalPredictions ? Math.round((user.correctPredictions / user.totalPredictions) * 100) : 0;
-  const activeTournaments = state.tournaments.filter((item) => item.active && item.joined);
+  const activeTournaments = state.tournaments.filter((item) => item.active && item.joined && !item.draft && !item.cancelled);
   const pendingVoteTasks = getHomePendingVoteTasks();
   app.innerHTML = `
     <section class="home-stack">
@@ -1804,7 +1855,7 @@ function tournamentCard(tournament) {
 
 function getHomePendingVoteTasks() {
   return state.tournaments
-    .filter((tournament) => tournament.active && tournament.joined && !tournament.draft)
+    .filter((tournament) => tournament.active && tournament.joined && !tournament.draft && !tournament.cancelled)
     .flatMap((tournament) => {
       const round = tournament.currentRound || tournament.startingRound || "round16";
       const roundLabel = rounds.find((item) => item.id === round)?.label || "الدور الحالي";
@@ -2187,6 +2238,7 @@ function searchPublicTournaments(query) {
   const normalized = query.trim().toLowerCase();
   return state.tournaments.filter((tournament) => {
     if (!tournament.public) return false;
+    if (tournament.cancelled || tournament.draft) return false;
     if (!normalized) return true;
     return tournament.name.toLowerCase().includes(normalized)
       || (tournament.publicCode || "").toLowerCase().includes(normalized);
@@ -2449,25 +2501,17 @@ async function loadOfficialCompetitionFixtures(competition) {
         futureAccessError = "";
       }
     }
-    if (!countPredictableMatchesByRound(matchesByRound)) {
-      const upcomingPayload = await fetchCompetitionFixturesPayload(competition.apiId, { next: 80 });
-      const upcomingMatchesByRound = normalizeFixturePayload(upcomingPayload);
-      futureAccessError = futureAccessError || apiFootballErrorMessage(upcomingPayload);
-      if (countPredictableMatchesByRound(upcomingMatchesByRound)) {
+  if (!countPredictableMatchesByRound(matchesByRound)) {
+    const upcomingPayload = await fetchCompetitionFixturesPayload(competition.apiId, { next: 80 });
+    const upcomingMatchesByRound = normalizeFixturePayload(upcomingPayload);
+    futureAccessError = futureAccessError || apiFootballErrorMessage(upcomingPayload);
+    if (countPredictableMatchesByRound(upcomingMatchesByRound)) {
         payload = upcomingPayload;
         matchesByRound = upcomingMatchesByRound;
-        futureAccessError = "";
-      }
+      futureAccessError = "";
     }
-    if (!countPredictableMatchesByRound(matchesByRound)) {
-      const livePayload = await fetchCompetitionFixturesPayload(competition.apiId, { live: "all" });
-      const liveMatchesByRound = normalizeFixturePayload(livePayload);
-      if (countMatchesByRound(liveMatchesByRound)) {
-        payload = livePayload;
-        matchesByRound = liveMatchesByRound;
-      }
-    }
-    const apiError = apiFootballErrorMessage(payload);
+  }
+  const apiError = apiFootballErrorMessage(payload);
     state.selectedCompetitionMatchesByRound = matchesByRound;
     const predictableCount = countPredictableMatchesByRound(matchesByRound);
     const totalCount = countMatchesByRound(matchesByRound);
@@ -2636,10 +2680,11 @@ function countPredictableMatchesByRound(matchesByRound) {
 
 function isPredictableFixtureMatch(match) {
   const status = String(match?.statusShort || "").toUpperCase();
-  if (["NS", "TBD", "PST"].includes(status)) return true;
-  if (["1H", "2H", "HT", "ET", "BT", "P", "SUSP", "INT", "FT", "AET", "PEN", "CANC", "ABD", "AWD", "WO"].includes(status)) return false;
   const kickoff = new Date(match?.kickoff || "").getTime();
-  return Number.isFinite(kickoff) && kickoff > Date.now();
+  const isFuture = Number.isFinite(kickoff) && kickoff > Date.now();
+  if (["NS", "TBD", "PST"].includes(status)) return isFuture;
+  if (["1H", "2H", "HT", "ET", "BT", "P", "SUSP", "INT", "FT", "AET", "PEN", "CANC", "ABD", "AWD", "WO"].includes(status)) return false;
+  return isFuture;
 }
 
 function roundOptionsFromMatches(matchesByRound) {
@@ -2777,14 +2822,17 @@ function getUnlockedPredictionMatches(tournament, round) {
 
 function normalizeCompetitionPayload(payload) {
   const list = Array.isArray(payload?.response) ? payload.response : [];
+  const todayKey = formatApiDate(new Date());
   return list.map((item) => {
     const league = item.league || item;
     const country = item.country || {};
     const seasons = Array.isArray(item.seasons) ? item.seasons : [];
-    const season = seasons.find((entry) => Number(entry.year) === 2026)
-      || seasons.find((entry) => entry.current)
-      || seasons[seasons.length - 1]
+    const schedulableSeasons = seasons.filter((entry) => !entry.end || String(entry.end) >= todayKey);
+    const season = schedulableSeasons.find((entry) => Number(entry.year) === 2026)
+      || schedulableSeasons.find((entry) => entry.current)
+      || schedulableSeasons[schedulableSeasons.length - 1]
       || {};
+    if (!season.year && seasons.length) return null;
     const type = league.type ? `${league.type}` : "League";
     return {
       id: `api-league-${league.id}`,
@@ -2797,7 +2845,7 @@ function normalizeCompetitionPayload(payload) {
       logoUrl: league.logo || "",
       countryFlag: country.flag || ""
     };
-  }).filter((competition) => competition.apiId && competition.name)
+  }).filter((competition) => competition?.apiId && competition.name)
     .sort(officialCompetitionSort);
 }
 
@@ -2819,8 +2867,8 @@ function officialCompetitionRank(competition) {
 }
 
 function renderChampionshipsPage() {
-  const activeTournaments = state.tournaments.filter((tournament) => tournament.joined === true && !tournament.draft);
-  const ownedTournaments = state.tournaments.filter((tournament) => isTournamentOwner(tournament) && !tournament.draft);
+  const activeTournaments = state.tournaments.filter((tournament) => tournament.joined === true && tournament.active && !tournament.draft && !tournament.cancelled);
+  const ownedTournaments = state.tournaments.filter((tournament) => isTournamentOwner(tournament) && !tournament.draft && !tournament.cancelled);
   const followingTournaments = followedPublicTournaments();
   const championshipTabs = [
     { id: "active", label: "البطولات النشطة", tournaments: activeTournaments, empty: "لا توجد بطولات مشارك فيها حالياً." },
@@ -3014,7 +3062,7 @@ function activeVoteTaskCard(tournament) {
 
 function followedPublicTournaments() {
   return state.tournaments.filter((tournament) => {
-    if (!tournament.public || tournament.draft) return false;
+    if (!tournament.public || tournament.draft || tournament.cancelled || tournament.active) return false;
     if (tournament.joined) return false;
     if (tournament.owner === state.currentUser.name || tournament.ownerUsername === state.currentUser.handle.replace("@", "")) return false;
     return isFollowingTournamentOwner(tournament);
@@ -3450,16 +3498,18 @@ function captureCreateFormDraft() {
 }
 
 function filterPublicTournamentsByStatus(tournaments) {
-  if (state.publicTournamentFilter === "started") return tournaments.filter((tournament) => tournament.active);
-  if (state.publicTournamentFilter === "upcoming") return tournaments.filter((tournament) => !tournament.active);
-  return tournaments;
+  const visible = tournaments.filter((tournament) => !tournament.cancelled && !tournament.draft);
+  if (state.publicTournamentFilter === "started") return visible.filter((tournament) => tournament.active);
+  if (state.publicTournamentFilter === "upcoming") return visible.filter((tournament) => !tournament.active);
+  return visible;
 }
 
 function publicTournamentFilterHtml(tournaments) {
+  const visible = tournaments.filter((tournament) => !tournament.cancelled && !tournament.draft);
   const filters = [
-    { id: "all", label: "الكل", count: tournaments.length },
-    { id: "started", label: "بدأت", count: tournaments.filter((tournament) => tournament.active).length },
-    { id: "upcoming", label: "لم تبدأ", count: tournaments.filter((tournament) => !tournament.active).length }
+    { id: "all", label: "الكل", count: visible.length },
+    { id: "started", label: "بدأت", count: visible.filter((tournament) => tournament.active).length },
+    { id: "upcoming", label: "لم تبدأ", count: visible.filter((tournament) => !tournament.active).length }
   ];
   const activeIndex = Math.max(0, filters.findIndex((filter) => filter.id === state.publicTournamentFilter));
   return `
@@ -3665,14 +3715,6 @@ function renderTournament(id, options = {}) {
           </div>
           ${nextRound ? `<button class="btn warn" data-advance-round="${tournament.id}">تحديث واعتماد الدور</button>` : ""}
         </div>
-        ${showingAwards || isLocked ? "" : `
-          <div class="live-api-bar compact-live-api-bar">
-            <span>${liveApiStatusText()}</span>
-            <div class="live-api-actions">
-              <button class="btn accent compact-btn" type="button" data-live-api-refresh="${tournament.id}" data-live-api-round="${selectedRound}">تحديث نتائج الدور</button>
-            </div>
-          </div>
-        `}
         ${selectedPredictionClosed ? `<div class="notice danger-notice">${selectedRound === "group" ? "تم قفل توقعات مباريات هذه الجولة. اللاعبون بدون توقعات مكتملة في المباراة المقفلة يعتبرون خاسرين لنقاطها عند التسوية." : "تم قفل توقعات هذا الدور. اللاعبون بدون توقعات مكتملة يعتبرون خاسرين لنقاط الجولة عند التسوية."}</div>` : ""}
       </div>
       ${tournamentFinished ? tournamentFinalAwardResults(tournament) : showingAwards ? awardNominationWorkflow(tournament) : `
@@ -3718,9 +3760,6 @@ function renderTournament(id, options = {}) {
   });
   document.querySelectorAll("[data-full-leaderboard]").forEach((button) => {
     button.addEventListener("click", () => leaderboardModal(getTournamentById(button.dataset.fullLeaderboard)));
-  });
-  document.querySelectorAll("[data-live-api-refresh]").forEach((button) => {
-    button.addEventListener("click", () => refreshLiveApiResults(getTournamentById(button.dataset.liveApiRefresh), button.dataset.liveApiRound));
   });
   document.querySelectorAll("[data-award-search]").forEach((input) => {
     input.addEventListener("input", () => {
@@ -4246,6 +4285,7 @@ function activateTournament(tournamentId) {
   tournament.draft = false;
   tournament.setupIncomplete = false;
   tournament.activationReady = true;
+  queueTournamentPersist(tournament);
   renderTournamentManage(tournament.id, "");
 }
 
@@ -4329,9 +4369,8 @@ function renderTournamentManageSection(tournament, section) {
 
   document.querySelectorAll("[data-request-action]").forEach((button) => {
     button.addEventListener("click", () => {
-      const row = button.closest(".request-row");
       const action = button.dataset.requestAction;
-      row.innerHTML = `<strong>${action === "accept" ? "تم قبول الطلب" : "تم رفض الطلب"}</strong><span class="muted">تم تحديث حالة الطلب محلياً للمعاينة.</span>`;
+      updateJoinRequestFromManage(tournament, Number(button.dataset.requestIndex), action);
     });
   });
   document.querySelectorAll("[data-remove-player]").forEach((button) => {
@@ -4382,6 +4421,7 @@ function renderTournamentManageSection(tournament, section) {
     removePostImageButton.addEventListener("click", () => {
       tournament.coverImageUrl = "";
       tournament.postImageFileName = "";
+      queueTournamentPersist(tournament);
       renderTournamentManageSection(tournament, "settings");
     });
   }
@@ -4428,6 +4468,7 @@ function renderTournamentManageSection(tournament, section) {
     saveAwardsButton.addEventListener("click", () => {
       tournament.awardCategories = [...document.querySelectorAll("[data-award-category]:checked")].map((input) => input.value);
       tournament.hasPrizes = tournament.hasPrizes || tournament.awardCategories.length > 0;
+      queueTournamentPersist(tournament);
       renderTournamentManageSection(tournament, "awards");
     });
   }
@@ -4435,6 +4476,7 @@ function renderTournamentManageSection(tournament, section) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       tournament.prizes = getTournamentPrizes(tournament).filter((prize) => prize.id !== button.dataset.removePrize);
+      queueTournamentPersist(tournament);
       renderTournamentManageSection(tournament, "prizes");
     });
   });
@@ -4565,22 +4607,57 @@ function getJoinRequestCount(tournament) {
   return (tournament.joinRequests || []).filter((request) => request.status === "pending" || !request.status).length;
 }
 
+function updateJoinRequestFromManage(tournament, requestIndex, action) {
+  const requests = tournament.joinRequests || [];
+  const request = requests[requestIndex];
+  if (!request) return;
+  const requesterName = typeof request === "string" ? request : request.name;
+  if (action === "accept") {
+    if (isTournamentAtCapacity(tournament)) {
+      openModal(`
+        <section class="card modal stack">
+          <div class="topbar">
+            <h2 class="section-title">اكتمل العدد</h2>
+            ${modalCloseButton()}
+          </div>
+          <p class="muted">لا يمكن قبول لاعب جديد لأن البطولة وصلت للحد الأقصى للمشاركين.</p>
+        </section>
+      `);
+      document.querySelector("#close-modal")?.addEventListener("click", closeModal);
+      return;
+    }
+    tournament.participants = [...new Set([...(tournament.participants || []), requesterName])];
+    tournament.friends = Math.max(tournament.friends || 0, tournament.participants.length);
+  }
+  tournament.joinRequests = requests.map((item, index) => {
+    if (index !== requestIndex) return item;
+    return typeof item === "string"
+      ? { name: item, handle: "", status: action === "accept" ? "approved" : "declined" }
+      : { ...item, status: action === "accept" ? "approved" : "declined" };
+  });
+  queueTournamentPersist(tournament);
+  renderTournamentManageSection(tournament, "requests");
+}
+
 function ownerRequestsPage(tournament) {
   const requests = (tournament.joinRequests || []).filter((request) => request.status === "pending" || !request.status);
   return `
     <section class="card panel stack manage-detail-card">
       <p class="muted">راجع طلبات المشاركة قبل دخول اللاعبين للبطولة.</p>
       <div class="request-list">
-        ${requests.length ? requests.map((request) => `
+        ${requests.length ? requests.map((request) => {
+          const originalIndex = (tournament.joinRequests || []).indexOf(request);
+          return `
           <div class="request-row">
             <div>
-              <strong>${request.name}</strong>
-              <span>${request.handle}</span>
+              <strong>${typeof request === "string" ? request : request.name}</strong>
+              <span>${typeof request === "string" ? "" : request.handle}</span>
             </div>
-            <button class="btn accent compact-btn" type="button" data-request-action="accept">قبول</button>
-            <button class="btn ghost compact-btn" type="button" data-request-action="reject">رفض</button>
+            <button class="btn accent compact-btn" type="button" data-request-action="accept" data-request-index="${originalIndex}">قبول</button>
+            <button class="btn ghost compact-btn" type="button" data-request-action="reject" data-request-index="${originalIndex}">رفض</button>
           </div>
-        `).join("") : `<p class="muted">لا توجد طلبات انضمام حالياً.</p>`}
+        `;
+        }).join("") : `<p class="muted">لا توجد طلبات انضمام حالياً.</p>`}
       </div>
     </section>
   `;
@@ -4739,6 +4816,7 @@ function sendPlayerTournamentInvite(tournament, username, options = {}) {
   ];
   tournament.inviteStatusMessage = `تم إرسال دعوة إلى ${user.name}`;
   state.playerInviteQuery = "";
+  queueTournamentPersist(tournament);
   if (options.keepModalOpen) {
     playerInviteModal(tournament);
     return;
@@ -5199,6 +5277,7 @@ function removeTournamentPlayer(tournament, playerName) {
   Object.keys(state.quickPicks).forEach((key) => {
     if (key.startsWith(`${tournament.id}:`) && key.includes(playerName)) delete state.quickPicks[key];
   });
+  queueTournamentPersist(tournament);
 }
 
 function ownerInvitesPage(tournament) {
@@ -5391,6 +5470,7 @@ function ownerPrizesPage(tournament) {
 function toggleTournamentPrizes(tournament) {
   tournament.hasPrizes = !tournament.hasPrizes;
   state.showExtraPrizeForm = false;
+  queueTournamentPersist(tournament);
   renderTournamentManageSection(tournament, "prizes");
 }
 
@@ -5511,6 +5591,7 @@ function saveMainPredictionPrize(tournament) {
   } else {
     prizes.unshift(payload);
   }
+  queueTournamentPersist(tournament);
   closeModal();
   renderTournamentManageSection(tournament, "prizes");
 }
@@ -5675,6 +5756,7 @@ function addTournamentPrize(tournament, prizeId = "") {
   };
   if (existing) Object.assign(existing, payload);
   else prizes.push(payload);
+  queueTournamentPersist(tournament);
   closeModal();
   renderTournamentManageSection(tournament, "prizes");
 }
@@ -5762,6 +5844,7 @@ function saveAdminTeam(tournament) {
     role,
     permissions: permissions.length ? permissions : ["عرض فقط"]
   }];
+  queueTournamentPersist(tournament);
   renderTournamentManageSection(tournament, "admin-team");
 }
 
@@ -5806,6 +5889,7 @@ function savePointRules(tournament) {
   tournament.minPoints = Number(selectedRule?.minPoints || tournament.minPoints || 0);
   tournament.points = tournament.points || tournament.budget || 0;
   state.editingPointRuleRound = "";
+  queueTournamentPersist(tournament);
   renderTournamentManageSection(tournament, currentManageSection() || "points");
 }
 
@@ -6257,6 +6341,7 @@ function ownerDangerPage(tournament) {
 
 function toggleJoinWindow(tournament) {
   tournament.joinClosed = !tournament.joinClosed;
+  queueTournamentPersist(tournament);
   renderTournamentManageSection(tournament, "danger");
 }
 
@@ -6297,9 +6382,11 @@ function confirmTournamentCancellation(tournament) {
     return;
   }
   tournament.active = false;
+  tournament.draft = false;
   tournament.cancelled = true;
   tournament.cancelReason = reason;
   tournament.resultsVoided = true;
+  tournament.joinClosed = true;
   tournament.points = 0;
   tournament.correct = 0;
   tournament.wrong = 0;
@@ -6317,8 +6404,9 @@ function confirmTournamentCancellation(tournament) {
     route: `/tournament/${tournament.id}`,
     tournamentId: tournament.id
   });
+  queueTournamentPersist(tournament);
   closeModal();
-  renderTournamentManageSection(tournament, "danger");
+  navigate("/challenges/history");
 }
 
 function getTournamentRounds(tournament) {
@@ -6358,6 +6446,7 @@ async function refreshAndAdvanceTournamentRound(tournamentId) {
     state.liveApi.lastStatus = "لم يكتمل الدور الحالي بعد";
     state.liveApi.lastError = "لا يتم فتح الدور التالي إلا بعد اعتماد نتائج كل مباريات الدور الحالي.";
   }
+  queueTournamentPersist(tournament);
   renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
 }
 
@@ -6370,6 +6459,7 @@ function advanceTournamentRound(tournamentId) {
   if (!getTournamentMatches(tournament, nextRound.id).length) return false;
   tournament.currentRound = nextRound.id;
   state.selectedRound = nextRound.id;
+  queueTournamentPersist(tournament);
   return true;
 }
 
@@ -6473,6 +6563,11 @@ function isRoundCompleted(tournament, roundId) {
 function isMatchFinal(match) {
   const status = String(match.statusShort || "").toUpperCase();
   return ["FT", "AET", "PEN"].includes(status) || Boolean(match.finished);
+}
+
+function isMatchLive(match) {
+  const status = String(match?.statusShort || "").toUpperCase();
+  return ["1H", "2H", "HT", "ET", "BT", "P", "SUSP", "INT"].includes(status);
 }
 
 function isTournamentFinished(tournament) {
@@ -6933,6 +7028,7 @@ function confirmInlinePrediction(tournament, round, matchId) {
   state.predictions[key] = next;
   state.quickPicks[key] = outcome;
   delete state.predictionErrors[key];
+  queueTournamentPersist(tournament);
   renderTournament(tournament.id);
 }
 
@@ -7092,6 +7188,7 @@ function predictionModal(tournament, round, matchId) {
     }
     state.predictions[key] = next;
     state.quickPicks[key] = outcome;
+    queueTournamentPersist(tournament);
     closeModal();
     renderTournament(tournament.id);
   });
@@ -7240,9 +7337,11 @@ async function refreshLiveApiResults(tournament, round) {
     const payload = await response.json();
     const events = normalizeApiSportsLivePayload(payload);
     const applied = applyLiveResultEvents(tournament, round, events);
+    if (applied) queueTournamentPersist(tournament);
     if (tournament && isRoundCompleted(tournament, round)) {
       await refreshTournamentFixturesFromApi(tournament);
       syncTournamentCurrentRound(tournament);
+      queueTournamentPersist(tournament);
     }
     state.liveApi.lastEvents = events;
     state.liveApi.lastFetchAt = Date.now();
@@ -7544,7 +7643,7 @@ function formatCountdown(milliseconds) {
 }
 
 function renderLive() {
-  const joinedTournaments = state.tournaments.filter((tournament) => tournament.joined && tournament.active);
+  const joinedTournaments = state.tournaments.filter((tournament) => tournament.joined && tournament.active && !tournament.draft && !tournament.cancelled);
   const selectedTournament = joinedTournaments.find((tournament) => tournament.id === state.selectedLiveTournamentId) || joinedTournaments[0] || null;
   if (selectedTournament && state.selectedLiveTournamentId !== selectedTournament.id) {
     state.selectedLiveTournamentId = selectedTournament.id;
@@ -7566,9 +7665,6 @@ function renderLive() {
       ` : ""}
     </div>
     <section class="grid">
-      <div class="live-api-bar">
-        <span>${liveApiStatusText()}</span>
-      </div>
       ${joinedTournaments.length ? `
         <div class="championship-page-slider live-page-slider" id="live-page-slider" style="--championship-index: ${activeIndex}; --tab-count: ${joinedTournaments.length};">
           <div class="championship-page-track">
@@ -7584,7 +7680,7 @@ function renderLive() {
                       </div>
                     </div>
                     <div class="live-grid">
-                      ${liveMatches.map(liveMatchCard).join("")}
+                      ${liveMatches.length ? liveMatches.map(liveMatchCard).join("") : `<p class="muted empty-row">لا توجد مباريات مرتبطة بهذه البطولة حالياً.</p>`}
                     </div>
                   </div>
                 </section>
@@ -7675,9 +7771,22 @@ function setupLiveTournamentSwipe(tournaments) {
 }
 
 function getTournamentLiveMatches(tournament) {
-  const round = tournament.currentRound || tournament.startingRound || "round16";
-  const matches = getTournamentMatches(tournament, round);
-  return matches.slice(0, 3).map((match, index) => {
+  const preferredRound = tournament.currentRound || tournament.startingRound || "round16";
+  const tournamentRounds = getTournamentRounds(tournament);
+  const round = getTournamentMatches(tournament, preferredRound).length
+    ? preferredRound
+    : (tournamentRounds.find((item) => getTournamentMatches(tournament, item.id).length)?.id || preferredRound);
+  const matches = getTournamentMatches(tournament, round)
+    .slice()
+    .sort((a, b) => {
+      const aTime = new Date(a.kickoff).getTime();
+      const bTime = new Date(b.kickoff).getTime();
+      const aLive = isMatchLive(a);
+      const bLive = isMatchLive(b);
+      if (aLive !== bLive) return aLive ? -1 : 1;
+      return aTime - bTime;
+    });
+  return matches.slice(0, 8).map((match) => {
     const prediction = state.quickPicks[`${tournament.id}:${round}:${match.id}`];
     const score = match.score || "";
     const minute = match.minute || "";
@@ -7687,6 +7796,7 @@ function getTournamentLiveMatches(tournament) {
     return {
       ...match,
       tournamentName: tournament.name,
+      round,
       minute,
       statusShort: match.statusShort || "",
       score,
@@ -7739,10 +7849,10 @@ function renderChallenges(type) {
     history: "الأرشيف"
   };
   const filtered = state.tournaments.filter((item) => {
-    if (type === "created") return item.owner === "سالم" || item.owner === state.currentUser.name;
-    if (type === "joined") return item.joined;
+    if (type === "created") return (item.owner === "سالم" || item.owner === state.currentUser.name) && !item.cancelled;
+    if (type === "joined") return item.joined && item.active && !item.cancelled && !item.draft;
     if (type === "drafts") return item.draft;
-    if (type === "history") return !item.active && !item.draft;
+    if (type === "history") return (!item.active && !item.draft) || item.cancelled;
     return true;
   });
 
@@ -7769,7 +7879,7 @@ function renderChallenges(type) {
         ` : `
           <button class="draft-row" data-route="${item.draft ? "/create-tournament/new" : `/tournament/${item.id}`}">
             <strong>${item.name}</strong>
-            <span class="badge">${item.draft ? "مسودة" : item.active ? "نشطة" : "منتهية"}</span>
+            <span class="badge">${item.cancelled ? "ملغية" : item.draft ? "مسودة" : item.active ? "نشطة" : "منتهية"}</span>
           </button>
         `}
       `).join("") : `<p class="muted">لا توجد عناصر حالياً.</p>`}
@@ -7807,8 +7917,13 @@ function confirmDeleteDraft(tournamentId) {
   `);
   document.querySelector("#close-modal").addEventListener("click", closeModal);
   document.querySelector("#cancel-delete-draft").addEventListener("click", closeModal);
-  document.querySelector("#confirm-delete-draft").addEventListener("click", () => {
+  document.querySelector("#confirm-delete-draft").addEventListener("click", async () => {
     state.tournaments = state.tournaments.filter((tournament) => tournament.id !== tournamentId);
+    try {
+      await deleteTournamentFromBackend(tournamentId);
+    } catch (error) {
+      state.backend.error = error.message || "تعذر حذف المسودة من قاعدة البيانات.";
+    }
     closeModal();
     renderChallenges("drafts");
   });

@@ -4329,8 +4329,8 @@ function sendOwnerNotification(tournament) {
     scope
   });
 
-  updateNotificationBadge();
   saveLocalAppState();
+  updateNotificationBadges();
   if (status) {
     status.textContent = "تم إرسال الإشعار للأعضاء.";
     status.classList.remove("form-error-inline");

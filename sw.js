@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260623-save-merge1";
+const CACHE_NAME = "pick-a-side-20260624-notify-send1";
 const APP_SHELL = [
   "./",
   "./index.html",

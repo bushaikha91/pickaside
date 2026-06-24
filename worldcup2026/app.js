@@ -240,6 +240,7 @@ function participantRow(user) {
       <div class="participant-actions">
         <button class="mini-btn approve" data-participant-status="approved" data-participant-id="${user.id}">قبول</button>
         <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">رفض</button>
+        <button class="mini-btn delete" data-participant-delete="${user.id}" data-participant-name="${escapeHtml(user.name)}">حذف</button>
       </div>
     </article>
   `;
@@ -509,6 +510,27 @@ function bindApp() {
         await loadData();
       } catch (error) {
         state.error = error.message || "تعذر تحديث طلب المشارك";
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-participant-delete]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const participantName = button.dataset.participantName || "هذا اللاعب";
+      if (!confirm(`حذف ${participantName} من البطولة؟ سيتم حذف توقعاته أيضاً.`)) return;
+      try {
+        await api("participant-delete", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            participantId: button.dataset.participantDelete
+          })
+        });
+        state.notice = "تم حذف اللاعب من البطولة.";
+        await loadData();
+      } catch (error) {
+        state.error = error.message || "تعذر حذف اللاعب";
         render();
       }
     });

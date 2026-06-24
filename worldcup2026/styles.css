@@ -560,7 +560,7 @@ button {
 .participant-actions {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
@@ -578,6 +578,11 @@ button {
 .mini-btn.reject {
   color: #fff;
   background: #b42318;
+}
+
+.mini-btn.delete {
+  color: #fff;
+  background: #101828;
 }
 
 .install-panel {

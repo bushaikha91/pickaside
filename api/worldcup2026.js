@@ -23,6 +23,7 @@ module.exports = async function handler(req, res) {
     if (action === "prediction" && req.method === "POST") return await savePrediction(req, res);
     if (action === "result" && req.method === "POST") return await saveResult(req, res);
     if (action === "participant-status" && req.method === "POST") return await updateParticipantStatus(req, res);
+    if (action === "participant-delete" && req.method === "POST") return await deleteParticipant(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -151,6 +152,18 @@ async function updateParticipantStatus(req, res) {
   });
   if (!user) throw httpError(404, "المشارك غير موجود");
   return res.status(200).json({ user });
+}
+
+async function deleteParticipant(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const participantId = clean(body.participantId);
+  if (!participantId) throw httpError(400, "بيانات المشارك غير مكتملة");
+  await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant`, {
+    method: "DELETE",
+    prefer: "return=minimal"
+  });
+  return res.status(200).json({ ok: true });
 }
 
 async function requireOrganizer(userId) {

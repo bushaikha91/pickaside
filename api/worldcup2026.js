@@ -20,11 +20,11 @@ module.exports = async function handler(req, res) {
 
   try {
     const action = String(req.query.action || "state");
-    if (action === "state" && req.method === "GET") return sendState(req, res);
-    if (action === "login" && req.method === "POST") return login(req, res);
-    if (action === "match" && req.method === "POST") return addMatch(req, res);
-    if (action === "prediction" && req.method === "POST") return savePrediction(req, res);
-    if (action === "result" && req.method === "POST") return saveResult(req, res);
+    if (action === "state" && req.method === "GET") return await sendState(req, res);
+    if (action === "login" && req.method === "POST") return await login(req, res);
+    if (action === "match" && req.method === "POST") return await addMatch(req, res);
+    if (action === "prediction" && req.method === "POST") return await savePrediction(req, res);
+    if (action === "result" && req.method === "POST") return await saveResult(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });

@@ -102,9 +102,10 @@ function loginTemplate() {
   return `
     <section class="hero">
       <div class="brand-row">
-        <div class="mark">26</div>
+        <div class="logo-tile"><img src="assets/worldcup-icon-192.png" alt="شعار كأس العالم 2026" /></div>
         <span class="pill">بطولة مباشرة</span>
       </div>
+      <img class="hero-logo" src="assets/worldcup-logo-wide.jpg" alt="FIFA World Cup 2026" />
       <h1>كأس العالم 2026</h1>
       <p>توقعات ونتائج وترتيب مباشر محفوظ على السيرفر لكل المشاركين.</p>
     </section>
@@ -164,7 +165,7 @@ function appTemplate() {
   return `
     <header class="topbar">
       <div class="brand-row">
-        <div class="mark">26</div>
+        <div class="top-logo"><img src="assets/worldcup-icon-192.png" alt="شعار كأس العالم 2026" /></div>
         <div class="user-meta">
           <strong>${escapeHtml(state.currentUser.name)}</strong>
           <span>${state.currentUser.role === "organizer" ? "منظم البطولة" : statusLabel(state.currentUser.participant_status)}</span>

@@ -8,18 +8,18 @@
   "orientation": "portrait",
   "dir": "rtl",
   "lang": "ar",
-  "background_color": "#f7f9fc",
+  "background_color": "#ffffff",
   "theme_color": "#091b3f",
   "categories": ["sports", "games"],
   "icons": [
     {
-      "src": "../assets/logo-dark.png",
+      "src": "assets/worldcup-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "../assets/logo-dark.png",
+      "src": "assets/worldcup-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

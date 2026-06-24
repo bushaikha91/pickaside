@@ -91,8 +91,46 @@ button {
     linear-gradient(45deg, var(--green), transparent);
 }
 
+.logo-tile,
+.top-logo {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.62);
+  background: #fff;
+}
+
+.logo-tile {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+}
+
+.top-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.logo-tile img,
+.top-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hero-logo {
+  display: block;
+  width: min(100%, 360px);
+  max-height: 116px;
+  margin: 20px auto 14px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #fff;
+}
+
 .hero h1 {
-  margin: 24px 0 8px;
+  margin: 0 0 8px;
   font-size: 30px;
   line-height: 1.08;
   letter-spacing: 0;

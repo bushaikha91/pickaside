@@ -32,8 +32,8 @@ let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
 let activeRound = "r32";
 
 function apiUrl(action) {
-  const base = window.location.protocol === "file:" ? "https://www.pickaside.mobile/api/worldcup" : "/api/worldcup";
-  return action ? `${base}?action=${action}` : base;
+  const base = window.location.protocol === "file:" ? "https://www.pickaside.mobile/api/app-config?worldcup=1" : "/api/app-config?worldcup=1";
+  return action ? `${base}&action=${action}` : base;
 }
 
 async function api(action, options = {}) {

@@ -1,4 +1,10 @@
-module.exports = async function handler(_req, res) {
+const worldCupHandler = require("./worldcup.js");
+
+module.exports = async function handler(req, res) {
+  if (String(req.query?.worldcup || "") === "1") {
+    return await worldCupHandler(req, res);
+  }
+
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Cache-Control", "no-store");

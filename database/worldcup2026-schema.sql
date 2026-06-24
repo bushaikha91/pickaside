@@ -5,6 +5,7 @@ create table if not exists public.worldcup2026_users (
   name text not null,
   phone text not null unique,
   password_hash text,
+  avatar_url text,
   role text not null default 'participant' check (role in ('participant', 'organizer')),
   participant_status text not null default 'pending' check (participant_status in ('pending', 'approved', 'rejected')),
   created_at timestamptz not null default now(),
@@ -16,6 +17,9 @@ alter table public.worldcup2026_users
 
 alter table public.worldcup2026_users
   add column if not exists password_hash text;
+
+alter table public.worldcup2026_users
+  add column if not exists avatar_url text;
 
 do $$
 begin
@@ -39,12 +43,20 @@ create table if not exists public.worldcup2026_matches (
   round_id text not null,
   team_a text not null,
   team_b text not null,
+  team_a_flag text,
+  team_b_flag text,
   starts_at timestamptz not null,
   vote_ends_at timestamptz not null,
   winner text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.worldcup2026_matches
+  add column if not exists team_a_flag text;
+
+alter table public.worldcup2026_matches
+  add column if not exists team_b_flag text;
 
 create table if not exists public.worldcup2026_predictions (
   id uuid primary key default gen_random_uuid(),

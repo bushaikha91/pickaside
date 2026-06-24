@@ -189,6 +189,7 @@ function appTemplate() {
       ${roleTabs}
       <button class="tab ${activeTab === "standings" ? "active" : ""}" data-tab="standings">الترتيب</button>
       <button class="tab ${activeTab === "laws" ? "active" : ""}" data-tab="laws">القوانين</button>
+      <button class="tab ${activeTab === "profile" ? "active" : ""}" data-tab="profile">الملف</button>
     </nav>
     <section class="content">
       ${noticeView()}
@@ -198,14 +199,38 @@ function appTemplate() {
 }
 
 function currentView() {
+  if (activeTab === "profile") return profileView();
+  if (activeTab === "standings") return standingsView();
+  if (activeTab === "laws") return lawsView();
   if (state.currentUser.role === "participant" && state.currentUser.participant_status !== "approved") {
     return participantStatusView();
   }
-  if (activeTab === "standings") return standingsView();
-  if (activeTab === "laws") return lawsView();
   if (activeTab === "participants" && state.currentUser.role === "organizer") return participantsView();
   if (state.currentUser.role === "organizer") return manageView();
   return participantMatchesView();
+}
+
+function profileView() {
+  return `
+    <form class="panel stack profile-panel" id="profileForm">
+      <div class="section-title">
+        <h2>الملف الشخصي</h2>
+        <span class="small">تعديل الاسم والصورة</span>
+      </div>
+      <div class="profile-photo-row">
+        ${avatarTile(state.currentUser, "avatar-large", "profileAvatarPreview")}
+        <label class="image-upload">
+          <span>اختيار صورة</span>
+          <input id="profileAvatar" type="file" accept="image/png,image/jpeg,image/webp" />
+        </label>
+      </div>
+      <label class="field">
+        <span>الاسم</span>
+        <input id="profileName" required autocomplete="name" value="${escapeHtml(state.currentUser.name)}" />
+      </label>
+      <button class="primary-btn" type="submit">حفظ التعديل</button>
+    </form>
+  `;
 }
 
 function participantStatusView() {
@@ -254,6 +279,7 @@ function participantsView() {
 function requestRow(user) {
   return `
     <article class="participant-row">
+      ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
         <span>${escapeHtml(user.phone)}</span>
@@ -272,6 +298,7 @@ function participantRow(user) {
     <article class="swipe-row" data-swipe-row>
       <button class="swipe-delete" data-participant-delete="${user.id}" data-participant-name="${escapeHtml(user.name)}">حذف</button>
       <div class="participant-row swipe-content" data-swipe-content>
+        ${avatarTile(user, "avatar-small")}
         <div>
           <strong>${escapeHtml(user.name)}</strong>
           <span>${escapeHtml(user.phone)}</span>
@@ -285,6 +312,7 @@ function participantRow(user) {
 function rejectedRow(user) {
   return `
     <article class="participant-row">
+      ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
         <span>${escapeHtml(user.phone)}</span>
@@ -378,6 +406,7 @@ function standingsView() {
       ${state.standings.length ? state.standings.map((row, index) => `
         <div class="leader-row ${row.id === state.currentUser.id ? "current" : ""}">
           <div class="rank">${index + 1}</div>
+          ${avatarTile(row, "avatar-small")}
           <div class="leader-name">
             <strong>${escapeHtml(row.name)}</strong>
             <span class="small">صحيح: ${row.correct_predictions} | خطأ: ${row.wrong_predictions}</span>
@@ -426,6 +455,7 @@ function matchCard(match, selected) {
         <span class="round-badge">${roundName(match.round_id)}</span>
         ${status}
       </div>
+      <div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>
       <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
       <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
       <div class="choices">
@@ -439,6 +469,7 @@ function matchCard(match, selected) {
 }
 
 function managerMatchCard(match) {
+  const teamsView = `<div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>`;
   return `
     <article class="match-card">
       <div class="match-head">
@@ -447,6 +478,7 @@ function managerMatchCard(match) {
       </div>
       <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
       <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
+      ${teamsView}
       <div class="result-row">
         <button class="choice ${match.winner === match.team_a ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_a)}">${escapeHtml(match.team_a)}</button>
         <button class="choice ${match.winner === match.team_b ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_b)}">${escapeHtml(match.team_b)}</button>
@@ -561,6 +593,9 @@ function bindApp() {
 
   document.querySelector("#retryBtn")?.addEventListener("click", loadData);
 
+  bindProfileForm();
+  const matchFlagState = bindMatchFlagFields();
+
   document.querySelectorAll("[data-tab]").forEach(button => {
     button.addEventListener("click", () => {
       activeTab = button.dataset.tab;
@@ -660,6 +695,8 @@ function bindApp() {
         roundId: document.querySelector("#matchRound").value,
         teamA: document.querySelector("#teamA").value.trim(),
         teamB: document.querySelector("#teamB").value.trim(),
+        teamAFlag: matchFlagState.teamAFlag,
+        teamBFlag: matchFlagState.teamBFlag,
         startsAt: document.querySelector("#startsAt").value,
         voteEndsAt: document.querySelector("#voteEndsAt").value
       };
@@ -669,6 +706,94 @@ function bindApp() {
       await loadData();
     } catch (error) {
       state.error = error.message || "تعذر إضافة المباراة";
+      render();
+    }
+  });
+}
+
+function bindProfileForm() {
+  const form = document.querySelector("#profileForm");
+  if (!form) return;
+  let avatarUrl = state.currentUser.avatar_url || "";
+  const fileInput = document.querySelector("#profileAvatar");
+  const preview = document.querySelector("#profileAvatarPreview");
+
+  fileInput?.addEventListener("change", async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    try {
+      avatarUrl = await imageFileToDataUrl(file, 320);
+      if (preview) preview.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="" />`;
+    } catch (error) {
+      state.error = error.message || "تعذر تجهيز الصورة";
+      render();
+    }
+  });
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    try {
+      const payload = await api("profile", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: state.currentUser.id,
+          name: document.querySelector("#profileName").value.trim(),
+          avatarUrl
+        })
+      });
+      state.currentUser = { ...state.currentUser, ...payload.user };
+      writeSession(state.currentUser);
+      state.notice = "تم تحديث الملف الشخصي.";
+      await loadData();
+    } catch (error) {
+      state.error = error.message || "تعذر حفظ الملف الشخصي";
+      render();
+    }
+  });
+}
+
+function bindMatchFlagFields() {
+  const form = document.querySelector("#matchForm");
+  const stateFlags = { teamAFlag: "", teamBFlag: "" };
+  if (!form || document.querySelector("#teamAFlag")) return stateFlags;
+
+  const teamBField = document.querySelector("#teamB")?.closest(".field");
+  teamBField?.insertAdjacentHTML("afterend", `
+    <label class="field image-field">
+      <span>علم الفريق الأول</span>
+      <div class="image-input-row">
+        <span class="flag-tile preview-tile" id="teamAFlagPreview">A</span>
+        <input id="teamAFlag" type="file" accept="image/png,image/jpeg,image/webp" />
+      </div>
+    </label>
+    <label class="field image-field">
+      <span>علم الفريق الثاني</span>
+      <div class="image-input-row">
+        <span class="flag-tile preview-tile" id="teamBFlagPreview">B</span>
+        <input id="teamBFlag" type="file" accept="image/png,image/jpeg,image/webp" />
+      </div>
+    </label>
+  `);
+
+  bindFlagInput("#teamAFlag", "#teamAFlagPreview", value => { stateFlags.teamAFlag = value; });
+  bindFlagInput("#teamBFlag", "#teamBFlagPreview", value => { stateFlags.teamBFlag = value; });
+  return stateFlags;
+}
+
+function bindFlagInput(inputSelector, previewSelector, onChange) {
+  const input = document.querySelector(inputSelector);
+  const preview = document.querySelector(previewSelector);
+  input?.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const value = await imageFileToDataUrl(file, 180);
+      onChange(value);
+      if (preview) {
+        preview.innerHTML = `<img src="${escapeHtml(value)}" alt="" />`;
+      }
+    } catch (error) {
+      state.error = error.message || "تعذر تجهيز العلم";
       render();
     }
   });
@@ -751,6 +876,61 @@ function roundName(id) {
 
 function emptyView(text) {
   return `<div class="empty">${text}</div>`;
+}
+
+function avatarTile(user, className = "avatar-small", id = "") {
+  const label = initials(user?.name);
+  const idAttr = id ? ` id="${id}"` : "";
+  if (user?.avatar_url) {
+    return `<span${idAttr} class="avatar-tile ${className}"><img src="${escapeHtml(user.avatar_url)}" alt="${escapeHtml(user.name || "player")}" /></span>`;
+  }
+  return `<span${idAttr} class="avatar-tile ${className}">${escapeHtml(label)}</span>`;
+}
+
+function teamBadge(name, flagUrl) {
+  const flag = flagUrl
+    ? `<img src="${escapeHtml(flagUrl)}" alt="${escapeHtml(name)}" />`
+    : `<span>${escapeHtml(initials(name))}</span>`;
+  return `
+    <div class="team-badge">
+      <span class="flag-tile">${flag}</span>
+      <strong>${escapeHtml(name)}</strong>
+    </div>
+  `;
+}
+
+function initials(value) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  return (words[0]?.[0] || "؟") + (words[1]?.[0] || "");
+}
+
+function imageFileToDataUrl(file, size = 320) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("اختر ملف صورة فقط"));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("تعذر قراءة الصورة"));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("تعذر فتح الصورة"));
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext("2d");
+        const edge = Math.min(image.width, image.height);
+        const sx = (image.width - edge) / 2;
+        const sy = (image.height - edge) / 2;
+        context.drawImage(image, sx, sy, edge, edge, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function formatDate(value) {

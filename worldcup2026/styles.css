@@ -535,6 +535,31 @@ button {
   gap: 10px;
 }
 
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.swipe-content {
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.swipe-row.open .swipe-content {
+  transform: translateX(-92px);
+}
+
+.swipe-delete {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 86px;
+  color: #fff;
+  font-weight: 900;
+  background: #b42318;
+}
+
 .participant-row {
   display: grid;
   grid-template-columns: 1fr auto;

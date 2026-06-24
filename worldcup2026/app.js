@@ -222,26 +222,36 @@ function participantStatusView() {
 
 function participantsView() {
   const pending = state.participants.filter(user => user.participant_status === "pending");
-  const others = state.participants.filter(user => user.participant_status !== "pending");
+  const approved = state.participants.filter(user => user.participant_status === "approved");
+  const rejected = state.participants.filter(user => user.participant_status === "rejected");
   return `
     <div class="section-title">
       <h2>طلبات المشاركين</h2>
       <span class="small">${pending.length} بانتظار الموافقة</span>
     </div>
     <div class="participant-list">
-      ${pending.length ? pending.map(participantRow).join("") : emptyView("لا توجد طلبات جديدة.")}
+      ${pending.length ? pending.map(requestRow).join("") : emptyView("لا توجد طلبات جديدة.")}
     </div>
     <div class="section-title" style="margin-top:18px">
-      <h2>كل المشاركين</h2>
-      <span class="small">مقبول / مرفوض</span>
+      <h2>المشاركون</h2>
+      <span class="small">${approved.length} مقبول</span>
     </div>
     <div class="participant-list">
-      ${others.length ? others.map(participantRow).join("") : emptyView("لا يوجد مشاركون سابقون.")}
+      ${approved.length ? approved.map(participantRow).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
     </div>
+    ${rejected.length ? `
+      <div class="section-title" style="margin-top:18px">
+        <h2>المرفوضون</h2>
+        <span class="small">${rejected.length} مرفوض</span>
+      </div>
+      <div class="participant-list">
+        ${rejected.map(rejectedRow).join("")}
+      </div>
+    ` : ""}
   `;
 }
 
-function participantRow(user) {
+function requestRow(user) {
   return `
     <article class="participant-row">
       <div>
@@ -252,8 +262,34 @@ function participantRow(user) {
       <div class="participant-actions">
         <button class="mini-btn approve" data-participant-status="approved" data-participant-id="${user.id}">قبول</button>
         <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">رفض</button>
-        <button class="mini-btn delete" data-participant-delete="${user.id}" data-participant-name="${escapeHtml(user.name)}">حذف</button>
       </div>
+    </article>
+  `;
+}
+
+function participantRow(user) {
+  return `
+    <article class="swipe-row" data-swipe-row>
+      <button class="swipe-delete" data-participant-delete="${user.id}" data-participant-name="${escapeHtml(user.name)}">حذف</button>
+      <div class="participant-row swipe-content" data-swipe-content>
+        <div>
+          <strong>${escapeHtml(user.name)}</strong>
+          <span>${escapeHtml(user.phone)}</span>
+        </div>
+        <span class="status-chip approved">مقبول</span>
+      </div>
+    </article>
+  `;
+}
+
+function rejectedRow(user) {
+  return `
+    <article class="participant-row">
+      <div>
+        <strong>${escapeHtml(user.name)}</strong>
+        <span>${escapeHtml(user.phone)}</span>
+      </div>
+      <span class="status-chip rejected">مرفوض</span>
     </article>
   `;
 }
@@ -559,10 +595,16 @@ function bindApp() {
     });
   });
 
+  bindSwipeRows();
+
   document.querySelectorAll("[data-participant-delete]").forEach(button => {
     button.addEventListener("click", async () => {
       const participantName = button.dataset.participantName || "هذا اللاعب";
-      if (!confirm(`حذف ${participantName} من البطولة؟ سيتم حذف توقعاته أيضاً.`)) return;
+      const confirmed = confirm(`سيتم حذف ${participantName} من البطولة، وحذف توقعاته وسحب نقاطه من كل المشاركين ثم إعادة توزيع النقاط كأنه غير موجود. هل تريد المتابعة؟`);
+      if (!confirmed) {
+        closeSwipeRows();
+        return;
+      }
       try {
         await api("participant-delete", {
           method: "POST",
@@ -572,8 +614,10 @@ function bindApp() {
           })
         });
         state.notice = "تم حذف اللاعب من البطولة.";
+        closeSwipeRows();
         await loadData();
       } catch (error) {
+        closeSwipeRows();
         state.error = error.message || "تعذر حذف اللاعب";
         render();
       }
@@ -627,6 +671,44 @@ function bindApp() {
       state.error = error.message || "تعذر إضافة المباراة";
       render();
     }
+  });
+}
+
+function bindSwipeRows() {
+  document.querySelectorAll("[data-swipe-row]").forEach(row => {
+    const content = row.querySelector("[data-swipe-content]");
+    let startX = 0;
+    let currentX = 0;
+    let dragging = false;
+
+    row.addEventListener("touchstart", event => {
+      startX = event.touches[0].clientX;
+      currentX = startX;
+      dragging = true;
+      content.style.transition = "none";
+    }, { passive: true });
+
+    row.addEventListener("touchmove", event => {
+      if (!dragging) return;
+      currentX = event.touches[0].clientX;
+      const delta = Math.min(0, Math.max(currentX - startX, -92));
+      content.style.transform = `translateX(${delta}px)`;
+    }, { passive: true });
+
+    row.addEventListener("touchend", () => {
+      dragging = false;
+      content.style.transition = "";
+      const shouldOpen = currentX - startX < -42;
+      closeSwipeRows(row);
+      row.classList.toggle("open", shouldOpen);
+      content.style.transform = "";
+    });
+  });
+}
+
+function closeSwipeRows(exceptRow) {
+  document.querySelectorAll("[data-swipe-row]").forEach(row => {
+    if (row !== exceptRow) row.classList.remove("open");
   });
 }
 

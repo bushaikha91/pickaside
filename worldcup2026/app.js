@@ -225,11 +225,12 @@ function profileModal() {
         </div>
         <div class="profile-photo-row">
           ${avatarTile(state.currentUser, "avatar-large", "profileAvatarPreview")}
-          <label class="image-upload">
+          <label class="field image-upload-field">
             <span>اختيار صورة</span>
             <input id="profileAvatar" type="file" accept="image/png,image/jpeg,image/webp" />
           </label>
         </div>
+        <div id="profileError" class="notice danger-notice hidden"></div>
         <label class="field">
           <span>الاسم</span>
           <input id="profileName" required autocomplete="name" value="${escapeHtml(state.currentUser.name)}" />
@@ -866,21 +867,36 @@ function bindProfileForm() {
   let avatarUrl = state.currentUser.avatar_url || "";
   const fileInput = document.querySelector("#profileAvatar");
   const preview = document.querySelector("#profileAvatarPreview");
+  const errorBox = document.querySelector("#profileError");
+
+  form.addEventListener("click", event => {
+    event.stopPropagation();
+  });
 
   fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
     try {
+      errorBox?.classList.add("hidden");
       avatarUrl = await imageFileToDataUrl(file, 320);
       if (preview) preview.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="" />`;
     } catch (error) {
-      state.error = error.message || "تعذر تجهيز الصورة";
-      render();
+      if (errorBox) {
+        errorBox.textContent = error.message || "تعذر تجهيز الصورة";
+        errorBox.classList.remove("hidden");
+      }
     }
   });
 
   form.addEventListener("submit", async event => {
     event.preventDefault();
+    event.stopPropagation();
+    const saveButton = form.querySelector("button[type='submit']");
+    if (errorBox) errorBox.classList.add("hidden");
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = "جاري الحفظ...";
+    }
     try {
       const payload = await api("profile", {
         method: "POST",
@@ -896,8 +912,15 @@ function bindProfileForm() {
       state.notice = "تم تحديث الملف الشخصي.";
       await loadData();
     } catch (error) {
-      state.error = error.message || "تعذر حفظ الملف الشخصي";
-      render();
+      if (errorBox) {
+        errorBox.textContent = error.message || "تعذر حفظ الملف الشخصي";
+        errorBox.classList.remove("hidden");
+      }
+    } finally {
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = "حفظ التعديل";
+      }
     }
   });
 }

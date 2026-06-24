@@ -769,6 +769,19 @@ button {
   display: none;
 }
 
+.image-upload-field {
+  margin: 0;
+}
+
+.image-upload-field input {
+  width: 100%;
+  min-height: 46px;
+  padding: 9px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .image-input-row input {
   width: 100%;
   padding: 9px;

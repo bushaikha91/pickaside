@@ -11,13 +11,6 @@ const ROUND_RULES = {
 
 const ROUND_ORDER = ["r32", "r16", "r8", "qf", "sf", "final"];
 
-const SEED_MATCHES = [
-  ["كندا", "اليابان"], ["المكسيك", "تشيلي"], ["أمريكا", "غانا"], ["الأرجنتين", "كوريا"],
-  ["فرنسا", "المغرب"], ["البرازيل", "الدنمارك"], ["إنجلترا", "أستراليا"], ["إسبانيا", "مصر"],
-  ["ألمانيا", "السنغال"], ["البرتغال", "سويسرا"], ["هولندا", "كولومبيا"], ["أوروغواي", "السويد"],
-  ["إيطاليا", "تونس"], ["بلجيكا", "نيجيريا"], ["كرواتيا", "الإكوادور"], ["السعودية", "بولندا"]
-];
-
 module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -30,6 +23,7 @@ module.exports = async function handler(req, res) {
     if (action === "prediction" && req.method === "POST") return await savePrediction(req, res);
     if (action === "result" && req.method === "POST") return await saveResult(req, res);
     if (action === "participant-status" && req.method === "POST") return await updateParticipantStatus(req, res);
+    if (action === "clear-demo-data" && req.method === "POST") return await clearDemoData(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -39,7 +33,6 @@ module.exports = async function handler(req, res) {
 };
 
 async function sendState(req, res) {
-  await ensureSeedMatches();
   const userId = clean(req.query.userId);
   const [user] = userId ? await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(userId)}&limit=1`) : [];
   const isOrganizer = user?.role === "organizer";
@@ -159,6 +152,14 @@ async function updateParticipantStatus(req, res) {
   });
   if (!user) throw httpError(404, "المشارك غير موجود");
   return res.status(200).json({ user });
+}
+
+async function clearDemoData(req, res) {
+  const body = await readBody(req);
+  if (clean(body.organizerCode) !== ORGANIZER_CODE) throw httpError(403, "كود المنظم غير صحيح");
+  await supabase("worldcup2026_predictions?id=not.is.null", { method: "DELETE", prefer: "return=minimal" });
+  await supabase("worldcup2026_matches?id=not.is.null", { method: "DELETE", prefer: "return=minimal" });
+  return res.status(200).json({ ok: true });
 }
 
 async function requireOrganizer(userId) {
@@ -311,23 +312,6 @@ function applyFinalRound(users, stats, predictionByUserMatch, matches) {
 
 function roundPoints(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
-}
-
-async function ensureSeedMatches() {
-  const existing = await supabase("worldcup2026_matches?select=id&limit=1");
-  if (existing.length) return;
-  const now = Date.now();
-  const matches = SEED_MATCHES.map((teams, index) => {
-    const startsAt = new Date(now + (index + 1) * 86400000);
-    return {
-      round_id: "r32",
-      team_a: teams[0],
-      team_b: teams[1],
-      starts_at: startsAt.toISOString(),
-      vote_ends_at: new Date(startsAt.getTime() - 2 * 60 * 60 * 1000).toISOString()
-    };
-  });
-  await supabase("worldcup2026_matches", { method: "POST", body: JSON.stringify(matches) });
 }
 
 async function supabase(path, options = {}) {

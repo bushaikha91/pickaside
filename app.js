@@ -17,6 +17,7 @@ const state = {
   selectedMatchdayByTournament: {},
   selectedLiveRoundByTournament: {},
   selectedLiveMatchdayByTournament: {},
+  selectedLiveScopeByTournament: {},
   predictionPlayerQuery: "",
   playerInviteQuery: "",
   searchFocused: false,
@@ -1512,6 +1513,7 @@ function localStateSnapshot() {
     selectedMatchdayByTournament: state.selectedMatchdayByTournament,
     selectedLiveRoundByTournament: state.selectedLiveRoundByTournament,
     selectedLiveMatchdayByTournament: state.selectedLiveMatchdayByTournament,
+    selectedLiveScopeByTournament: state.selectedLiveScopeByTournament,
     searchHistory: state.searchHistory
   };
 }
@@ -1547,6 +1549,9 @@ function loadLocalAppState() {
   }
   if (saved.selectedLiveMatchdayByTournament && typeof saved.selectedLiveMatchdayByTournament === "object") {
     state.selectedLiveMatchdayByTournament = { ...state.selectedLiveMatchdayByTournament, ...saved.selectedLiveMatchdayByTournament };
+  }
+  if (saved.selectedLiveScopeByTournament && typeof saved.selectedLiveScopeByTournament === "object") {
+    state.selectedLiveScopeByTournament = { ...state.selectedLiveScopeByTournament, ...saved.selectedLiveScopeByTournament };
   }
   if (Array.isArray(saved.searchHistory)) state.searchHistory = saved.searchHistory;
 }
@@ -7110,9 +7115,22 @@ function matchIdentityHtml(match) {
 
 function matchRoundMetaHtml(match) {
   const items = [];
-  if (match.legLabel) items.push(match.legLabel);
-  if (match.stageLabel && match.stageLabel !== match.roundLabel) items.push(match.stageLabel);
+  if (match.legLabel) items.push(translateRoundMetaLabel(match.legLabel));
+  if (match.stageLabel && match.stageLabel !== match.roundLabel) items.push(translateRoundMetaLabel(match.stageLabel));
   return items.length ? `<span class="muted match-round-meta">${items.join(" · ")}</span>` : "";
+}
+
+function translateRoundMetaLabel(label = "") {
+  const value = String(label).trim();
+  const normalized = value.toLowerCase();
+  if (normalized === "group stage") return "دور المجموعات";
+  if (normalized === "regular season") return "الدوري";
+  if (normalized === "league stage") return "مرحلة الدوري";
+  if (normalized === "first half") return "الشوط الأول";
+  if (normalized === "second half") return "الشوط الثاني";
+  if (/^matchday\s+\d+/i.test(value)) return value.replace(/matchday/i, "الجولة");
+  if (/^round\s+\d+/i.test(value)) return value.replace(/round/i, "الجولة");
+  return value;
 }
 
 function pickBoardWorkflow(tournament, round, matches, budgetState = {}) {
@@ -7376,10 +7394,11 @@ function getSelectedPredictionMatchdayId(tournament, round, matches) {
 
 function getSelectedLiveRound(tournament) {
   const saved = state.selectedLiveRoundByTournament[tournament.id];
-  const preferredRound = saved || tournament.currentRound || tournament.startingRound || "round16";
   const tournamentRounds = getTournamentRounds(tournament);
-  if (getTournamentMatches(tournament, preferredRound).length) return preferredRound;
-  return tournamentRounds.find((item) => getTournamentMatches(tournament, item.id).length)?.id || preferredRound;
+  if (saved && tournamentRounds.some((item) => item.id === saved)) return saved;
+  const preferredRound = tournament.currentRound || tournament.startingRound || "round16";
+  if (tournamentRounds.some((item) => item.id === preferredRound)) return preferredRound;
+  return tournamentRounds.find((item) => getTournamentMatches(tournament, item.id).length)?.id || tournamentRounds[0]?.id || preferredRound;
 }
 
 function getSelectedLiveMatchdayId(tournament, round, matches) {
@@ -7387,7 +7406,7 @@ function getSelectedLiveMatchdayId(tournament, round, matches) {
   const groups = getGroupMatchdayGroups(matches);
   if (groups.length <= 1) return "";
   if (saved === "all") return "all";
-  return groups.some((group) => group.id === saved) ? saved : getDefaultMatchdayId(matches);
+  return groups.some((group) => group.id === saved) ? saved : "all";
 }
 
 function groupMatchdayFilterHtml(tournament, round, matches, mode = "player") {
@@ -7413,7 +7432,7 @@ function groupMatchdayFilterHtml(tournament, round, matches, mode = "player") {
 }
 
 function liveRoundFilterHtml(tournament, selectedRound) {
-  const roundOptions = getTournamentRounds(tournament).filter((round) => getTournamentMatches(tournament, round.id).length);
+  const roundOptions = getTournamentRounds(tournament);
   if (roundOptions.length <= 1) return "";
   const activeIndex = Math.max(0, roundOptions.findIndex((round) => round.id === selectedRound));
   return `
@@ -7426,6 +7445,61 @@ function liveRoundFilterHtml(tournament, selectedRound) {
       <span class="championship-segment-indicator" aria-hidden="true"></span>
     </div>
   `;
+}
+
+const liveScopeOptions = [
+  { id: "live", label: "الآن" },
+  { id: "today", label: "اليوم" },
+  { id: "upcoming", label: "القادمة" },
+  { id: "past", label: "السابقة" },
+  { id: "all", label: "الكل" }
+];
+
+function getLiveScopeForTournament(tournament, matches) {
+  const saved = state.selectedLiveScopeByTournament[tournament.id];
+  if (liveScopeOptions.some((option) => option.id === saved)) return saved;
+  if (matches.some(isMatchLive)) return "live";
+  if (matches.some(isMatchToday)) return "today";
+  if (matches.some(isFutureMatch)) return "upcoming";
+  return "all";
+}
+
+function liveScopeFilterHtml(tournament, selectedScope) {
+  const activeIndex = Math.max(0, liveScopeOptions.findIndex((option) => option.id === selectedScope));
+  return `
+    <div class="championship-segment round-segment live-scope-segment" role="tablist" aria-label="فلتر مباريات المباشر" style="--tab-count: ${liveScopeOptions.length}; --active-index: ${activeIndex};">
+      ${liveScopeOptions.map((option) => `
+        <button class="championship-segment-btn round-segment-btn ${option.id === selectedScope ? "active" : ""}" type="button" data-live-scope="${option.id}" data-live-tournament-id="${tournament.id}" role="tab" aria-selected="${option.id === selectedScope}">
+          ${option.label}
+        </button>
+      `).join("")}
+      <span class="championship-segment-indicator" aria-hidden="true"></span>
+    </div>
+  `;
+}
+
+function isFutureMatch(match) {
+  const time = new Date(match?.kickoff || "").getTime();
+  return Number.isFinite(time) && time > Date.now();
+}
+
+function isPastMatch(match) {
+  const status = String(match?.statusShort || "").toUpperCase();
+  if (["FT", "AET", "PEN"].includes(status)) return true;
+  const time = new Date(match?.kickoff || "").getTime();
+  return Number.isFinite(time) && time + MATCH_RESULT_AFTER_MINUTES * 60000 < Date.now();
+}
+
+function isMatchToday(match) {
+  return formatUaeDateKey(match?.kickoff) === formatUaeDateKey(new Date().toISOString());
+}
+
+function liveScopeEmptyText(scope) {
+  if (scope === "live") return "لا توجد مباريات مباشرة حالياً لهذه البطولة.";
+  if (scope === "today") return "لا توجد مباريات اليوم لهذه البطولة.";
+  if (scope === "upcoming") return "لا توجد مباريات قادمة ظاهرة من المصدر الرسمي حالياً.";
+  if (scope === "past") return "لا توجد مباريات سابقة لهذا الدور.";
+  return "لا توجد مباريات مرتبطة بهذا الاختيار حالياً.";
 }
 
 function getGroupMatchdayLabel(match, matches = []) {
@@ -8042,22 +8116,28 @@ function renderLive() {
         <div class="championship-page-slider live-page-slider" id="live-page-slider" style="--championship-index: ${activeIndex}; --tab-count: ${joinedTournaments.length};">
           <div class="championship-page-track">
             ${joinedTournaments.map((tournament) => {
-              const liveMatches = getTournamentLiveMatches(tournament);
               const liveRound = getSelectedLiveRound(tournament);
               const liveRoundMatches = getTournamentMatches(tournament, liveRound);
+              const selectedScope = getLiveScopeForTournament(tournament, liveRoundMatches);
+              const liveMatches = getTournamentLiveMatches(tournament, selectedScope);
+              const selectedRoundLabel = getTournamentRounds(tournament).find((round) => round.id === liveRound)?.label || "الدور الحالي";
               return `
                 <section class="championship-slide" aria-label="${tournament.name}">
-                  <div class="card panel">
+                  <div class="card panel live-results-panel">
                     <div class="topbar">
                       <div>
                         <h2 class="section-title">${tournament.name}</h2>
-                        <p class="muted">${tr("Live results from this championship only.")}</p>
+                        <p class="muted">نتائج ${selectedRoundLabel} فقط، بدون احتساب أثرها على التوقعات.</p>
                       </div>
                     </div>
                     ${liveRoundFilterHtml(tournament, liveRound)}
+                    <div class="live-filter-row">
+                      ${liveScopeFilterHtml(tournament, selectedScope)}
+                      <button class="btn ghost live-standings-btn" type="button" data-live-standings="${tournament.id}" data-live-round-id="${liveRound}">الترتيب</button>
+                    </div>
                     ${groupMatchdayFilterHtml(tournament, liveRound, liveRoundMatches, "live")}
                     <div class="live-grid">
-                      ${liveMatches.length ? liveMatches.map(liveMatchCard).join("") : `<p class="muted empty-row">لا توجد مباريات مرتبطة بهذه البطولة حالياً.</p>`}
+                      ${liveMatches.length ? liveMatches.map(liveMatchCard).join("") : `<p class="muted empty-row">${liveScopeEmptyText(selectedScope)}</p>`}
                     </div>
                   </div>
                 </section>
@@ -8083,6 +8163,14 @@ function renderLive() {
     button.addEventListener("click", () => {
       const tournamentId = button.dataset.liveTournamentId;
       state.selectedLiveRoundByTournament[tournamentId] = button.dataset.liveRound;
+      delete state.selectedLiveScopeByTournament[tournamentId];
+      saveLocalAppState();
+      renderLive();
+    });
+  });
+  document.querySelectorAll("[data-live-scope]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedLiveScopeByTournament[button.dataset.liveTournamentId] = button.dataset.liveScope;
       saveLocalAppState();
       renderLive();
     });
@@ -8095,6 +8183,12 @@ function renderLive() {
       state.selectedLiveMatchdayByTournament[matchdayStateKey(tournament.id, round)] = button.dataset.liveMatchday;
       saveLocalAppState();
       renderLive();
+    });
+  });
+  document.querySelectorAll("[data-live-standings]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tournament = getTournamentById(button.dataset.liveStandings);
+      if (tournament) openLiveStandingsModal(tournament, button.dataset.liveRoundId);
     });
   });
   setupLiveTournamentSwipe(joinedTournaments);
@@ -8165,14 +8259,22 @@ function setupLiveTournamentSwipe(tournaments) {
   });
 }
 
-function getTournamentLiveMatches(tournament) {
+function getTournamentLiveMatches(tournament, selectedScope = "") {
   const round = getSelectedLiveRound(tournament);
   const allMatches = getTournamentMatches(tournament, round);
+  const scope = selectedScope || getLiveScopeForTournament(tournament, allMatches);
   const selectedMatchday = getSelectedLiveMatchdayId(tournament, round, allMatches);
   const visibleMatches = selectedMatchday && selectedMatchday !== "all"
     ? allMatches.filter((match) => getMatchdayIdForMatch(match, allMatches) === selectedMatchday)
     : allMatches;
   const matches = visibleMatches
+    .filter((match) => {
+      if (scope === "live") return isMatchLive(match);
+      if (scope === "today") return isMatchToday(match);
+      if (scope === "upcoming") return isFutureMatch(match) && !isMatchLive(match);
+      if (scope === "past") return isPastMatch(match);
+      return true;
+    })
     .slice()
     .sort((a, b) => {
       const aTime = new Date(a.kickoff).getTime();
@@ -8180,16 +8282,13 @@ function getTournamentLiveMatches(tournament) {
       const aLive = isMatchLive(a);
       const bLive = isMatchLive(b);
       if (aLive !== bLive) return aLive ? -1 : 1;
+      if (scope === "past") return bTime - aTime;
       return aTime - bTime;
     });
-  return matches.slice(0, 8).map((match) => {
-    const prediction = state.quickPicks[`${tournament.id}:${round}:${match.id}`];
+  return matches.map((match) => {
       const score = match.score || "";
       const minute = match.minute || "";
       const kickoffLabel = formatUaeDate(match.kickoff, { weekday: "short", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" });
-      const impact = prediction
-        ? prediction === match.a ? "+80 محتملة" : "-45 حالياً"
-        : "لا يوجد توقع";
     return {
       ...match,
       tournamentName: tournament.name,
@@ -8197,16 +8296,15 @@ function getTournamentLiveMatches(tournament) {
       minute,
       statusShort: match.statusShort || "",
       score,
-      kickoffLabel,
-      impact
+      kickoffLabel
     };
   });
 }
 
 function liveMatchCard(match) {
-  const status = match.statusShort ? liveStatusLabel(match.statusShort) : match.minute ? `الدقيقة ${match.minute}` : "بانتظار الربط";
+  const status = match.statusShort ? liveStatusLabel(match.statusShort, match.minute) : match.minute ? `الدقيقة ${match.minute}` : "بانتظار الربط";
   return `
-    <article class="match-card">
+    <article class="match-card live-result-card">
       <div class="match-top">
         <span class="badge">${status}</span>
         <span class="muted live-match-time">${match.kickoffLabel || formatUaeDate(match.kickoff)}</span>
@@ -8217,9 +8315,114 @@ function liveMatchCard(match) {
         ${teamIdentityHtml(match.b, "compact", match.logoB || "")}
       </div>
       ${matchRoundMetaHtml(match)}
-      <div class="stat-line"><span>أثرها على رصيدك</span><strong>${match.impact}</strong></div>
     </article>
   `;
+}
+
+function openLiveStandingsModal(tournament, roundId) {
+  const round = roundId || getSelectedLiveRound(tournament);
+  const standings = calculateLiveStandings(tournament, round);
+  const roundLabel = getTournamentRounds(tournament).find((item) => item.id === round)?.label || "الدور الحالي";
+  openModal(`
+    <section class="card modal stack">
+      <div class="modal-title-row">
+        <h2 class="section-title">ترتيب الفرق</h2>
+        <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
+      </div>
+      <p class="muted">${tournament.name} · ${roundLabel}</p>
+      ${standings.length ? `
+        <div class="live-standings-table-wrap">
+          <table class="live-standings-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>الفريق</th>
+                <th>لعب</th>
+                <th>ف</th>
+                <th>ت</th>
+                <th>خ</th>
+                <th>+/-</th>
+                <th>نقاط</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${standings.map((row, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${teamIdentityHtml(row.team, "compact", row.logo || "")}</td>
+                  <td>${row.played}</td>
+                  <td>${row.won}</td>
+                  <td>${row.drawn}</td>
+                  <td>${row.lost}</td>
+                  <td>${row.goalDifference}</td>
+                  <td>${row.points}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      ` : `<p class="muted">لا توجد بيانات كافية لحساب الترتيب لهذا الدور حالياً.</p>`}
+    </section>
+  `);
+  document.querySelector("#close-modal")?.addEventListener("click", closeModal);
+}
+
+function calculateLiveStandings(tournament, round) {
+  const rows = new Map();
+  const ensureTeam = (name, logo = "") => {
+    if (!rows.has(name)) {
+      rows.set(name, { team: name, logo, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0 });
+    } else if (logo && !rows.get(name).logo) {
+      rows.get(name).logo = logo;
+    }
+    return rows.get(name);
+  };
+
+  getTournamentMatches(tournament, round).forEach((match) => {
+    const home = ensureTeam(match.a, match.logoA || "");
+    const away = ensureTeam(match.b, match.logoB || "");
+    const score = parseMatchScore(match.score);
+    if (!score) return;
+    home.played += 1;
+    away.played += 1;
+    home.goalsFor += score.home;
+    home.goalsAgainst += score.away;
+    away.goalsFor += score.away;
+    away.goalsAgainst += score.home;
+    if (score.home > score.away) {
+      home.won += 1;
+      away.lost += 1;
+      home.points += 3;
+    } else if (score.home < score.away) {
+      away.won += 1;
+      home.lost += 1;
+      away.points += 3;
+    } else {
+      home.drawn += 1;
+      away.drawn += 1;
+      home.points += 1;
+      away.points += 1;
+    }
+  });
+
+  return [...rows.values()].map((row) => ({
+    ...row,
+    goalDifference: row.goalsFor - row.goalsAgainst
+  })).sort((a, b) =>
+    b.points - a.points ||
+    b.goalDifference - a.goalDifference ||
+    b.goalsFor - a.goalsFor ||
+    a.team.localeCompare(b.team)
+  );
+}
+
+function parseMatchScore(score) {
+  const match = String(score || "").match(/(-?\d+)\s*-\s*(-?\d+)/);
+  if (!match) return null;
+  const home = Number(match[1]);
+  const away = Number(match[2]);
+  if (!Number.isFinite(home) || !Number.isFinite(away)) return null;
+  return { home, away };
 }
 
 function getTournamentPredictionMatches(tournament, round) {

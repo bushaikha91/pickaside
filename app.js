@@ -7174,9 +7174,12 @@ function pickBoardCard(tournament, round, match, locked) {
   const completed = isPredictionComplete(tournament.id, round, match.id);
   const editing = isPredictionEditing(key);
   const pickLocked = matchLocked || (completed && !editing);
+  const resultState = getPredictionResultState(match, round, prediction);
   const missed = !completed && matchLocked;
-  const statusText = completed && editing ? "قيد التعديل" : completed ? "مكتمل" : missed ? "لم يتم التصويت" : "بانتظار التصويت";
-  const statusClass = completed ? "done" : missed ? "missed" : "todo";
+  const statusText = resultState
+    ? resultState.label
+    : completed && editing ? "قيد التعديل" : completed ? "مكتمل" : missed ? "لم يتم التصويت" : "بانتظار التصويت";
+  const statusClass = resultState?.className || (completed ? "done" : missed ? "missed" : "todo");
   const selectedOutcome = editing || !completed ? picked || getPredictionOutcome(prediction) : getPredictionOutcome(prediction) || picked;
   const selectedLabel = selectedOutcome ? outcomeText(selectedOutcome, match) : "لم يتم الاختيار";
   const actionLabel = matchLocked ? "مقفل" : completed && !editing ? "تعديل" : completed && editing ? "حفظ" : "تصويت";
@@ -7273,6 +7276,16 @@ function isPredictionEditing(key) {
   return Boolean(state.editingPredictions[key]);
 }
 
+function getPredictionResultState(match, round, prediction) {
+  const outcome = getPredictionOutcome(prediction || {});
+  if (!outcome || !isMatchFinal(match)) return null;
+  const result = getMatchResultOutcome(match, round);
+  if (!result) return null;
+  return outcome === result
+    ? { label: "توقع صحيح", className: "correct" }
+    : { label: "توقع خاطئ", className: "wrong" };
+}
+
 function isPredictionComplete(tournamentId, round, matchId) {
   const prediction = state.predictions[`${tournamentId}:${round}:${matchId}`] || {};
   return Boolean(getPredictionOutcome(prediction) && getPredictionPoints(prediction) > 0);
@@ -7319,16 +7332,14 @@ function getMatchdayIdForMatch(match, matches = []) {
 }
 
 function getDefaultMatchdayId(matches) {
-  const groups = getGroupMatchdayGroups(matches);
-  if (!groups.length) return "";
-  const openGroup = groups.find((group) => group.matches.some((match) => !isMatchFinal(match)));
-  return (openGroup || groups[0]).id;
+  return "all";
 }
 
 function getSelectedPredictionMatchdayId(tournament, round, matches) {
-  if (round !== "group") return "";
   const groups = getGroupMatchdayGroups(matches);
+  if (groups.length <= 1) return "";
   const saved = state.selectedMatchdayByTournament[matchdayStateKey(tournament.id, round)];
+  if (saved === "all") return "all";
   return groups.some((group) => group.id === saved) ? saved : getDefaultMatchdayId(matches);
 }
 
@@ -7341,14 +7352,14 @@ function getSelectedLiveRound(tournament) {
 }
 
 function getSelectedLiveMatchdayId(tournament, round, matches) {
-  if (round !== "group") return "";
   const saved = state.selectedLiveMatchdayByTournament[matchdayStateKey(tournament.id, round)];
   const groups = getGroupMatchdayGroups(matches);
+  if (groups.length <= 1) return "";
+  if (saved === "all") return "all";
   return groups.some((group) => group.id === saved) ? saved : getDefaultMatchdayId(matches);
 }
 
 function groupMatchdayFilterHtml(tournament, round, matches, mode = "player") {
-  if (round !== "group") return "";
   const groups = getGroupMatchdayGroups(matches);
   if (groups.length <= 1) return "";
   const selectedId = mode === "live"
@@ -7356,10 +7367,11 @@ function groupMatchdayFilterHtml(tournament, round, matches, mode = "player") {
     : getSelectedPredictionMatchdayId(tournament, round, matches);
   const attribute = mode === "live" ? "data-live-matchday" : "data-group-matchday";
   const tournamentAttribute = mode === "live" ? `data-live-tournament-id="${tournament.id}"` : "";
-  const activeIndex = Math.max(0, groups.findIndex((group) => group.id === selectedId));
+  const options = [{ id: "all", label: "جميع المباريات" }, ...groups];
+  const activeIndex = Math.max(0, options.findIndex((group) => group.id === selectedId));
   return `
-    <div class="championship-segment round-segment matchday-segment" role="tablist" aria-label="جولات دور المجموعات" style="--tab-count: ${groups.length}; --active-index: ${activeIndex};">
-      ${groups.map((group) => `
+    <div class="championship-segment round-segment matchday-segment" role="tablist" aria-label="فلتر مباريات الدور" style="--tab-count: ${options.length}; --active-index: ${activeIndex};">
+      ${options.map((group) => `
         <button class="championship-segment-btn round-segment-btn ${group.id === selectedId ? "active" : ""}" type="button" ${attribute}="${group.id}" ${tournamentAttribute} role="tab" aria-selected="${group.id === selectedId}">
           ${group.label}
         </button>
@@ -7392,10 +7404,10 @@ function getGroupMatchdayLabel(match, matches = []) {
 }
 
 function getVisiblePredictionMatchesForRound(tournament, round, matches) {
-  if (round !== "group") return matches;
   const groups = getGroupMatchdayGroups(matches);
   if (!groups.length) return matches;
   const selectedId = getSelectedPredictionMatchdayId(tournament, round, matches);
+  if (!selectedId || selectedId === "all") return matches;
   return (groups.find((group) => group.id === selectedId) || groups[0]).matches;
 }
 
@@ -8126,7 +8138,7 @@ function getTournamentLiveMatches(tournament) {
   const round = getSelectedLiveRound(tournament);
   const allMatches = getTournamentMatches(tournament, round);
   const selectedMatchday = getSelectedLiveMatchdayId(tournament, round, allMatches);
-  const visibleMatches = round === "group" && selectedMatchday
+  const visibleMatches = selectedMatchday && selectedMatchday !== "all"
     ? allMatches.filter((match) => getMatchdayIdForMatch(match, allMatches) === selectedMatchday)
     : allMatches;
   const matches = visibleMatches

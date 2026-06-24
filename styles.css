@@ -4281,6 +4281,18 @@ h1.section-title {
   border: 1px solid var(--line);
 }
 
+.prediction-status.correct {
+  color: #06170c;
+  background: #62ff8e;
+  border: 1px solid rgba(98, 255, 142, .45);
+}
+
+.prediction-status.wrong {
+  color: #fff;
+  background: rgba(255, 91, 107, .22);
+  border: 1px solid rgba(255, 91, 107, .5);
+}
+
 .prediction-row-info strong {
   color: var(--accent-text);
   font-weight: 700;

@@ -190,7 +190,13 @@ async function supabase(path, options = {}) {
 
   const text = await response.text();
   const payload = text ? JSON.parse(text) : [];
-  if (!response.ok) throw httpError(response.status, payload.message || payload.hint || "فشل اتصال قاعدة البيانات");
+  if (!response.ok) {
+    const message = payload.message || payload.hint || "فشل اتصال قاعدة البيانات";
+    if (/worldcup2026_|schema cache|could not find the table/i.test(message)) {
+      throw httpError(503, "قاعدة بيانات كأس العالم غير مجهزة بعد. شغّل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
+    }
+    throw httpError(response.status, message);
+  }
   return payload;
 }
 

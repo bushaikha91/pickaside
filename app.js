@@ -4390,6 +4390,39 @@ function ownerNotificationForm(tournament) {
   `;
 }
 
+function ownerRecentNotificationsForTournament(tournament) {
+  return state.notifications
+    .filter((notification) => notification.tournamentId === tournament.id || notification.route === `/tournament/${tournament.id}`)
+    .slice(0, 5);
+}
+
+function ownerRecentNotificationsListHtml(tournament) {
+  const recentNotifications = ownerRecentNotificationsForTournament(tournament);
+  if (!recentNotifications.length) {
+    return `<p class="muted">لا توجد إشعارات مرسلة لهذه البطولة بعد.</p>`;
+  }
+  return recentNotifications.map((notification) => `
+    <div class="leader-row compact-notification-row">
+      <div>
+        <span>${notification.title}</span>
+        <small>${notification.body || ""}</small>
+      </div>
+      <strong>${notification.time}</strong>
+    </div>
+  `).join("");
+}
+
+function ownerRecentNotificationsPanel(tournament) {
+  return `
+    <section class="card panel stack manage-detail-card">
+      <h2 class="section-title">آخر الإشعارات</h2>
+      <div id="owner-recent-notifications">
+        ${ownerRecentNotificationsListHtml(tournament)}
+      </div>
+    </section>
+  `;
+}
+
 function sendOwnerNotification(tournament) {
   const title = document.querySelector("#owner-notification-title")?.value.trim() || `تحديث من ${tournament.name}`;
   const body = document.querySelector("#owner-notification-body")?.value.trim();
@@ -4419,12 +4452,17 @@ function sendOwnerNotification(tournament) {
 
   saveLocalAppState();
   updateNotificationBadges();
+  const recentNotifications = document.querySelector("#owner-recent-notifications");
+  if (recentNotifications) {
+    recentNotifications.innerHTML = ownerRecentNotificationsListHtml(tournament);
+  }
   if (status) {
     status.textContent = "تم إرسال الإشعار للأعضاء.";
     status.classList.remove("form-error-inline");
     status.classList.add("form-success-inline");
   }
-  document.querySelector("#owner-notification-body").value = "";
+  const bodyField = document.querySelector("#owner-notification-body");
+  if (bodyField) bodyField.value = "";
 }
 
 function renderTournamentManage(id, section) {
@@ -6006,14 +6044,7 @@ function ownerNotificationsPage(tournament) {
       <h2 class="section-title">إرسال إشعار</h2>
       ${ownerNotificationForm(tournament)}
     </section>
-    <section class="card panel stack manage-detail-card">
-      <h2 class="section-title">آخر الإشعارات</h2>
-      ${state.notifications
-        .filter((notification) => notification.tournamentId === tournament.id || notification.route === `/tournament/${tournament.id}`)
-        .slice(0, 5)
-        .map((notification) => `<div class="leader-row"><span>${notification.title}</span><strong>${notification.time}</strong></div>`)
-        .join("") || `<p class="muted">لا توجد إشعارات مرسلة لهذه البطولة بعد.</p>`}
-    </section>
+    ${ownerRecentNotificationsPanel(tournament)}
   `;
 }
 

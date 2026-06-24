@@ -4410,6 +4410,22 @@ h1.section-title {
   font-weight: 600;
 }
 
+.compact-notification-row {
+  align-items: flex-start;
+}
+
+.compact-notification-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.compact-notification-row small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .side-pick-row,
 .review-strip {
   display: flex;

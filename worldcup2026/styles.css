@@ -457,6 +457,12 @@ button {
   background: #ecfdf3;
 }
 
+.danger-notice {
+  border-color: #fecdca;
+  color: #b42318;
+  background: #fffbfa;
+}
+
 .stack {
   display: grid;
   gap: 12px;

@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+
 const ORGANIZER_CODE = process.env.WORLDCUP2026_ORGANIZER_CODE || "WC2026";
 
 const ROUND_RULES = {
@@ -34,7 +36,7 @@ module.exports = async function handler(req, res) {
 
 async function sendState(req, res) {
   const userId = clean(req.query.userId);
-  const [user] = userId ? await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(userId)}&limit=1`) : [];
+  const [user] = userId ? await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(userId)}&select=id,name,phone,role,participant_status,created_at,updated_at&limit=1`) : [];
   const isOrganizer = user?.role === "organizer";
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
 
@@ -56,20 +58,35 @@ async function sendState(req, res) {
 
 async function login(req, res) {
   const body = await readBody(req);
+  const mode = body.mode === "create" ? "create" : "login";
   const name = clean(body.name);
   const phone = clean(body.phone);
+  const password = clean(body.password);
   const role = body.role === "organizer" ? "organizer" : "participant";
-  if (!name || !phone) throw httpError(400, "الاسم ورقم الهاتف مطلوبان");
+  if (!phone || !password) throw httpError(400, "رقم الهاتف وكلمة المرور مطلوبان");
+  if (password.length < 4) throw httpError(400, "كلمة المرور يجب أن تكون 4 خانات على الأقل");
+
+  const existing = await supabase(`worldcup2026_users?phone=eq.${encodeURIComponent(phone)}&limit=1`);
+  const current = existing[0];
+
+  if (mode === "login") {
+    if (!current) throw httpError(404, "الحساب غير موجود. أنشئ الحساب أول مرة بالاسم ورقم الهاتف وكلمة المرور.");
+    if (!current.password_hash) throw httpError(409, "هذا الحساب يحتاج تعيين كلمة مرور. اختر إنشاء حساب واستخدم نفس رقم الهاتف.");
+    if (!verifyPassword(password, current.password_hash)) throw httpError(403, "كلمة المرور غير صحيحة");
+    return res.status(200).json({ user: publicUser(current) });
+  }
+
+  if (!name) throw httpError(400, "الاسم مطلوب عند إنشاء الحساب");
   if (role === "organizer" && clean(body.organizerCode) !== ORGANIZER_CODE) {
     throw httpError(403, "كود المنظم غير صحيح");
   }
 
-  const existing = await supabase(`worldcup2026_users?phone=eq.${encodeURIComponent(phone)}&limit=1`);
-  const current = existing[0];
+  if (current?.password_hash) throw httpError(409, "هذا الرقم مسجل مسبقاً. ادخل برقم الهاتف وكلمة المرور.");
   const payload = {
     name,
     phone,
     role,
+    password_hash: hashPassword(password),
     participant_status: role === "organizer" ? "approved" : (current?.participant_status || "pending"),
     updated_at: new Date().toISOString()
   };
@@ -77,7 +94,7 @@ async function login(req, res) {
     ? (await supabase(`worldcup2026_users?id=eq.${current.id}`, { method: "PATCH", body: JSON.stringify(payload), prefer: "return=representation" }))[0]
     : (await supabase("worldcup2026_users", { method: "POST", body: JSON.stringify(payload), prefer: "return=representation" }))[0];
 
-  return res.status(200).json({ user });
+  return res.status(200).json({ user: publicUser(user) });
 }
 
 async function addMatch(req, res) {
@@ -318,6 +335,26 @@ function roundPoints(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 32, "sha256").toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  const [salt, hash] = String(storedHash || "").split(":");
+  if (!salt || !hash) return false;
+  const candidate = crypto.pbkdf2Sync(password, salt, 100000, 32, "sha256").toString("hex");
+  if (candidate.length !== hash.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(candidate, "hex"), Buffer.from(hash, "hex"));
+}
+
+function publicUser(user) {
+  if (!user) return user;
+  const { password_hash, ...safeUser } = user;
+  return safeUser;
+}
+
 async function supabase(path, options = {}) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -338,8 +375,8 @@ async function supabase(path, options = {}) {
   const payload = text ? JSON.parse(text) : [];
   if (!response.ok) {
     const message = payload.message || payload.hint || "فشل اتصال قاعدة البيانات";
-    if (/worldcup2026_|schema cache|could not find the table|participant_status/i.test(message)) {
-      throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث الموافقات. شغّل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
+    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash/i.test(message)) {
+      throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث الدخول. شغّل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
     }
     throw httpError(response.status, message);
   }

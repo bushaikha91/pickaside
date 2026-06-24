@@ -112,17 +112,28 @@ function loginTemplate() {
     <section class="content">
       <form class="panel" id="loginForm">
         <h2>دخول البطولة</h2>
-        <p class="small">المشارك ينتظر موافقة المنظم. المنظم يدخل بالكود الخاص.</p>
+        <p class="small" id="authHint">ادخل برقم الهاتف وكلمة المرور. إنشاء الحساب مطلوب أول مرة فقط.</p>
         <div id="loginError" class="notice danger-notice hidden"></div>
-        <label class="field">
+        <div class="field">
+          <span>نوع العملية</span>
+          <div class="role-grid">
+            <button class="role-option active" type="button" data-auth-mode="login">دخول</button>
+            <button class="role-option" type="button" data-auth-mode="create">إنشاء حساب</button>
+          </div>
+        </div>
+        <label class="field hidden" id="nameField">
           <span>الاسم</span>
-          <input id="name" required autocomplete="name" placeholder="مثال: عبدالله" />
+          <input id="name" autocomplete="name" placeholder="مثال: عبدالله" />
         </label>
         <label class="field">
           <span>رقم الهاتف المتحرك</span>
           <input id="phone" required inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" />
         </label>
-        <div class="field">
+        <label class="field">
+          <span>كلمة المرور</span>
+          <input id="password" required type="password" autocomplete="current-password" placeholder="كلمة المرور" />
+        </label>
+        <div class="field hidden" id="roleField">
           <span>الصلاحية</span>
           <div class="role-grid">
             <button class="role-option active" type="button" data-role="participant">مشارك</button>
@@ -134,6 +145,7 @@ function loginTemplate() {
           <input id="organizerCode" autocomplete="one-time-code" placeholder="ادخل كود المنظم" />
         </label>
         <input id="role" type="hidden" value="participant" />
+        <input id="mode" type="hidden" value="login" />
         <button class="primary-btn" id="loginBtn" type="submit">دخول التطبيق</button>
       </form>
 
@@ -410,30 +422,62 @@ function managerMatchCard(match) {
 
 function bindLogin() {
   let selectedRole = "participant";
+  let selectedMode = "login";
   const codeField = document.querySelector("#organizerCodeField");
+  const nameField = document.querySelector("#nameField");
+  const roleField = document.querySelector("#roleField");
+  const passwordInput = document.querySelector("#password");
+  const loginBtn = document.querySelector("#loginBtn");
+  const authHint = document.querySelector("#authHint");
+
+  function syncAuthMode() {
+    const isCreate = selectedMode === "create";
+    document.querySelector("#mode").value = selectedMode;
+    nameField.classList.toggle("hidden", !isCreate);
+    roleField.classList.toggle("hidden", !isCreate);
+    codeField.classList.toggle("hidden", !isCreate || selectedRole !== "organizer");
+    document.querySelector("#name").required = isCreate;
+    passwordInput.autocomplete = isCreate ? "new-password" : "current-password";
+    loginBtn.textContent = isCreate ? "إنشاء الحساب" : "دخول التطبيق";
+    authHint.textContent = isCreate
+      ? "أنشئ الحساب أول مرة بالاسم ورقم الهاتف وكلمة المرور."
+      : "ادخل برقم الهاتف وكلمة المرور فقط.";
+  }
+
+  document.querySelectorAll("[data-auth-mode]").forEach(button => {
+    button.addEventListener("click", () => {
+      selectedMode = button.dataset.authMode;
+      document.querySelectorAll("[data-auth-mode]").forEach(item => item.classList.toggle("active", item === button));
+      syncAuthMode();
+    });
+  });
+
   document.querySelectorAll(".role-option").forEach(button => {
+    if (!button.dataset.role) return;
     button.addEventListener("click", () => {
       selectedRole = button.dataset.role;
       document.querySelector("#role").value = selectedRole;
-      codeField.classList.toggle("hidden", selectedRole !== "organizer");
-      document.querySelectorAll(".role-option").forEach(item => item.classList.toggle("active", item === button));
+      syncAuthMode();
+      document.querySelectorAll("[data-role]").forEach(item => item.classList.toggle("active", item === button));
     });
   });
+  syncAuthMode();
 
   document.querySelector("#loginForm").addEventListener("submit", async event => {
     event.preventDefault();
     const errorBox = document.querySelector("#loginError");
-    const loginBtn = document.querySelector("#loginBtn");
     errorBox.classList.add("hidden");
     loginBtn.disabled = true;
-    loginBtn.textContent = "جاري الدخول...";
+    loginBtn.textContent = selectedMode === "create" ? "جاري إنشاء الحساب..." : "جاري الدخول...";
 
     try {
       const payload = await api("login", {
         method: "POST",
         body: JSON.stringify({
+          mode: selectedMode,
           name: document.querySelector("#name").value.trim(),
           phone: document.querySelector("#phone").value.trim(),
+          password: passwordInput.value.trim(),
           role: selectedRole,
           organizerCode: document.querySelector("#organizerCode").value.trim()
         })
@@ -447,7 +491,7 @@ function bindLogin() {
       errorBox.classList.remove("hidden");
     } finally {
       loginBtn.disabled = false;
-      loginBtn.textContent = "دخول التطبيق";
+      loginBtn.textContent = selectedMode === "create" ? "إنشاء الحساب" : "دخول التطبيق";
     }
   });
 }

@@ -4,6 +4,7 @@ create table if not exists public.worldcup2026_users (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   phone text not null unique,
+  password_hash text,
   role text not null default 'participant' check (role in ('participant', 'organizer')),
   participant_status text not null default 'pending' check (participant_status in ('pending', 'approved', 'rejected')),
   created_at timestamptz not null default now(),
@@ -12,6 +13,9 @@ create table if not exists public.worldcup2026_users (
 
 alter table public.worldcup2026_users
   add column if not exists participant_status text not null default 'pending';
+
+alter table public.worldcup2026_users
+  add column if not exists password_hash text;
 
 do $$
 begin

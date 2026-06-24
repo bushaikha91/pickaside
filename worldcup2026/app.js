@@ -24,6 +24,7 @@ const state = {
   matches: [],
   standings: [],
   predictions: {},
+  participants: [],
   loading: true,
   error: "",
   notice: ""
@@ -68,9 +69,14 @@ async function loadData() {
   try {
     const query = state.currentUser.id ? `state&userId=${encodeURIComponent(state.currentUser.id)}` : "state";
     const payload = await api(query);
+    if (payload.user) {
+      state.currentUser = { ...state.currentUser, ...payload.user };
+      writeSession(state.currentUser);
+    }
     state.matches = payload.matches || [];
     state.standings = payload.standings || [];
     state.predictions = payload.predictions || {};
+    state.participants = payload.participants || [];
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
   } finally {
@@ -105,7 +111,7 @@ function loginTemplate() {
     <section class="content">
       <form class="panel" id="loginForm">
         <h2>دخول البطولة</h2>
-        <p class="small">ادخل الاسم ورقم الهاتف فقط، ثم اختر نوع الحساب.</p>
+        <p class="small">المشارك ينتظر موافقة المنظم. المنظم يدخل بالكود الخاص.</p>
         <div id="loginError" class="notice danger-notice hidden"></div>
         <label class="field">
           <span>الاسم</span>
@@ -122,6 +128,10 @@ function loginTemplate() {
             <button class="role-option" type="button" data-role="organizer">منظم</button>
           </div>
         </div>
+        <label class="field hidden" id="organizerCodeField">
+          <span>كود المنظم</span>
+          <input id="organizerCode" autocomplete="one-time-code" placeholder="ادخل كود المنظم" />
+        </label>
         <input id="role" type="hidden" value="participant" />
         <button class="primary-btn" id="loginBtn" type="submit">دخول التطبيق</button>
       </form>
@@ -145,7 +155,10 @@ function loginTemplate() {
 
 function appTemplate() {
   const roleTabs = state.currentUser.role === "organizer"
-    ? `<button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>`
+    ? `
+      <button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>
+      <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
+    `
     : `<button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>`;
 
   return `
@@ -154,12 +167,12 @@ function appTemplate() {
         <div class="mark">26</div>
         <div class="user-meta">
           <strong>${escapeHtml(state.currentUser.name)}</strong>
-          <span>${state.currentUser.role === "organizer" ? "منظم البطولة" : "مشارك"}</span>
+          <span>${state.currentUser.role === "organizer" ? "منظم البطولة" : statusLabel(state.currentUser.participant_status)}</span>
         </div>
       </div>
       <button class="pill" id="logoutBtn">خروج</button>
     </header>
-    <nav class="tabs">
+    <nav class="tabs ${state.currentUser.role === "organizer" ? "organizer-tabs" : ""}">
       ${roleTabs}
       <button class="tab ${activeTab === "standings" ? "active" : ""}" data-tab="standings">الترتيب</button>
       <button class="tab ${activeTab === "laws" ? "active" : ""}" data-tab="laws">القوانين</button>
@@ -172,10 +185,63 @@ function appTemplate() {
 }
 
 function currentView() {
+  if (state.currentUser.role === "participant" && state.currentUser.participant_status !== "approved") {
+    return participantStatusView();
+  }
   if (activeTab === "standings") return standingsView();
   if (activeTab === "laws") return lawsView();
+  if (activeTab === "participants" && state.currentUser.role === "organizer") return participantsView();
   if (state.currentUser.role === "organizer") return manageView();
   return participantMatchesView();
+}
+
+function participantStatusView() {
+  const rejected = state.currentUser.participant_status === "rejected";
+  return `
+    <section class="panel waiting-panel">
+      <span class="status-chip ${rejected ? "rejected" : ""}">${rejected ? "تم رفض الطلب" : "بانتظار موافقة المنظم"}</span>
+      <h2>${rejected ? "لم يتم قبول دخولك" : "طلبك وصل للمنظم"}</h2>
+      <p class="small">${rejected ? "راجع المنظم إذا كنت تعتقد أن الرفض بالخطأ." : "بعد قبولك ستظهر لك المباريات والتوقعات تلقائياً عند إعادة المحاولة."}</p>
+      <button class="primary-btn" id="retryBtn" type="button">تحديث الحالة</button>
+    </section>
+  `;
+}
+
+function participantsView() {
+  const pending = state.participants.filter(user => user.participant_status === "pending");
+  const others = state.participants.filter(user => user.participant_status !== "pending");
+  return `
+    <div class="section-title">
+      <h2>طلبات المشاركين</h2>
+      <span class="small">${pending.length} بانتظار الموافقة</span>
+    </div>
+    <div class="participant-list">
+      ${pending.length ? pending.map(participantRow).join("") : emptyView("لا توجد طلبات جديدة.")}
+    </div>
+    <div class="section-title" style="margin-top:18px">
+      <h2>كل المشاركين</h2>
+      <span class="small">مقبول / مرفوض</span>
+    </div>
+    <div class="participant-list">
+      ${others.length ? others.map(participantRow).join("") : emptyView("لا يوجد مشاركون سابقون.")}
+    </div>
+  `;
+}
+
+function participantRow(user) {
+  return `
+    <article class="participant-row">
+      <div>
+        <strong>${escapeHtml(user.name)}</strong>
+        <span>${escapeHtml(user.phone)}</span>
+      </div>
+      <span class="status-chip ${user.participant_status}">${statusLabel(user.participant_status)}</span>
+      <div class="participant-actions">
+        <button class="mini-btn approve" data-participant-status="approved" data-participant-id="${user.id}">قبول</button>
+        <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">رفض</button>
+      </div>
+    </article>
+  `;
 }
 
 function noticeView() {
@@ -256,7 +322,7 @@ function standingsView() {
   return `
     <div class="section-title">
       <h2>ترتيب المشاركين</h2>
-      <span class="small">من الأعلى للأقل</span>
+      <span class="small">المقبولون فقط</span>
     </div>
     <div class="leader-list">
       ${state.standings.length ? state.standings.map((row, index) => `
@@ -268,7 +334,7 @@ function standingsView() {
           </div>
           <div class="points">${row.points}</div>
         </div>
-      `).join("") : emptyView("لا يوجد مشاركون حتى الآن.")}
+      `).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
     </div>
   `;
 }
@@ -342,10 +408,12 @@ function managerMatchCard(match) {
 
 function bindLogin() {
   let selectedRole = "participant";
+  const codeField = document.querySelector("#organizerCodeField");
   document.querySelectorAll(".role-option").forEach(button => {
     button.addEventListener("click", () => {
       selectedRole = button.dataset.role;
       document.querySelector("#role").value = selectedRole;
+      codeField.classList.toggle("hidden", selectedRole !== "organizer");
       document.querySelectorAll(".role-option").forEach(item => item.classList.toggle("active", item === button));
     });
   });
@@ -364,12 +432,13 @@ function bindLogin() {
         body: JSON.stringify({
           name: document.querySelector("#name").value.trim(),
           phone: document.querySelector("#phone").value.trim(),
-          role: selectedRole
+          role: selectedRole,
+          organizerCode: document.querySelector("#organizerCode").value.trim()
         })
       });
       state.currentUser = payload.user;
       writeSession(payload.user);
-      activeTab = payload.user.role === "organizer" ? "manage" : "matches";
+      activeTab = payload.user.role === "organizer" ? "participants" : "matches";
       await loadData();
     } catch (error) {
       errorBox.textContent = error.message || "تعذر الدخول";
@@ -421,6 +490,26 @@ function bindApp() {
     button.addEventListener("click", () => {
       activeRound = button.dataset.round;
       render();
+    });
+  });
+
+  document.querySelectorAll("[data-participant-id]").forEach(button => {
+    button.addEventListener("click", async () => {
+      try {
+        await api("participant-status", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            participantId: button.dataset.participantId,
+            status: button.dataset.participantStatus
+          })
+        });
+        state.notice = button.dataset.participantStatus === "approved" ? "تم قبول المشارك." : "تم رفض المشارك.";
+        await loadData();
+      } catch (error) {
+        state.error = error.message || "تعذر تحديث طلب المشارك";
+        render();
+      }
     });
   });
 
@@ -499,6 +588,12 @@ function readSession() {
 function writeSession(user) {
   if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   else localStorage.removeItem(SESSION_KEY);
+}
+
+function statusLabel(status) {
+  if (status === "approved") return "مقبول";
+  if (status === "rejected") return "مرفوض";
+  return "بانتظار الموافقة";
 }
 
 function roundName(id) {

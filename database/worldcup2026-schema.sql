@@ -5,9 +5,30 @@ create table if not exists public.worldcup2026_users (
   name text not null,
   phone text not null unique,
   role text not null default 'participant' check (role in ('participant', 'organizer')),
+  participant_status text not null default 'pending' check (participant_status in ('pending', 'approved', 'rejected')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.worldcup2026_users
+  add column if not exists participant_status text not null default 'pending';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'worldcup2026_users_participant_status_check'
+  ) then
+    alter table public.worldcup2026_users
+      add constraint worldcup2026_users_participant_status_check
+      check (participant_status in ('pending', 'approved', 'rejected'));
+  end if;
+end $$;
+
+update public.worldcup2026_users
+set participant_status = 'approved'
+where role = 'organizer';
 
 create table if not exists public.worldcup2026_matches (
   id uuid primary key default gen_random_uuid(),

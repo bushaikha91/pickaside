@@ -269,6 +269,10 @@ button {
   backdrop-filter: blur(10px);
 }
 
+.tabs.organizer-tabs {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .tab {
   min-height: 38px;
   font-size: 13px;
@@ -375,6 +379,22 @@ button {
   background: #dcfae6;
 }
 
+.status-chip.pending {
+  color: #b54708;
+  background: #fff4d6;
+}
+
+.status-chip.approved {
+  color: #067647;
+  background: #dcfae6;
+}
+
+.status-chip.rejected,
+.status-chip.rejected {
+  color: #b42318;
+  background: #fee4e2;
+}
+
 .leader-row {
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -461,6 +481,65 @@ button {
   border-color: #fecdca;
   color: #b42318;
   background: #fffbfa;
+}
+
+.waiting-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.waiting-panel h2 {
+  margin: 0;
+}
+
+.participant-list {
+  display: grid;
+  gap: 10px;
+}
+
+.participant-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.participant-row strong,
+.participant-row span {
+  display: block;
+}
+
+.participant-row span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.participant-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mini-btn {
+  min-height: 40px;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.mini-btn.approve {
+  color: #fff;
+  background: var(--green);
+}
+
+.mini-btn.reject {
+  color: #fff;
+  background: #b42318;
 }
 
 .install-panel {

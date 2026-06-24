@@ -1,3 +1,5 @@
+const ORGANIZER_CODE = process.env.WORLDCUP2026_ORGANIZER_CODE || "WC2026";
+
 const ROUND_POINTS = {
   r32: 2,
   r16: 3,
@@ -25,6 +27,7 @@ module.exports = async function handler(req, res) {
     if (action === "match" && req.method === "POST") return await addMatch(req, res);
     if (action === "prediction" && req.method === "POST") return await savePrediction(req, res);
     if (action === "result" && req.method === "POST") return await saveResult(req, res);
+    if (action === "participant-status" && req.method === "POST") return await updateParticipantStatus(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -35,17 +38,24 @@ module.exports = async function handler(req, res) {
 
 async function sendState(req, res) {
   await ensureSeedMatches();
-  const userId = String(req.query.userId || "");
-  const [matches, predictions, standings] = await Promise.all([
-    supabase("worldcup2026_matches?select=*&order=starts_at.asc"),
-    userId ? supabase(`worldcup2026_predictions?select=match_id,winner&user_id=eq.${encodeURIComponent(userId)}`) : [],
-    buildStandings()
+  const userId = clean(req.query.userId);
+  const [user] = userId ? await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(userId)}&limit=1`) : [];
+  const isOrganizer = user?.role === "organizer";
+  const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
+
+  const [matches, predictions, standings, participants] = await Promise.all([
+    isOrganizer || isApprovedParticipant ? supabase("worldcup2026_matches?select=*&order=starts_at.asc") : [],
+    userId && (isOrganizer || isApprovedParticipant) ? supabase(`worldcup2026_predictions?select=match_id,winner&user_id=eq.${encodeURIComponent(userId)}`) : [],
+    buildStandings(),
+    isOrganizer ? supabase("worldcup2026_users?role=eq.participant&select=id,name,phone,participant_status,created_at&order=created_at.desc") : []
   ]);
 
   return res.status(200).json({
+    user,
     matches,
     predictions: Object.fromEntries(predictions.map(item => [item.match_id, item.winner])),
-    standings
+    standings,
+    participants
   });
 }
 
@@ -55,10 +65,19 @@ async function login(req, res) {
   const phone = clean(body.phone);
   const role = body.role === "organizer" ? "organizer" : "participant";
   if (!name || !phone) throw httpError(400, "الاسم ورقم الهاتف مطلوبان");
+  if (role === "organizer" && clean(body.organizerCode) !== ORGANIZER_CODE) {
+    throw httpError(403, "كود المنظم غير صحيح");
+  }
 
   const existing = await supabase(`worldcup2026_users?phone=eq.${encodeURIComponent(phone)}&limit=1`);
   const current = existing[0];
-  const payload = { name, phone, role, updated_at: new Date().toISOString() };
+  const payload = {
+    name,
+    phone,
+    role,
+    participant_status: role === "organizer" ? "approved" : (current?.participant_status || "pending"),
+    updated_at: new Date().toISOString()
+  };
   const user = current
     ? (await supabase(`worldcup2026_users?id=eq.${current.id}`, { method: "PATCH", body: JSON.stringify(payload), prefer: "return=representation" }))[0]
     : (await supabase("worldcup2026_users", { method: "POST", body: JSON.stringify(payload), prefer: "return=representation" }))[0];
@@ -93,6 +112,7 @@ async function savePrediction(req, res) {
   const matchId = clean(body.matchId);
   const winner = clean(body.winner);
   if (!userId || !matchId || !winner) throw httpError(400, "بيانات التوقع غير مكتملة");
+  await requireApprovedParticipant(userId);
 
   const [match] = await supabase(`worldcup2026_matches?id=eq.${encodeURIComponent(matchId)}&limit=1`);
   if (!match) throw httpError(404, "المباراة غير موجودة");
@@ -124,14 +144,36 @@ async function saveResult(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+async function updateParticipantStatus(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const participantId = clean(body.participantId);
+  const status = clean(body.status);
+  if (!["approved", "rejected", "pending"].includes(status)) throw httpError(400, "حالة المشارك غير صحيحة");
+  const [user] = await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: JSON.stringify({ participant_status: status, updated_at: new Date().toISOString() })
+  });
+  if (!user) throw httpError(404, "المشارك غير موجود");
+  return res.status(200).json({ user });
+}
+
 async function requireOrganizer(userId) {
   const [user] = await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(clean(userId))}&limit=1`);
   if (!user || user.role !== "organizer") throw httpError(403, "صلاحية المنظم مطلوبة");
 }
 
+async function requireApprovedParticipant(userId) {
+  const [user] = await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(clean(userId))}&limit=1`);
+  if (!user || user.role !== "participant" || user.participant_status !== "approved") {
+    throw httpError(403, "لا يمكنك التوقع قبل موافقة المنظم");
+  }
+}
+
 async function buildStandings() {
   const [users, matches, predictions] = await Promise.all([
-    supabase("worldcup2026_users?role=eq.participant&select=id,name,phone"),
+    supabase("worldcup2026_users?role=eq.participant&participant_status=eq.approved&select=id,name,phone"),
     supabase("worldcup2026_matches?select=id,round_id,winner"),
     supabase("worldcup2026_predictions?select=user_id,match_id,winner")
   ]);
@@ -192,8 +234,8 @@ async function supabase(path, options = {}) {
   const payload = text ? JSON.parse(text) : [];
   if (!response.ok) {
     const message = payload.message || payload.hint || "فشل اتصال قاعدة البيانات";
-    if (/worldcup2026_|schema cache|could not find the table/i.test(message)) {
-      throw httpError(503, "قاعدة بيانات كأس العالم غير مجهزة بعد. شغّل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
+    if (/worldcup2026_|schema cache|could not find the table|participant_status/i.test(message)) {
+      throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث الموافقات. شغّل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
     }
     throw httpError(response.status, message);
   }

@@ -7478,6 +7478,75 @@ function liveScopeFilterHtml(tournament, selectedScope) {
   `;
 }
 
+function liveFilterButtonHtml(tournament, round, matches, selectedScope) {
+  const groups = getGroupMatchdayGroups(matches);
+  const selectedMatchday = getSelectedLiveMatchdayId(tournament, round, matches);
+  const matchdayLabel = selectedMatchday && selectedMatchday !== "all"
+    ? groups.find((group) => group.id === selectedMatchday)?.label || "جميع المباريات"
+    : "جميع المباريات";
+  const scopeLabel = liveScopeOptions.find((option) => option.id === selectedScope)?.label || "الكل";
+  return `
+    <div class="live-filter-actions">
+      <button class="live-filter-trigger" type="button" data-live-filter-sheet="${tournament.id}" data-live-round-id="${round}" aria-label="فلترة المباريات">
+        <span class="live-filter-main">${matchdayLabel}</span>
+        <span class="live-filter-sub">${scopeLabel}</span>
+        <span class="live-filter-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <button class="live-standings-chip" type="button" data-live-standings="${tournament.id}" data-live-round-id="${round}">الترتيب</button>
+    </div>
+  `;
+}
+
+function openLiveFilterSheet(tournament, roundId) {
+  const round = roundId || getSelectedLiveRound(tournament);
+  const matches = getTournamentMatches(tournament, round);
+  const groups = getGroupMatchdayGroups(matches);
+  const selectedMatchday = getSelectedLiveMatchdayId(tournament, round, matches) || "all";
+  const selectedScope = getLiveScopeForTournament(tournament, matches);
+  const matchdayOptions = [{ id: "all", label: "جميع المباريات" }, ...groups];
+  openModal(`
+    <section class="live-filter-sheet" role="dialog" aria-label="فلترة المباريات">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      ${matchdayOptions.length > 1 ? `
+        <div class="live-filter-sheet-group">
+          <p class="live-filter-sheet-title">الجولات</p>
+          ${matchdayOptions.map((option) => `
+            <button class="live-filter-sheet-row" type="button" data-live-sheet-matchday="${option.id}" data-live-tournament-id="${tournament.id}" data-live-round-id="${round}">
+              <span class="radio-dot ${option.id === selectedMatchday ? "active" : ""}" aria-hidden="true"></span>
+              <span>${option.label}</span>
+            </button>
+          `).join("")}
+        </div>
+      ` : ""}
+      <div class="live-filter-sheet-group">
+        <p class="live-filter-sheet-title">عرض المباريات</p>
+        ${liveScopeOptions.map((option) => `
+          <button class="live-filter-sheet-row" type="button" data-live-sheet-scope="${option.id}" data-live-tournament-id="${tournament.id}">
+            <span class="radio-dot ${option.id === selectedScope ? "active" : ""}" aria-hidden="true"></span>
+            <span>${option.label}</span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `);
+  document.querySelectorAll("[data-live-sheet-scope]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedLiveScopeByTournament[button.dataset.liveTournamentId] = button.dataset.liveSheetScope;
+      saveLocalAppState();
+      closeModal();
+      renderLive();
+    });
+  });
+  document.querySelectorAll("[data-live-sheet-matchday]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedLiveMatchdayByTournament[matchdayStateKey(button.dataset.liveTournamentId, button.dataset.liveRoundId)] = button.dataset.liveSheetMatchday;
+      saveLocalAppState();
+      closeModal();
+      renderLive();
+    });
+  });
+}
+
 function isFutureMatch(match) {
   const time = new Date(match?.kickoff || "").getTime();
   return Number.isFinite(time) && time > Date.now();
@@ -8131,11 +8200,7 @@ function renderLive() {
                       </div>
                     </div>
                     ${liveRoundFilterHtml(tournament, liveRound)}
-                    <div class="live-filter-row">
-                      ${liveScopeFilterHtml(tournament, selectedScope)}
-                      <button class="btn ghost live-standings-btn" type="button" data-live-standings="${tournament.id}" data-live-round-id="${liveRound}">الترتيب</button>
-                    </div>
-                    ${groupMatchdayFilterHtml(tournament, liveRound, liveRoundMatches, "live")}
+                    ${liveFilterButtonHtml(tournament, liveRound, liveRoundMatches, selectedScope)}
                     <div class="live-grid">
                       ${liveMatches.length ? liveMatches.map(liveMatchCard).join("") : `<p class="muted empty-row">${liveScopeEmptyText(selectedScope)}</p>`}
                     </div>
@@ -8173,6 +8238,12 @@ function renderLive() {
       state.selectedLiveScopeByTournament[button.dataset.liveTournamentId] = button.dataset.liveScope;
       saveLocalAppState();
       renderLive();
+    });
+  });
+  document.querySelectorAll("[data-live-filter-sheet]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tournament = getTournamentById(button.dataset.liveFilterSheet);
+      if (tournament) openLiveFilterSheet(tournament, button.dataset.liveRoundId);
     });
   });
   document.querySelectorAll("[data-live-matchday]").forEach((button) => {

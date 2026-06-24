@@ -5323,6 +5323,7 @@ h1.section-title {
 .live-score .team-identity {
   min-width: 0;
   width: 100%;
+  max-width: 100%;
 }
 
 .live-score .team-identity:first-child {
@@ -5350,18 +5351,64 @@ h1.section-title {
 
 .live-results-panel {
   padding-bottom: 18px;
+  overflow: hidden;
 }
 
-.live-filter-row {
+.live-filter-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin: 10px 0 12px;
 }
 
-.live-scope-segment {
-  margin: 0;
+.live-filter-trigger,
+.live-standings-chip {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .035);
+  color: var(--text);
+  border-radius: 16px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.live-filter-trigger {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 13px;
+  text-align: start;
+}
+
+.live-filter-main {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.live-filter-sub {
+  min-width: 56px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(213, 255, 64, .13);
+  color: var(--lime);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.live-filter-chevron {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.live-standings-chip {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .live-standings-btn {
@@ -5376,6 +5423,80 @@ h1.section-title {
 
 .live-result-card .match-top {
   margin-bottom: 9px;
+}
+
+.live-filter-sheet {
+  width: min(520px, 100%);
+  align-self: end;
+  justify-self: center;
+  margin-top: auto;
+  padding: 10px 0 calc(12px + env(safe-area-inset-bottom));
+  border: 1px solid var(--line);
+  border-radius: 24px 24px 0 0;
+  background: var(--card);
+  box-shadow: 0 -18px 55px rgba(0, 0, 0, .42);
+  overflow: hidden;
+}
+
+.sheet-handle {
+  width: 44px;
+  height: 4px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .2);
+}
+
+.live-filter-sheet-group + .live-filter-sheet-group {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.live-filter-sheet-title {
+  margin: 4px 22px 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.live-filter-sheet-row {
+  width: 100%;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 0 22px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .055);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: start;
+  cursor: pointer;
+}
+
+.live-filter-sheet-row:last-child {
+  border-bottom: 0;
+}
+
+.radio-dot {
+  width: 19px;
+  height: 19px;
+  border: 2px solid rgba(53, 158, 255, .78);
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+}
+
+.radio-dot.active::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2d9cff;
 }
 
 .live-standings-table-wrap {
@@ -5720,16 +5841,16 @@ body.auth-screen .bottom-nav {
   }
 
   .live-score {
-    grid-template-columns: minmax(78px, 1fr) 44px minmax(78px, 1fr);
-    gap: 5px;
-    font-size: 12px;
+    grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+    gap: 6px;
+    font-size: 11px;
     line-height: 1.2;
   }
 
   .live-score > span:nth-child(2) {
-    min-width: 44px;
+    min-width: 42px;
     padding: 4px 5px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .live-score .team-identity,
@@ -5763,12 +5884,35 @@ body.auth-screen .bottom-nav {
     line-height: 1.15;
   }
 
-  .live-filter-row {
-    grid-template-columns: 1fr;
+  .live-filter-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
   }
 
-  .live-standings-btn {
-    justify-self: stretch;
+  .live-filter-trigger,
+  .live-standings-chip {
+    min-height: 38px;
+    border-radius: 14px;
+  }
+
+  .live-filter-trigger {
+    gap: 6px;
+    padding: 7px 10px;
+  }
+
+  .live-filter-main {
+    font-size: 12px;
+  }
+
+  .live-filter-sub {
+    min-width: 48px;
+    padding-inline: 8px;
+    font-size: 10px;
+  }
+
+  .live-standings-chip {
+    padding-inline: 10px;
+    font-size: 11px;
   }
 
   .prediction-teams {

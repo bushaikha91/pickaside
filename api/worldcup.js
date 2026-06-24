@@ -23,7 +23,6 @@ module.exports = async function handler(req, res) {
     if (action === "prediction" && req.method === "POST") return await savePrediction(req, res);
     if (action === "result" && req.method === "POST") return await saveResult(req, res);
     if (action === "participant-status" && req.method === "POST") return await updateParticipantStatus(req, res);
-    if (action === "clear-demo-data" && req.method === "POST") return await clearDemoData(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -152,14 +151,6 @@ async function updateParticipantStatus(req, res) {
   });
   if (!user) throw httpError(404, "المشارك غير موجود");
   return res.status(200).json({ user });
-}
-
-async function clearDemoData(req, res) {
-  const body = await readBody(req);
-  if (clean(body.organizerCode) !== ORGANIZER_CODE) throw httpError(403, "كود المنظم غير صحيح");
-  await supabase("worldcup2026_predictions?id=not.is.null", { method: "DELETE", prefer: "return=minimal" });
-  await supabase("worldcup2026_matches?id=not.is.null", { method: "DELETE", prefer: "return=minimal" });
-  return res.status(200).json({ ok: true });
 }
 
 async function requireOrganizer(userId) {

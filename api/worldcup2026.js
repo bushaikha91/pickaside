@@ -12,6 +12,7 @@ const ROUND_RULES = {
 };
 
 const ROUND_ORDER = ["r32", "r16", "r8", "qf", "sf", "final"];
+const JOKER_ROUNDS = new Set(["r16", "sf"]);
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -40,19 +41,20 @@ async function sendState(req, res) {
   const user = userId ? await fetchCurrentUser(userId) : undefined;
   const isOrganizer = user?.role === "organizer";
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
+  const tournament = await calculateTournament();
 
-  const [matches, predictions, standings, participants] = await Promise.all([
+  const [matches, predictions, participants] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026_matches?select=*&order=starts_at.asc") : [],
-    userId && (isOrganizer || isApprovedParticipant) ? supabase(`worldcup2026_predictions?select=match_id,winner&user_id=eq.${encodeURIComponent(userId)}`) : [],
-    buildStandings(),
+    userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
     isOrganizer ? fetchParticipants() : []
   ]);
 
   return res.status(200).json({
     user,
-    matches,
-    predictions: Object.fromEntries(predictions.map(item => [item.match_id, item.winner])),
-    standings,
+    matches: isOrganizer ? enrichMatchesForOrganizer(matches, participants, tournament.predictions) : matches,
+    predictions: Object.fromEntries(predictions.map(item => [item.match_id, { winner: item.winner, is_joker: !!item.is_joker }])),
+    matchPoints: userId ? tournament.matchPoints[userId] || {} : {},
+    standings: tournament.standings,
     participants
   });
 }
@@ -63,7 +65,7 @@ async function fetchCurrentUser(userId) {
     const [user] = await supabase(`worldcup2026_users?id=eq.${id}&select=id,name,phone,role,participant_status,avatar_url,created_at,updated_at&limit=1`);
     return user;
   } catch (error) {
-    if (!isOptionalImageColumnError(error)) throw error;
+    if (!isOptionalColumnError(error)) throw error;
     const [user] = await supabase(`worldcup2026_users?id=eq.${id}&select=id,name,phone,role,participant_status,created_at,updated_at&limit=1`);
     return user;
   }
@@ -73,7 +75,7 @@ async function fetchParticipants() {
   try {
     return await supabase("worldcup2026_users?role=eq.participant&select=id,name,phone,participant_status,avatar_url,created_at&order=created_at.desc");
   } catch (error) {
-    if (!isOptionalImageColumnError(error)) throw error;
+    if (!isOptionalColumnError(error)) throw error;
     return await supabase("worldcup2026_users?role=eq.participant&select=id,name,phone,participant_status,created_at&order=created_at.desc");
   }
 }
@@ -82,9 +84,43 @@ async function fetchStandingUsers() {
   try {
     return await supabase("worldcup2026_users?role=eq.participant&participant_status=eq.approved&select=id,name,phone,avatar_url");
   } catch (error) {
-    if (!isOptionalImageColumnError(error)) throw error;
+    if (!isOptionalColumnError(error)) throw error;
     return await supabase("worldcup2026_users?role=eq.participant&participant_status=eq.approved&select=id,name,phone");
   }
+}
+
+async function fetchUserPredictions(userId) {
+  const id = encodeURIComponent(userId);
+  try {
+    return await supabase(`worldcup2026_predictions?select=match_id,winner,is_joker&user_id=eq.${id}`);
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return (await supabase(`worldcup2026_predictions?select=match_id,winner&user_id=eq.${id}`))
+      .map(item => ({ ...item, is_joker: false }));
+  }
+}
+
+function enrichMatchesForOrganizer(matches, participants, predictions) {
+  const approved = participants.filter(user => user.participant_status === "approved");
+  return matches.map(match => {
+    const votedIds = new Set(predictions.filter(item => item.match_id === match.id).map(item => item.user_id));
+    return {
+      ...match,
+      vote_count: votedIds.size,
+      eligible_count: approved.length,
+      voted_users: approved.filter(user => votedIds.has(user.id)).map(publicParticipant),
+      missing_users: approved.filter(user => !votedIds.has(user.id)).map(publicParticipant)
+    };
+  });
+}
+
+function publicParticipant(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    phone: user.phone,
+    avatar_url: user.avatar_url || ""
+  };
 }
 
 async function login(req, res) {
@@ -156,6 +192,7 @@ async function savePrediction(req, res) {
   const userId = clean(body.userId);
   const matchId = clean(body.matchId);
   const winner = clean(body.winner);
+  const isJoker = body.isJoker === true;
   if (!userId || !matchId || !winner) throw httpError(400, "بيانات التوقع غير مكتملة");
   await requireApprovedParticipant(userId);
 
@@ -163,13 +200,26 @@ async function savePrediction(req, res) {
   if (!match) throw httpError(404, "المباراة غير موجودة");
   if (new Date(match.vote_ends_at) <= new Date()) throw httpError(409, "انتهى وقت التصويت لهذه المباراة");
   if (![match.team_a, match.team_b].includes(winner)) throw httpError(400, "الفائز المختار غير صحيح");
+  if (isJoker) await validateJokerPick(userId, match);
 
   await supabase("worldcup2026_predictions?on_conflict=user_id,match_id", {
     method: "POST",
     prefer: "resolution=merge-duplicates,return=representation",
-    body: JSON.stringify({ user_id: userId, match_id: matchId, winner, updated_at: new Date().toISOString() })
+    body: JSON.stringify({ user_id: userId, match_id: matchId, winner, is_joker: isJoker, updated_at: new Date().toISOString() })
   });
   return res.status(200).json({ ok: true });
+}
+
+async function validateJokerPick(userId, match) {
+  if (!JOKER_ROUNDS.has(match.round_id)) throw httpError(400, "الجوكر متاح في دور 16 ونصف النهائي فقط");
+  const predictions = await fetchUserPredictions(userId);
+  const jokerMatchIds = predictions
+    .filter(item => item.is_joker && item.match_id !== match.id)
+    .map(item => item.match_id);
+  if (!jokerMatchIds.length) return;
+  const roundMatches = await supabase(`worldcup2026_matches?round_id=eq.${encodeURIComponent(match.round_id)}&select=id`);
+  const sameRoundIds = new Set(roundMatches.map(item => item.id));
+  if (jokerMatchIds.some(id => sameRoundIds.has(id))) throw httpError(409, "استخدمت الجوكر مسبقاً في هذا الدور");
 }
 
 async function updateProfile(req, res) {
@@ -249,14 +299,15 @@ async function requireApprovedParticipant(userId) {
   }
 }
 
-async function buildStandings() {
+async function calculateTournament() {
   const [users, matches, predictions] = await Promise.all([
     fetchStandingUsers(),
     supabase("worldcup2026_matches?select=id,round_id,winner,starts_at"),
-    supabase("worldcup2026_predictions?select=user_id,match_id,winner")
+    fetchAllPredictions()
   ]);
 
-  const predictionByUserMatch = new Map(predictions.map(item => [`${item.user_id}:${item.match_id}`, item.winner]));
+  const predictionByUserMatch = new Map(predictions.map(item => [`${item.user_id}:${item.match_id}`, item]));
+  const matchPoints = Object.fromEntries(users.map(user => [user.id, {}]));
   const stats = new Map(users.map(user => [user.id, {
     id: user.id,
     name: user.name,
@@ -275,32 +326,50 @@ async function buildStandings() {
     if (!rule || !roundMatches.length) continue;
 
     if (rule.type === "fixed") {
-      applyFixedRound(users, stats, predictionByUserMatch, roundMatches, rule);
+      applyFixedRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints);
     } else if (rule.type === "bankroll") {
-      applyBankrollRound(users, stats, predictionByUserMatch, roundMatches, rule);
+      applyBankrollRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints);
     } else if (rule.type === "final") {
-      applyFinalRound(users, stats, predictionByUserMatch, roundMatches);
+      applyFinalRound(users, stats, predictionByUserMatch, roundMatches, matchPoints);
     }
   }
 
-  return Array.from(stats.values())
-    .map(row => ({ ...row, points: roundPoints(row.points) }))
-    .sort((a, b) => b.points - a.points || b.correct_predictions - a.correct_predictions || a.wrong_predictions - b.wrong_predictions);
+  return {
+    predictions,
+    matchPoints,
+    standings: Array.from(stats.values())
+      .map(row => ({ ...row, points: roundPoints(row.points) }))
+      .sort((a, b) => b.points - a.points || b.correct_predictions - a.correct_predictions || a.wrong_predictions - b.wrong_predictions)
+  };
 }
 
-function applyFixedRound(users, stats, predictionByUserMatch, matches, rule) {
+async function fetchAllPredictions() {
+  try {
+    return await supabase("worldcup2026_predictions?select=user_id,match_id,winner,is_joker");
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return (await supabase("worldcup2026_predictions?select=user_id,match_id,winner"))
+      .map(item => ({ ...item, is_joker: false }));
+  }
+}
+
+async function buildStandings() {
+  return (await calculateTournament()).standings;
+}
+
+function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, matchPoints) {
   for (const match of matches.filter(item => item.winner)) {
     const correctUsers = [];
     let lostPool = 0;
     const outcomes = new Map();
 
     for (const user of users) {
-      const pick = predictionByUserMatch.get(`${user.id}:${match.id}`);
-      if (!pick) continue;
-      const correct = pick === match.winner;
+      const prediction = predictionByUserMatch.get(`${user.id}:${match.id}`);
+      if (!prediction) continue;
+      const correct = prediction.winner === match.winner;
       const baseReturn = correct ? rule.winnerStake : rule.safetyStake;
       const lostStake = correct ? rule.safetyStake : rule.winnerStake;
-      outcomes.set(user.id, { correct, baseReturn });
+      outcomes.set(user.id, { correct, baseReturn, isJoker: !!prediction.is_joker });
       if (correct) correctUsers.push(user.id);
       else lostPool += lostStake;
     }
@@ -308,14 +377,17 @@ function applyFixedRound(users, stats, predictionByUserMatch, matches, rule) {
     const correctShare = correctUsers.length ? lostPool / correctUsers.length : 0;
     for (const [userId, outcome] of outcomes) {
       const row = stats.get(userId);
-      row.points += outcome.baseReturn + (outcome.correct ? correctShare : 0);
+      const rawPoints = outcome.baseReturn + (outcome.correct ? correctShare : 0);
+      const points = applyJoker(rawPoints, outcome.isJoker);
+      row.points += points;
+      matchPoints[userId][match.id] = matchPointRow(points, outcome.correct, outcome.isJoker);
       if (outcome.correct) row.correct_predictions += 1;
       else row.wrong_predictions += 1;
     }
   }
 }
 
-function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule) {
+function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, matchPoints) {
   const settledMatches = matches.filter(item => item.winner);
   if (!settledMatches.length) return;
 
@@ -332,20 +404,23 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule) 
     const outcomes = new Map();
 
     for (const user of users) {
-      const pick = predictionByUserMatch.get(`${user.id}:${match.id}`);
-      if (!pick) continue;
+      const prediction = predictionByUserMatch.get(`${user.id}:${match.id}`);
+      if (!prediction) continue;
       const matchBudget = startingPoints.get(user.id) / rule.matchCount;
-      const correct = pick === match.winner;
+      const correct = prediction.winner === match.winner;
       const baseReturn = matchBudget * (correct ? rule.winnerPercent : rule.safetyPercent);
       const lostStake = matchBudget * (correct ? rule.safetyPercent : rule.winnerPercent);
-      outcomes.set(user.id, { correct, baseReturn });
+      outcomes.set(user.id, { correct, baseReturn, isJoker: !!prediction.is_joker });
       if (correct) correctUsers.push(user.id);
       else lostPool += lostStake;
     }
 
     const correctShare = correctUsers.length ? lostPool / correctUsers.length : 0;
     for (const [userId, outcome] of outcomes) {
-      nextPoints.set(userId, (nextPoints.get(userId) || 0) + outcome.baseReturn + (outcome.correct ? correctShare : 0));
+      const rawPoints = outcome.baseReturn + (outcome.correct ? correctShare : 0);
+      const points = applyJoker(rawPoints, outcome.isJoker);
+      nextPoints.set(userId, (nextPoints.get(userId) || 0) + points);
+      matchPoints[userId][match.id] = matchPointRow(points, outcome.correct, outcome.isJoker);
       const row = stats.get(userId);
       if (outcome.correct) row.correct_predictions += 1;
       else row.wrong_predictions += 1;
@@ -357,7 +432,7 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule) 
   }
 }
 
-function applyFinalRound(users, stats, predictionByUserMatch, matches) {
+function applyFinalRound(users, stats, predictionByUserMatch, matches, matchPoints) {
   const finalMatch = matches.find(item => item.winner);
   if (!finalMatch) return;
 
@@ -367,9 +442,9 @@ function applyFinalRound(users, stats, predictionByUserMatch, matches) {
   const outcomes = new Map();
 
   for (const user of users) {
-    const pick = predictionByUserMatch.get(`${user.id}:${finalMatch.id}`);
-    if (!pick) continue;
-    const correct = pick === finalMatch.winner;
+    const prediction = predictionByUserMatch.get(`${user.id}:${finalMatch.id}`);
+    if (!prediction) continue;
+    const correct = prediction.winner === finalMatch.winner;
     outcomes.set(user.id, correct);
     if (correct) correctUsers.push(user.id);
     else lostPool += startingPoints.get(user.id);
@@ -380,10 +455,24 @@ function applyFinalRound(users, stats, predictionByUserMatch, matches) {
     const row = stats.get(user.id);
     if (!outcomes.has(user.id)) continue;
     const correct = outcomes.get(user.id);
-    row.points = correct ? startingPoints.get(user.id) + correctShare : 0;
+    const points = correct ? startingPoints.get(user.id) + correctShare : 0;
+    row.points = points;
+    matchPoints[user.id][finalMatch.id] = matchPointRow(points, correct, false);
     if (correct) row.correct_predictions += 1;
     else row.wrong_predictions += 1;
   }
+}
+
+function applyJoker(points, isJoker) {
+  return isJoker ? points * 2 : points;
+}
+
+function matchPointRow(points, correct, isJoker) {
+  return {
+    points: roundPoints(points),
+    correct,
+    is_joker: !!isJoker
+  };
 }
 
 function roundPoints(value) {
@@ -413,7 +502,7 @@ function publicUser(user) {
 async function supabase(path, options = {}) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) throw httpError(500, "Supabase غير مفعّل على السيرفر");
+  if (!url || !key) throw httpError(500, "Supabase غير مفعل على السيرفر");
 
   const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
     method: options.method || "GET",
@@ -430,8 +519,8 @@ async function supabase(path, options = {}) {
   const payload = text ? JSON.parse(text) : [];
   if (!response.ok) {
     const message = payload.message || payload.hint || "فشل اتصال قاعدة البيانات";
-    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash|avatar_url|team_a_flag|team_b_flag/i.test(message)) {
-      throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث الدخول. شغّل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
+    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash|avatar_url|team_a_flag|team_b_flag|is_joker/i.test(message)) {
+      throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث. شغل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
     }
     throw httpError(response.status, message);
   }
@@ -473,7 +562,7 @@ function cleanImageDataUrl(value) {
   return image;
 }
 
-function isOptionalImageColumnError(error) {
+function isOptionalColumnError(error) {
   return error?.status === 503;
 }
 

@@ -63,7 +63,11 @@ create table if not exists public.worldcup2026_predictions (
   user_id uuid not null references public.worldcup2026_users(id) on delete cascade,
   match_id uuid not null references public.worldcup2026_matches(id) on delete cascade,
   winner text not null,
+  is_joker boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, match_id)
 );
+
+alter table public.worldcup2026_predictions
+  add column if not exists is_joker boolean not null default false;

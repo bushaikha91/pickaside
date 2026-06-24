@@ -24,14 +24,18 @@ const state = {
   matches: [],
   standings: [],
   predictions: {},
+  matchPoints: {},
   participants: [],
   loading: true,
   error: "",
-  notice: ""
+  notice: "",
+  profileOpen: false,
+  voterModalMatch: null
 };
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
 let activeRound = "r32";
+let countdownTimer = null;
 
 window.addEventListener("beforeinstallprompt", event => {
   event.preventDefault();
@@ -76,6 +80,7 @@ async function loadData() {
     state.matches = payload.matches || [];
     state.standings = payload.standings || [];
     state.predictions = payload.predictions || {};
+    state.matchPoints = payload.matchPoints || {};
     state.participants = payload.participants || [];
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
@@ -176,30 +181,30 @@ function appTemplate() {
 
   return `
     <header class="topbar">
-      <div class="brand-row">
-        <div class="top-logo"><img src="assets/worldcup-icon-192.png" alt="شعار كأس العالم 2026" /></div>
+      <button class="brand-row profile-trigger" id="profileOpenBtn" type="button">
+        ${avatarTile(state.currentUser, "top-logo")}
         <div class="user-meta">
           <strong>${escapeHtml(state.currentUser.name)}</strong>
           <span>${state.currentUser.role === "organizer" ? "منظم البطولة" : statusLabel(state.currentUser.participant_status)}</span>
         </div>
-      </div>
+      </button>
       <button class="pill" id="logoutBtn">خروج</button>
     </header>
     <nav class="tabs ${state.currentUser.role === "organizer" ? "organizer-tabs" : ""}">
       ${roleTabs}
       <button class="tab ${activeTab === "standings" ? "active" : ""}" data-tab="standings">الترتيب</button>
       <button class="tab ${activeTab === "laws" ? "active" : ""}" data-tab="laws">القوانين</button>
-      <button class="tab ${activeTab === "profile" ? "active" : ""}" data-tab="profile">الملف</button>
     </nav>
     <section class="content">
       ${noticeView()}
       ${state.loading ? loadingView() : state.error ? errorView(state.error) : currentView()}
     </section>
+    ${state.profileOpen ? profileModal() : ""}
+    ${state.voterModalMatch ? voterModal(state.voterModalMatch) : ""}
   `;
 }
 
 function currentView() {
-  if (activeTab === "profile") return profileView();
   if (activeTab === "standings") return standingsView();
   if (activeTab === "laws") return lawsView();
   if (state.currentUser.role === "participant" && state.currentUser.participant_status !== "approved") {
@@ -210,26 +215,28 @@ function currentView() {
   return participantMatchesView();
 }
 
-function profileView() {
+function profileModal() {
   return `
-    <form class="panel stack profile-panel" id="profileForm">
-      <div class="section-title">
-        <h2>الملف الشخصي</h2>
-        <span class="small">تعديل الاسم والصورة</span>
-      </div>
-      <div class="profile-photo-row">
-        ${avatarTile(state.currentUser, "avatar-large", "profileAvatarPreview")}
-        <label class="image-upload">
-          <span>اختيار صورة</span>
-          <input id="profileAvatar" type="file" accept="image/png,image/jpeg,image/webp" />
+    <div class="modal-backdrop" data-modal-close>
+      <form class="modal-card stack profile-panel" id="profileForm">
+        <div class="section-title">
+          <h2>الملف الشخصي</h2>
+          <button class="icon-close" type="button" data-profile-close>×</button>
+        </div>
+        <div class="profile-photo-row">
+          ${avatarTile(state.currentUser, "avatar-large", "profileAvatarPreview")}
+          <label class="image-upload">
+            <span>اختيار صورة</span>
+            <input id="profileAvatar" type="file" accept="image/png,image/jpeg,image/webp" />
+          </label>
+        </div>
+        <label class="field">
+          <span>الاسم</span>
+          <input id="profileName" required autocomplete="name" value="${escapeHtml(state.currentUser.name)}" />
         </label>
-      </div>
-      <label class="field">
-        <span>الاسم</span>
-        <input id="profileName" required autocomplete="name" value="${escapeHtml(state.currentUser.name)}" />
-      </label>
-      <button class="primary-btn" type="submit">حفظ التعديل</button>
-    </form>
+        <button class="primary-btn" type="submit">حفظ التعديل</button>
+      </form>
+    </div>
   `;
 }
 
@@ -446,11 +453,15 @@ function summaryView() {
   `;
 }
 
-function matchCard(match, selected) {
+function matchCard(match, prediction) {
   const locked = new Date(match.vote_ends_at) <= new Date();
-  const status = match.winner ? `<span class="status-chip done">الفائز: ${escapeHtml(match.winner)}</span>` : `<span class="status-chip">بانتظار النتيجة</span>`;
+  const selected = prediction?.winner || prediction || "";
+  const isJoker = !!prediction?.is_joker;
+  const points = state.matchPoints[match.id];
+  const canUseJoker = ["r16", "sf"].includes(match.round_id);
+  const status = matchStatusView(match, selected, points, locked);
   return `
-    <article class="match-card">
+    <article class="match-card ${locked ? "locked-card" : ""}">
       <div class="match-head">
         <span class="round-badge">${roundName(match.round_id)}</span>
         ${status}
@@ -458,12 +469,17 @@ function matchCard(match, selected) {
       <div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>
       <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
       <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
+      <div class="countdown ${locked ? "expired" : ""}">${locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</div>
+      ${canUseJoker ? `
+        <button class="joker-toggle ${isJoker ? "active" : ""}" ${locked ? "disabled" : ""} data-joker="${match.id}" type="button">
+          ${isJoker ? "الجوكر مفعل ×2" : "تفعيل الجوكر ×2"}
+        </button>
+      ` : ""}
       <div class="choices">
-        <button class="choice ${selected === match.team_a ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_a)}">${escapeHtml(match.team_a)}</button>
-        <button class="choice ${selected === match.team_b ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_b)}">${escapeHtml(match.team_b)}</button>
+        <button class="choice ${selected === match.team_a ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_a)}" data-joker-state="${isJoker ? "true" : "false"}">${escapeHtml(match.team_a)}</button>
+        <button class="choice ${selected === match.team_b ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_b)}" data-joker-state="${isJoker ? "true" : "false"}">${escapeHtml(match.team_b)}</button>
       </div>
       ${selected ? `<p class="small">تم حفظ توقعك: ${escapeHtml(selected)}</p>` : `<p class="small">لم تحفظ توقعك لهذه المباراة بعد.</p>`}
-      ${locked ? `<p class="small">انتهى وقت التصويت لهذه المباراة.</p>` : ""}
     </article>
   `;
 }
@@ -479,6 +495,9 @@ function managerMatchCard(match) {
       <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
       <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
       ${teamsView}
+      <button class="vote-count-btn" data-voters="${match.id}" type="button">
+        التصويت: ${match.vote_count || 0} من ${match.eligible_count || 0}
+      </button>
       <div class="result-row">
         <button class="choice ${match.winner === match.team_a ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_a)}">${escapeHtml(match.team_a)}</button>
         <button class="choice ${match.winner === match.team_b ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_b)}">${escapeHtml(match.team_b)}</button>
@@ -486,6 +505,64 @@ function managerMatchCard(match) {
       <button class="ghost-btn" style="margin-top:8px" data-clear="${match.id}">مسح النتيجة</button>
     </article>
   `;
+}
+
+function voterModal(matchId) {
+  const match = state.matches.find(item => item.id === matchId);
+  if (!match) return "";
+  const voted = match.voted_users || [];
+  const missing = match.missing_users || [];
+  return `
+    <div class="modal-backdrop" data-voter-modal-close>
+      <section class="modal-card stack">
+        <div class="section-title">
+          <h2>حالة التصويت</h2>
+          <button class="icon-close" type="button" data-voters-close>×</button>
+        </div>
+        <div class="vote-summary">اكتمل ${match.vote_count || 0} من ${match.eligible_count || 0}</div>
+        <h3 class="modal-subtitle">انتهوا من التصويت</h3>
+        <div class="voter-list">
+          ${voted.length ? voted.map(voterRow).join("") : emptyView("لا يوجد مصوتون حتى الآن.")}
+        </div>
+        <h3 class="modal-subtitle">لم ينتهوا من التصويت</h3>
+        <div class="voter-list">
+          ${missing.length ? missing.map(voterRow).join("") : emptyView("لا يوجد لاعبون متبقون.")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function voterRow(user) {
+  return `
+    <div class="voter-row">
+      ${avatarTile(user, "avatar-small")}
+      <div>
+        <strong>${escapeHtml(user.name)}</strong>
+        <span>${escapeHtml(user.phone || "")}</span>
+      </div>
+    </div>
+  `;
+}
+
+function matchStatusView(match, selected, points, locked) {
+  if (match.winner && points) {
+    return `<span class="status-chip ${points.correct ? "done" : "wrong"}">${points.correct ? "توقع صحيح" : "توقع خاطئ"}: ${points.points} نقطة${points.is_joker ? " ×2" : ""}</span>`;
+  }
+  if (locked) return `<span class="status-chip pending">بانتظار اعتماد النتائج</span>`;
+  if (selected) return `<span class="status-chip done">تم التصويت</span>`;
+  return `<span class="status-chip">مفتوح للتصويت</span>`;
+}
+
+function countdownText(value) {
+  const diff = Math.max(0, new Date(value).getTime() - Date.now());
+  const totalSeconds = Math.floor(diff / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (days > 0) return `${days} يوم ${hours} ساعة`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function bindLogin() {
@@ -593,8 +670,46 @@ function bindApp() {
 
   document.querySelector("#retryBtn")?.addEventListener("click", loadData);
 
+  document.querySelector("#profileOpenBtn")?.addEventListener("click", () => {
+    state.profileOpen = true;
+    render();
+  });
+
+  document.querySelector("[data-profile-close]")?.addEventListener("click", () => {
+    state.profileOpen = false;
+    render();
+  });
+
+  document.querySelector("[data-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.profileOpen = false;
+      state.voterModalMatch = null;
+      render();
+    }
+  });
+
+  document.querySelectorAll("[data-voters]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.voterModalMatch = button.dataset.voters;
+      render();
+    });
+  });
+
+  document.querySelector("[data-voters-close]")?.addEventListener("click", () => {
+    state.voterModalMatch = null;
+    render();
+  });
+
+  document.querySelector("[data-voter-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.voterModalMatch = null;
+      render();
+    }
+  });
+
   bindProfileForm();
   const matchFlagState = bindMatchFlagFields();
+  syncCountdownTimer();
 
   document.querySelectorAll("[data-tab]").forEach(button => {
     button.addEventListener("click", () => {
@@ -664,12 +779,46 @@ function bindApp() {
       try {
         await api("prediction", {
           method: "POST",
-          body: JSON.stringify({ userId: state.currentUser.id, matchId: button.dataset.pick, winner: button.dataset.team })
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            matchId: button.dataset.pick,
+            winner: button.dataset.team,
+            isJoker: button.dataset.jokerState === "true"
+          })
         });
         state.notice = "تم حفظ توقعك في السيرفر.";
         await loadData();
       } catch (error) {
         state.error = error.message || "تعذر حفظ التوقع";
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-joker]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const matchId = button.dataset.joker;
+      const prediction = state.predictions[matchId];
+      const winner = prediction?.winner || prediction;
+      if (!winner) {
+        state.notice = "اختر الفائز أولاً ثم فعّل الجوكر.";
+        render();
+        return;
+      }
+      try {
+        await api("prediction", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            matchId,
+            winner,
+            isJoker: !prediction?.is_joker
+          })
+        });
+        state.notice = prediction?.is_joker ? "تم إلغاء الجوكر." : "تم تفعيل الجوكر.";
+        await loadData();
+      } catch (error) {
+        state.error = error.message || "تعذر تحديث الجوكر";
         render();
       }
     });
@@ -743,6 +892,7 @@ function bindProfileForm() {
       });
       state.currentUser = { ...state.currentUser, ...payload.user };
       writeSession(state.currentUser);
+      state.profileOpen = false;
       state.notice = "تم تحديث الملف الشخصي.";
       await loadData();
     } catch (error) {
@@ -797,6 +947,20 @@ function bindFlagInput(inputSelector, previewSelector, onChange) {
       render();
     }
   });
+}
+
+function syncCountdownTimer() {
+  const hasOpenMatch = state.currentUser && state.matches.some(match => new Date(match.vote_ends_at) > new Date() && !match.winner);
+  if (hasOpenMatch && !countdownTimer) {
+    countdownTimer = setInterval(() => {
+      if (!state.currentUser) return;
+      render();
+    }, 1000);
+  }
+  if (!hasOpenMatch && countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
 }
 
 function bindSwipeRows() {

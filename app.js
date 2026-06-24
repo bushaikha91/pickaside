@@ -2827,6 +2827,7 @@ function normalizeFixturePayload(payload) {
     const round = roundDetails.id;
     const homeGoals = goals.home ?? score.fulltime?.home ?? score.halftime?.home;
     const awayGoals = goals.away ?? score.fulltime?.away ?? score.halftime?.away;
+    const hasScore = homeGoals !== null && homeGoals !== undefined && awayGoals !== null && awayGoals !== undefined;
     byRound[round].push({
       id: `fx-${fixture.id || `${round}-${byRound[round].length + 1}`}`,
       fixtureId: fixture.id || "",
@@ -2835,7 +2836,7 @@ function normalizeFixturePayload(payload) {
       b: teams.away?.name || "Away",
       logoA: teams.home?.logo || "",
       logoB: teams.away?.logo || "",
-      score: homeGoals !== undefined && awayGoals !== undefined ? `${homeGoals} - ${awayGoals}` : "",
+      score: hasScore ? `${homeGoals} - ${awayGoals}` : "",
       statusShort: status.short || "",
       minute: status.elapsed || "",
       apiRound: league.round || "",
@@ -7478,18 +7479,16 @@ function liveScopeFilterHtml(tournament, selectedScope) {
   `;
 }
 
-function liveFilterButtonHtml(tournament, round, matches, selectedScope) {
+function liveFilterButtonHtml(tournament, round, matches) {
   const groups = getGroupMatchdayGroups(matches);
   const selectedMatchday = getSelectedLiveMatchdayId(tournament, round, matches);
   const matchdayLabel = selectedMatchday && selectedMatchday !== "all"
     ? groups.find((group) => group.id === selectedMatchday)?.label || "جميع المباريات"
     : "جميع المباريات";
-  const scopeLabel = liveScopeOptions.find((option) => option.id === selectedScope)?.label || "الكل";
   return `
     <div class="live-filter-actions">
       <button class="live-filter-trigger" type="button" data-live-filter-sheet="${tournament.id}" data-live-round-id="${round}" aria-label="فلترة المباريات">
         <span class="live-filter-main">${matchdayLabel}</span>
-        <span class="live-filter-sub">${scopeLabel}</span>
         <span class="live-filter-chevron" aria-hidden="true">⌄</span>
       </button>
       <button class="live-standings-chip" type="button" data-live-standings="${tournament.id}" data-live-round-id="${round}">الترتيب</button>
@@ -7502,44 +7501,25 @@ function openLiveFilterSheet(tournament, roundId) {
   const matches = getTournamentMatches(tournament, round);
   const groups = getGroupMatchdayGroups(matches);
   const selectedMatchday = getSelectedLiveMatchdayId(tournament, round, matches) || "all";
-  const selectedScope = getLiveScopeForTournament(tournament, matches);
   const matchdayOptions = [{ id: "all", label: "جميع المباريات" }, ...groups];
   openModal(`
     <section class="live-filter-sheet" role="dialog" aria-label="فلترة المباريات">
       <div class="sheet-handle" aria-hidden="true"></div>
-      ${matchdayOptions.length > 1 ? `
-        <div class="live-filter-sheet-group">
-          <p class="live-filter-sheet-title">الجولات</p>
-          ${matchdayOptions.map((option) => `
-            <button class="live-filter-sheet-row" type="button" data-live-sheet-matchday="${option.id}" data-live-tournament-id="${tournament.id}" data-live-round-id="${round}">
-              <span class="radio-dot ${option.id === selectedMatchday ? "active" : ""}" aria-hidden="true"></span>
-              <span>${option.label}</span>
-            </button>
-          `).join("")}
-        </div>
-      ` : ""}
       <div class="live-filter-sheet-group">
-        <p class="live-filter-sheet-title">عرض المباريات</p>
-        ${liveScopeOptions.map((option) => `
-          <button class="live-filter-sheet-row" type="button" data-live-sheet-scope="${option.id}" data-live-tournament-id="${tournament.id}">
-            <span class="radio-dot ${option.id === selectedScope ? "active" : ""}" aria-hidden="true"></span>
+        <p class="live-filter-sheet-title">الجولات</p>
+        ${matchdayOptions.map((option) => `
+          <button class="live-filter-sheet-row" type="button" data-live-sheet-matchday="${option.id}" data-live-tournament-id="${tournament.id}" data-live-round-id="${round}">
+            <span class="radio-dot ${option.id === selectedMatchday ? "active" : ""}" aria-hidden="true"></span>
             <span>${option.label}</span>
           </button>
         `).join("")}
       </div>
     </section>
   `);
-  document.querySelectorAll("[data-live-sheet-scope]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedLiveScopeByTournament[button.dataset.liveTournamentId] = button.dataset.liveSheetScope;
-      saveLocalAppState();
-      closeModal();
-      renderLive();
-    });
-  });
   document.querySelectorAll("[data-live-sheet-matchday]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedLiveMatchdayByTournament[matchdayStateKey(button.dataset.liveTournamentId, button.dataset.liveRoundId)] = button.dataset.liveSheetMatchday;
+      delete state.selectedLiveScopeByTournament[button.dataset.liveTournamentId];
       saveLocalAppState();
       closeModal();
       renderLive();
@@ -7962,8 +7942,9 @@ function applyLiveResultEvents(tournament, round, events) {
 
 function scoreForMatchOrder(match, event) {
   if (!event.score) return "";
-  const [homeGoals, awayGoals] = parseMatchScore(event.score);
-  if (homeGoals === null || awayGoals === null) return event.score;
+  const parsedScore = parseMatchScore(event.score);
+  if (!parsedScore) return event.score;
+  const { home: homeGoals, away: awayGoals } = parsedScore;
   const home = normalizeName(event.homeName);
   const away = normalizeName(event.awayName);
   const a = normalizeName(match.a);
@@ -8187,8 +8168,7 @@ function renderLive() {
             ${joinedTournaments.map((tournament) => {
               const liveRound = getSelectedLiveRound(tournament);
               const liveRoundMatches = getTournamentMatches(tournament, liveRound);
-              const selectedScope = getLiveScopeForTournament(tournament, liveRoundMatches);
-              const liveMatches = getTournamentLiveMatches(tournament, selectedScope);
+              const liveMatches = getTournamentLiveMatches(tournament, "all");
               const selectedRoundLabel = getTournamentRounds(tournament).find((round) => round.id === liveRound)?.label || "الدور الحالي";
               return `
                 <section class="championship-slide" aria-label="${tournament.name}">
@@ -8200,10 +8180,8 @@ function renderLive() {
                       </div>
                     </div>
                     ${liveRoundFilterHtml(tournament, liveRound)}
-                    ${liveFilterButtonHtml(tournament, liveRound, liveRoundMatches, selectedScope)}
-                    <div class="live-grid">
-                      ${liveMatches.length ? liveMatches.map(liveMatchCard).join("") : `<p class="muted empty-row">${liveScopeEmptyText(selectedScope)}</p>`}
-                    </div>
+                    ${liveFilterButtonHtml(tournament, liveRound, liveRoundMatches)}
+                    ${liveMatches.length ? liveFixtureListHtml(liveMatches) : `<p class="muted empty-row">${liveScopeEmptyText("all")}</p>`}
                   </div>
                 </section>
               `;
@@ -8333,7 +8311,7 @@ function setupLiveTournamentSwipe(tournaments) {
 function getTournamentLiveMatches(tournament, selectedScope = "") {
   const round = getSelectedLiveRound(tournament);
   const allMatches = getTournamentMatches(tournament, round);
-  const scope = selectedScope || getLiveScopeForTournament(tournament, allMatches);
+  const scope = selectedScope || "all";
   const selectedMatchday = getSelectedLiveMatchdayId(tournament, round, allMatches);
   const visibleMatches = selectedMatchday && selectedMatchday !== "all"
     ? allMatches.filter((match) => getMatchdayIdForMatch(match, allMatches) === selectedMatchday)
@@ -8353,7 +8331,6 @@ function getTournamentLiveMatches(tournament, selectedScope = "") {
       const aLive = isMatchLive(a);
       const bLive = isMatchLive(b);
       if (aLive !== bLive) return aLive ? -1 : 1;
-      if (scope === "past") return bTime - aTime;
       return aTime - bTime;
     });
   return matches.map((match) => {
@@ -8370,6 +8347,86 @@ function getTournamentLiveMatches(tournament, selectedScope = "") {
       kickoffLabel
     };
   });
+}
+
+function liveFixtureListHtml(matches) {
+  const groups = [];
+  matches.forEach((match) => {
+    const key = getLiveMatchSectionKey(match);
+    let group = groups.find((item) => item.key === key);
+    if (!group) {
+      group = { key, label: getLiveMatchSectionLabel(match), matches: [] };
+      groups.push(group);
+    }
+    group.matches.push(match);
+  });
+  return `
+    <div class="live-fixture-list">
+      ${groups.map((group) => `
+        <section class="live-fixture-group">
+          <div class="live-fixture-group-title">${group.label}</div>
+          ${group.matches.map(liveFixtureRowHtml).join("")}
+        </section>
+      `).join("")}
+    </div>
+  `;
+}
+
+function getLiveMatchSectionKey(match) {
+  return getMatchGroupLabel(match) || formatUaeDateKey(match.kickoff);
+}
+
+function getLiveMatchSectionLabel(match) {
+  const groupLabel = getMatchGroupLabel(match);
+  if (groupLabel) return groupLabel;
+  if (isMatchToday(match)) return "اليوم";
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (formatUaeDateKey(match.kickoff) === formatUaeDateKey(tomorrow.toISOString())) return "غداً";
+  return formatUaeDate(match.kickoff, { weekday: "short", day: "2-digit", month: "short" });
+}
+
+function getMatchGroupLabel(match) {
+  const candidates = [
+    match.groupName,
+    match.groupLabel,
+    match.poolName,
+    match.apiGroup,
+    match.apiRound,
+    match.stageLabel
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    const text = String(candidate);
+    const letter = text.match(/group\s+([A-H])\b/i) || text.match(/المجموعة\s*([أ-يA-H])/i);
+    if (letter && !/group\s+stage/i.test(text)) return `المجموعة ${letter[1].toUpperCase()}`;
+  }
+  return "";
+}
+
+function liveFixtureRowHtml(match) {
+  const final = isMatchFinal(match);
+  const live = isMatchLive(match);
+  const status = final ? "انتهت" : live ? liveStatusLabel(match.statusShort, match.minute) : "لم تبدأ";
+  const centerValue = final || live
+    ? match.score || "0 - 0"
+    : formatUaeDate(match.kickoff, { hour: "2-digit", minute: "2-digit" });
+  const dateLabel = final || live
+    ? status
+    : formatUaeDate(match.kickoff, { weekday: "short", day: "2-digit", month: "short" });
+  return `
+    <article class="live-fixture-row">
+      <div class="live-fixture-team live-fixture-team-home">
+        ${teamIdentityHtml(match.a, "compact", match.logoA || "")}
+      </div>
+      <div class="live-fixture-center">
+        <small>${dateLabel}</small>
+        <strong>${centerValue}</strong>
+      </div>
+      <div class="live-fixture-team live-fixture-team-away">
+        ${teamIdentityHtml(match.b, "compact", match.logoB || "")}
+      </div>
+    </article>
+  `;
 }
 
 function liveMatchCard(match) {
@@ -8392,7 +8449,7 @@ function liveMatchCard(match) {
 
 function openLiveStandingsModal(tournament, roundId) {
   const round = roundId || getSelectedLiveRound(tournament);
-  const standings = calculateLiveStandings(tournament, round);
+  const standingGroups = calculateLiveStandingsGroups(tournament, round);
   const roundLabel = getTournamentRounds(tournament).find((item) => item.id === round)?.label || "الدور الحالي";
   openModal(`
     <section class="card modal stack">
@@ -8401,44 +8458,68 @@ function openLiveStandingsModal(tournament, roundId) {
         <button class="icon-btn" type="button" id="close-modal" aria-label="إغلاق">×</button>
       </div>
       <p class="muted">${tournament.name} · ${roundLabel}</p>
-      ${standings.length ? `
-        <div class="live-standings-table-wrap">
-          <table class="live-standings-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>الفريق</th>
-                <th>لعب</th>
-                <th>ف</th>
-                <th>ت</th>
-                <th>خ</th>
-                <th>+/-</th>
-                <th>نقاط</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${standings.map((row, index) => `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${teamIdentityHtml(row.team, "compact", row.logo || "")}</td>
-                  <td>${row.played}</td>
-                  <td>${row.won}</td>
-                  <td>${row.drawn}</td>
-                  <td>${row.lost}</td>
-                  <td>${row.goalDifference}</td>
-                  <td>${row.points}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      ` : `<p class="muted">لا توجد بيانات كافية لحساب الترتيب لهذا الدور حالياً.</p>`}
+      ${standingGroups.length ? standingGroups.map((group) => liveStandingsTableHtml(group)).join("") : `<p class="muted">لا توجد بيانات كافية لحساب الترتيب لهذا الدور حالياً.</p>`}
     </section>
   `);
   document.querySelector("#close-modal")?.addEventListener("click", closeModal);
 }
 
+function liveStandingsTableHtml(group) {
+  return `
+    <div class="live-standings-group">
+      <h3>${group.label}</h3>
+      <div class="live-standings-table-wrap">
+        <table class="live-standings-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الفريق</th>
+              <th>لعب</th>
+              <th>ف</th>
+              <th>ت</th>
+              <th>خ</th>
+              <th>+/-</th>
+              <th>نقاط</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${group.rows.map((row, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${teamIdentityHtml(row.team, "compact", row.logo || "")}</td>
+                <td>${row.played}</td>
+                <td>${row.won}</td>
+                <td>${row.drawn}</td>
+                <td>${row.lost}</td>
+                <td>${row.goalDifference}</td>
+                <td>${row.points}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function calculateLiveStandingsGroups(tournament, round) {
+  const matches = getTournamentMatches(tournament, round);
+  const grouped = new Map();
+  matches.forEach((match) => {
+    const groupLabel = getMatchGroupLabel(match) || getTournamentRounds(tournament).find((item) => item.id === round)?.label || "الترتيب";
+    if (!grouped.has(groupLabel)) grouped.set(groupLabel, []);
+    grouped.get(groupLabel).push(match);
+  });
+  return [...grouped.entries()]
+    .map(([label, groupMatches]) => ({ label, rows: calculateLiveStandingsFromMatches(groupMatches) }))
+    .filter((group) => group.rows.length);
+}
+
 function calculateLiveStandings(tournament, round) {
+  return calculateLiveStandingsFromMatches(getTournamentMatches(tournament, round));
+}
+
+function calculateLiveStandingsFromMatches(matches) {
   const rows = new Map();
   const ensureTeam = (name, logo = "") => {
     if (!rows.has(name)) {
@@ -8449,11 +8530,11 @@ function calculateLiveStandings(tournament, round) {
     return rows.get(name);
   };
 
-  getTournamentMatches(tournament, round).forEach((match) => {
+  matches.forEach((match) => {
     const home = ensureTeam(match.a, match.logoA || "");
     const away = ensureTeam(match.b, match.logoB || "");
     const score = parseMatchScore(match.score);
-    if (!score) return;
+    if (!score || (!isMatchFinal(match) && !isPastMatch(match))) return;
     home.played += 1;
     away.played += 1;
     home.goalsFor += score.home;
@@ -9154,8 +9235,9 @@ function participantId(name) {
 }
 
 function getMatchResultOutcome(match, round) {
-  const [homeGoals, awayGoals] = parseMatchScore(match.score);
-  if (homeGoals === null || awayGoals === null) return "";
+  const score = parseMatchScore(match.score);
+  if (!score) return "";
+  const { home: homeGoals, away: awayGoals } = score;
   if (homeGoals === awayGoals) return isDrawAllowed(round) ? "draw" : "";
   return homeGoals > awayGoals ? match.a : match.b;
 }
@@ -9319,12 +9401,6 @@ function escapePrintable(value) {
 
 function liveLeaderboardImpacts(tournament, round) {
   return {};
-}
-
-function parseMatchScore(score) {
-  const match = String(score || "").match(/(\d+)\s*[-:]\s*(\d+)/);
-  if (!match) return [null, null];
-  return [Number(match[1]), Number(match[2])];
 }
 
 function leaderboardModal(tournament) {

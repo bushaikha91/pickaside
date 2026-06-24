@@ -5375,7 +5375,7 @@ h1.section-title {
 
 .live-filter-trigger {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 8px 13px;
@@ -5423,6 +5423,83 @@ h1.section-title {
 
 .live-result-card .match-top {
   margin-bottom: 9px;
+}
+
+.live-fixture-list {
+  display: grid;
+  gap: 14px;
+}
+
+.live-fixture-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.live-fixture-group-title {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: end;
+}
+
+.live-fixture-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .055);
+}
+
+.live-fixture-row:last-child {
+  border-bottom: 0;
+}
+
+.live-fixture-team .team-identity {
+  width: 100%;
+  min-width: 0;
+}
+
+.live-fixture-team-home .team-identity {
+  justify-content: flex-end;
+  text-align: end;
+}
+
+.live-fixture-team-away .team-identity {
+  justify-content: flex-start;
+  flex-direction: row-reverse;
+  text-align: start;
+}
+
+.live-fixture-center {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  direction: ltr;
+}
+
+.live-fixture-center small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.live-fixture-center strong {
+  min-width: 64px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--soft-bg);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .live-filter-sheet {
@@ -5501,6 +5578,22 @@ h1.section-title {
 
 .live-standings-table-wrap {
   overflow-x: auto;
+}
+
+.live-standings-group {
+  display: grid;
+  gap: 8px;
+}
+
+.live-standings-group + .live-standings-group {
+  margin-top: 14px;
+}
+
+.live-standings-group h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .live-standings-table {
@@ -5913,6 +6006,63 @@ body.auth-screen .bottom-nav {
   .live-standings-chip {
     padding-inline: 10px;
     font-size: 11px;
+  }
+
+  .live-fixture-list {
+    gap: 10px;
+  }
+
+  .live-fixture-group {
+    border-radius: 14px;
+  }
+
+  .live-fixture-group-title {
+    padding: 8px 11px;
+    font-size: 11px;
+  }
+
+  .live-fixture-row {
+    grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr);
+    min-height: 54px;
+    gap: 5px;
+    padding: 8px 9px;
+  }
+
+  .live-fixture-row .team-identity {
+    gap: 5px;
+  }
+
+  .live-fixture-row .team-emblem {
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+
+  .live-fixture-row .team-emblem.flag {
+    font-size: 17px;
+  }
+
+  .live-fixture-row .team-name {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 11px;
+    line-height: 1.12;
+  }
+
+  .live-fixture-center strong {
+    min-width: 50px;
+    padding: 4px 5px;
+    font-size: 12px;
+  }
+
+  .live-fixture-center small {
+    font-size: 9px;
   }
 
   .prediction-teams {

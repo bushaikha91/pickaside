@@ -1301,6 +1301,11 @@ function appConfigEndpoint() {
   return "/api/app-config";
 }
 
+function authRedirectUrl() {
+  const origin = window.location.protocol === "file:" ? "https://www.pickaside.mobile" : window.location.origin;
+  return `${origin}/?authcheck=1#/login`;
+}
+
 async function initializeBackend() {
   loadLocalAppState();
   state.backend.loading = true;
@@ -1911,6 +1916,7 @@ async function handleAuthSubmit(isSignup) {
         email,
         password,
         options: {
+          emailRedirectTo: authRedirectUrl(),
           data: {
             username,
             display_name: displayName || username,
@@ -1924,10 +1930,21 @@ async function handleAuthSubmit(isSignup) {
         await upsertCurrentUserProfile(data.user, { username, displayName: displayName || username, phone, timezone });
       }
       if (!data.session) {
-        errorBox.textContent = "تم إنشاء الحساب. إذا كان تأكيد البريد مفعلاً، افتح بريدك لتأكيد الحساب ثم سجل الدخول.";
-        return;
+        const signInAttempt = await state.backend.client.auth.signInWithPassword({ email, password });
+        if (signInAttempt.error) {
+          const message = String(signInAttempt.error.message || "");
+          if (/email.*confirm|confirm.*email|not confirmed/i.test(message)) {
+            errorBox.textContent = "تم إنشاء الحساب. تأكيد البريد مفعّل حالياً، افتح رابط التأكيد من بريدك ثم سيتم توجيهك إلى صفحة الدخول.";
+          } else {
+            errorBox.textContent = message || "تم إنشاء الحساب، لكن تعذر تسجيل الدخول تلقائياً.";
+          }
+          return;
+        }
+        state.backend.session = signInAttempt.data.session;
+        await loadCurrentUserProfile(signInAttempt.data.session);
+      } else {
+        state.backend.session = data.session;
       }
-      state.backend.session = data.session;
     } else {
       const { data, error } = await state.backend.client.auth.signInWithPassword({ email, password });
       if (error) throw error;

@@ -54,6 +54,7 @@ const state = {
   liveMatches: [],
   predictions: {},
   quickPicks: {},
+  editingPredictions: {},
   predictionErrors: {},
   awardPicks: {},
   awardSearchQueries: {},
@@ -3950,6 +3951,7 @@ function renderTournament(id, options = {}) {
     button.addEventListener("click", () => {
       if (button.disabled) return;
       const key = `${tournament.id}:${selectedRound}:${button.dataset.inlinePick}`;
+      if (isPredictionComplete(tournament.id, selectedRound, button.dataset.inlinePick) && !isPredictionEditing(key)) return;
       state.quickPicks[key] = button.dataset.outcome;
       delete state.predictionErrors[key];
       renderTournament(tournament.id);
@@ -7170,12 +7172,14 @@ function pickBoardCard(tournament, round, match, locked) {
   const inlinePick = supportsInlinePrediction(rule);
   const allocated = getPredictionPoints(prediction);
   const completed = isPredictionComplete(tournament.id, round, match.id);
+  const editing = isPredictionEditing(key);
+  const pickLocked = matchLocked || (completed && !editing);
   const missed = !completed && matchLocked;
-  const statusText = completed ? "مكتمل" : missed ? "لم يتم التصويت" : "بانتظار التصويت";
+  const statusText = completed && editing ? "قيد التعديل" : completed ? "مكتمل" : missed ? "لم يتم التصويت" : "بانتظار التصويت";
   const statusClass = completed ? "done" : missed ? "missed" : "todo";
-  const selectedOutcome = picked || getPredictionOutcome(prediction);
+  const selectedOutcome = editing || !completed ? picked || getPredictionOutcome(prediction) : getPredictionOutcome(prediction) || picked;
   const selectedLabel = selectedOutcome ? outcomeText(selectedOutcome, match) : "لم يتم الاختيار";
-  const actionLabel = matchLocked ? "مقفل" : completed ? "تعديل" : "تصويت";
+  const actionLabel = matchLocked ? "مقفل" : completed && !editing ? "تعديل" : completed && editing ? "حفظ" : "تصويت";
   const errorText = state.predictionErrors[key] || "";
 
   return `
@@ -7185,9 +7189,9 @@ function pickBoardCard(tournament, round, match, locked) {
       </div>
       <div class="prediction-row-main">
         <div class="prediction-teams">
-          ${predictionTeamButton(tournament, round, match, match.a, selectedOutcome, matchLocked, inlinePick)}
-          ${isDrawAllowed(round) && inlinePick ? predictionDrawButton(tournament, round, match, selectedOutcome, matchLocked) : `<b>VS</b>`}
-          ${predictionTeamButton(tournament, round, match, match.b, selectedOutcome, matchLocked, inlinePick)}
+          ${predictionTeamButton(tournament, round, match, match.a, selectedOutcome, pickLocked, inlinePick)}
+          ${isDrawAllowed(round) && inlinePick ? predictionDrawButton(tournament, round, match, selectedOutcome, pickLocked) : `<b>VS</b>`}
+          ${predictionTeamButton(tournament, round, match, match.b, selectedOutcome, pickLocked, inlinePick)}
         </div>
         <div class="prediction-row-info">
           <span class="prediction-status ${statusClass}">${statusText}</span>
@@ -7237,6 +7241,13 @@ function confirmInlinePrediction(tournament, round, matchId) {
     return;
   }
   const key = `${tournament.id}:${round}:${match.id}`;
+  if (isPredictionComplete(tournament.id, round, match.id) && !isPredictionEditing(key)) {
+    state.editingPredictions[key] = true;
+    state.quickPicks[key] = getPredictionOutcome(state.predictions[key] || {});
+    delete state.predictionErrors[key];
+    renderTournament(tournament.id);
+    return;
+  }
   const outcome = state.quickPicks[key] || getPredictionOutcome(state.predictions[key] || {});
   if (!outcome) {
     state.predictionErrors[key] = "يجب اختيار الفائز بالضغط على اسم الفريق لقبول التصويت.";
@@ -7252,9 +7263,14 @@ function confirmInlinePrediction(tournament, round, matchId) {
   if (validation) return;
   state.predictions[key] = next;
   state.quickPicks[key] = outcome;
+  delete state.editingPredictions[key];
   delete state.predictionErrors[key];
   queueTournamentPersist(tournament);
   renderTournament(tournament.id);
+}
+
+function isPredictionEditing(key) {
+  return Boolean(state.editingPredictions[key]);
 }
 
 function isPredictionComplete(tournamentId, round, matchId) {
@@ -7488,6 +7504,7 @@ function predictionModal(tournament, round, matchId) {
     }
     state.predictions[key] = next;
     state.quickPicks[key] = outcome;
+    delete state.editingPredictions[key];
     queueTournamentPersist(tournament);
     closeModal();
     renderTournament(tournament.id);

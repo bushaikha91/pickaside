@@ -1306,6 +1306,11 @@ function authRedirectUrl() {
   return `${origin}/?authcheck=1#/login`;
 }
 
+function welcomeEmailEndpoint() {
+  if (window.location.protocol === "file:") return "https://www.pickaside.mobile/api/welcome-email";
+  return "/api/welcome-email";
+}
+
 async function initializeBackend() {
   loadLocalAppState();
   state.backend.loading = true;
@@ -1928,6 +1933,7 @@ async function handleAuthSubmit(isSignup) {
       if (error) throw error;
       if (data.user) {
         await upsertCurrentUserProfile(data.user, { username, displayName: displayName || username, phone, timezone });
+        sendWelcomeEmail({ email, username, displayName: displayName || username });
       }
       if (!data.session) {
         const signInAttempt = await state.backend.client.auth.signInWithPassword({ email, password });
@@ -1955,6 +1961,18 @@ async function handleAuthSubmit(isSignup) {
     navigate("/");
   } catch (error) {
     errorBox.textContent = error.message || "تعذر تنفيذ العملية حالياً.";
+  }
+}
+
+async function sendWelcomeEmail(payload) {
+  try {
+    await fetch(welcomeEmailEndpoint(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  } catch (_error) {
+    // Welcome email should never block account creation.
   }
 }
 

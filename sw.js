@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260624-auth-signup1";
+const CACHE_NAME = "pick-a-side-20260624-welcome-email1";
 const APP_SHELL = [
   "./",
   "./index.html",

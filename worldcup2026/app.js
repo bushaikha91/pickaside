@@ -1,21 +1,22 @@
-﻿const SESSION_KEY = "wc2026-live-session-v1";
+const SESSION_KEY = "wc2026-live-session-v1";
+let deferredInstallPrompt = null;
 
 const rounds = [
-  { id: "r32", name: "Ø¯ÙˆØ± Ø§Ù„Ù€ 32", points: 2 },
-  { id: "r16", name: "Ø¯ÙˆØ± Ø§Ù„Ù€ 16", points: 3 },
-  { id: "r8", name: "Ø¯ÙˆØ± Ø§Ù„Ù€ 8", points: 4 },
-  { id: "qf", name: "Ø±Ø¨Ø¹ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ", points: 5 },
-  { id: "sf", name: "Ù†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ", points: 7 },
-  { id: "final", name: "Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ", points: 10 }
+  { id: "r32", name: "دور الـ 32", points: 2 },
+  { id: "r16", name: "دور الـ 16", points: 3 },
+  { id: "r8", name: "دور الـ 8", points: 4 },
+  { id: "qf", name: "ربع النهائي", points: 5 },
+  { id: "sf", name: "نصف النهائي", points: 7 },
+  { id: "final", name: "النهائي", points: 10 }
 ];
 
 const laws = {
-  r32: "ÙŠØ®ØªØ§Ø± Ø§Ù„Ù…Ø´Ø§Ø±Ùƒ ÙØ§Ø¦Ø² ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© Ù‚Ø¨Ù„ Ù†Ù‡Ø§ÙŠØ© ÙˆÙ‚Øª Ø§Ù„ØªØµÙˆÙŠØª. ÙƒÙ„ ØªÙˆÙ‚Ø¹ ØµØ­ÙŠØ­ ÙŠÙ…Ù†Ø­ Ù†Ù‚Ø·ØªÙŠÙ†.",
-  r16: "ØªØºÙ„Ù‚ Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø­Ø³Ø¨ ÙˆÙ‚Øª ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø©. Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø§Ø®ØªÙŠØ§Ø± Ø¨Ø¹Ø¯ Ø§Ù„Ø¥ØºÙ„Ø§Ù‚.",
-  r8: "ØªØ²ÙŠØ¯ Ù‚ÙŠÙ…Ø© Ø§Ù„Ù†Ù‚Ø§Ø· Ù…Ø¹ ØªÙ‚Ø¯Ù… Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©ØŒ ÙˆÙŠØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„ØªØ±ØªÙŠØ¨ Ø¨Ø¹Ø¯ Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ù†ØªÙŠØ¬Ø©.",
-  qf: "ÙÙŠ Ø±Ø¨Ø¹ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ØªØ­ØªØ³Ø¨ Ø§Ù„Ù†ØªÙŠØ¬Ø© Ø­Ø³Ø¨ Ø§Ù„ÙØ§Ø¦Ø² Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ Ù„Ù„Ù…Ø¨Ø§Ø±Ø§Ø© ÙˆÙ„ÙŠØ³ Ù†ØªÙŠØ¬Ø© Ø§Ù„ÙˆÙ‚Øª Ø§Ù„Ø£ØµÙ„ÙŠ ÙÙ‚Ø·.",
-  sf: "ØªÙˆÙ‚Ø¹Ø§Øª Ù†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ Ø£Ø¹Ù„Ù‰ Ù‚ÙŠÙ…Ø©ØŒ ÙˆØ£ÙŠ Ù…Ø¨Ø§Ø±Ø§Ø© Ø¨Ù„Ø§ Ù†ØªÙŠØ¬Ø© Ù„Ø§ ØªØ¯Ø®Ù„ ÙÙŠ Ø­Ø³Ø§Ø¨ Ø§Ù„Ù†Ù‚Ø§Ø·.",
-  final: "ØªÙˆÙ‚Ø¹ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠÙ…Ù†Ø­ Ø£Ø¹Ù„Ù‰ Ù†Ù‚Ø§Ø· ÙÙŠ Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©ØŒ ÙˆØ§Ù„ØªØ±ØªÙŠØ¨ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠØ¹ØªÙ…Ø¯ Ø¹Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹ ÙƒÙ„ Ø§Ù„Ø¬ÙˆÙ„Ø§Øª."
+  r32: "يختار المشارك فائز كل مباراة قبل نهاية وقت التصويت. كل توقع صحيح يمنح نقطتين.",
+  r16: "تغلق التوقعات حسب وقت كل مباراة. لا يمكن تعديل الاختيار بعد الإغلاق.",
+  r8: "تزيد قيمة النقاط مع تقدم البطولة، ويتم تحديث الترتيب بعد إدخال النتيجة.",
+  qf: "في ربع النهائي تحتسب النتيجة حسب الفائز النهائي للمباراة وليس نتيجة الوقت الأصلي فقط.",
+  sf: "توقعات نصف النهائي أعلى قيمة، وأي مباراة بلا نتيجة لا تدخل في حساب النقاط.",
+  final: "توقع النهائي يمنح أعلى نقاط في البطولة، والترتيب النهائي يعتمد على مجموع كل الجولات."
 };
 
 const state = {
@@ -31,6 +32,12 @@ const state = {
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
 let activeRound = "r32";
 
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (!state.currentUser) render();
+});
+
 function apiUrl(action) {
   const base = window.location.protocol === "file:" ? "https://www.pickaside.mobile/api/app-config?worldcup=1" : "/api/app-config?worldcup=1";
   return action ? `${base}&action=${action}` : base;
@@ -43,7 +50,7 @@ async function api(action, options = {}) {
     ...options
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "ØªØ¹Ø°Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø³ÙŠØ±ÙØ±");
+  if (!response.ok) throw new Error(payload.error || "تعذر الاتصال بالسيرفر");
   return payload;
 }
 
@@ -65,7 +72,7 @@ async function loadData() {
     state.standings = payload.standings || [];
     state.predictions = payload.predictions || {};
   } catch (error) {
-    state.error = error.message || "ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©";
+    state.error = error.message || "تعذر تحميل بيانات البطولة";
   } finally {
     state.loading = false;
     render();
@@ -77,6 +84,7 @@ function render() {
   if (!state.currentUser) {
     app.innerHTML = loginTemplate();
     bindLogin();
+    bindInstallControls();
     return;
   }
 
@@ -89,42 +97,56 @@ function loginTemplate() {
     <section class="hero">
       <div class="brand-row">
         <div class="mark">26</div>
-        <span class="pill">Ø¨Ø·ÙˆÙ„Ø© Ù…Ø¨Ø§Ø´Ø±Ø©</span>
+        <span class="pill">بطولة مباشرة</span>
       </div>
-      <h1>ÙƒØ£Ø³ Ø§Ù„Ø¹Ø§Ù„Ù… 2026</h1>
-      <p>ØªÙˆÙ‚Ø¹Ø§Øª ÙˆÙ†ØªØ§Ø¦Ø¬ ÙˆØªØ±ØªÙŠØ¨ Ù…Ø¨Ø§Ø´Ø± Ù…Ø­ÙÙˆØ¸ Ø¹Ù„Ù‰ Ø§Ù„Ø³ÙŠØ±ÙØ± Ù„ÙƒÙ„ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†.</p>
+      <h1>كأس العالم 2026</h1>
+      <p>توقعات ونتائج وترتيب مباشر محفوظ على السيرفر لكل المشاركين.</p>
     </section>
     <section class="content">
       <form class="panel" id="loginForm">
-        <h2>Ø¯Ø®ÙˆÙ„ Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©</h2>
-        <p class="small">Ø§Ø¯Ø®Ù„ Ø§Ù„Ø§Ø³Ù… ÙˆØ±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ÙÙ‚Ø·ØŒ Ø«Ù… Ø§Ø®ØªØ± Ù†ÙˆØ¹ Ø§Ù„Ø­Ø³Ø§Ø¨.</p>
+        <h2>دخول البطولة</h2>
+        <p class="small">ادخل الاسم ورقم الهاتف فقط، ثم اختر نوع الحساب.</p>
         <div id="loginError" class="notice danger-notice hidden"></div>
         <label class="field">
-          <span>Ø§Ù„Ø§Ø³Ù…</span>
-          <input id="name" required autocomplete="name" placeholder="Ù…Ø«Ø§Ù„: Ø¹Ø¨Ø¯Ø§Ù„Ù„Ù‡" />
+          <span>الاسم</span>
+          <input id="name" required autocomplete="name" placeholder="مثال: عبدالله" />
         </label>
         <label class="field">
-          <span>Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„Ù…ØªØ­Ø±Ùƒ</span>
+          <span>رقم الهاتف المتحرك</span>
           <input id="phone" required inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" />
         </label>
         <div class="field">
-          <span>Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ©</span>
+          <span>الصلاحية</span>
           <div class="role-grid">
-            <button class="role-option active" type="button" data-role="participant">Ù…Ø´Ø§Ø±Ùƒ</button>
-            <button class="role-option" type="button" data-role="organizer">Ù…Ù†Ø¸Ù…</button>
+            <button class="role-option active" type="button" data-role="participant">مشارك</button>
+            <button class="role-option" type="button" data-role="organizer">منظم</button>
           </div>
         </div>
         <input id="role" type="hidden" value="participant" />
-        <button class="primary-btn" id="loginBtn" type="submit">Ø¯Ø®ÙˆÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚</button>
+        <button class="primary-btn" id="loginBtn" type="submit">دخول التطبيق</button>
       </form>
+
+      <section class="install-panel">
+        <div>
+          <h2>تنزيل التطبيق</h2>
+          <p>ثبّت صفحة البطولة على شاشة الهاتف لاستخدامها كتطبيق مستقل.</p>
+        </div>
+        <div class="install-actions">
+          <button class="install-btn android-install" id="androidInstallBtn" type="button">تنزيل للأندرويد</button>
+          <button class="install-btn ios-install" id="iosInstallBtn" type="button">تنزيل للآيفون</button>
+        </div>
+        <div class="install-help" id="installHelp">
+          على الآيفون: افتح الرابط من Safari، اضغط زر المشاركة، ثم اختر Add to Home Screen.
+        </div>
+      </section>
     </section>
   `;
 }
 
 function appTemplate() {
   const roleTabs = state.currentUser.role === "organizer"
-    ? `<button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">Ø¥Ø¯Ø§Ø±Ø©</button>`
-    : `<button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">Ø§Ù„Ù…Ø¨Ø§Ø±ÙŠØ§Øª</button>`;
+    ? `<button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>`
+    : `<button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>`;
 
   return `
     <header class="topbar">
@@ -132,15 +154,15 @@ function appTemplate() {
         <div class="mark">26</div>
         <div class="user-meta">
           <strong>${escapeHtml(state.currentUser.name)}</strong>
-          <span>${state.currentUser.role === "organizer" ? "Ù…Ù†Ø¸Ù… Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©" : "Ù…Ø´Ø§Ø±Ùƒ"}</span>
+          <span>${state.currentUser.role === "organizer" ? "منظم البطولة" : "مشارك"}</span>
         </div>
       </div>
-      <button class="pill" id="logoutBtn">Ø®Ø±ÙˆØ¬</button>
+      <button class="pill" id="logoutBtn">خروج</button>
     </header>
     <nav class="tabs">
       ${roleTabs}
-      <button class="tab ${activeTab === "standings" ? "active" : ""}" data-tab="standings">Ø§Ù„ØªØ±ØªÙŠØ¨</button>
-      <button class="tab ${activeTab === "laws" ? "active" : ""}" data-tab="laws">Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ†</button>
+      <button class="tab ${activeTab === "standings" ? "active" : ""}" data-tab="standings">الترتيب</button>
+      <button class="tab ${activeTab === "laws" ? "active" : ""}" data-tab="laws">القوانين</button>
     </nav>
     <section class="content">
       ${noticeView()}
@@ -164,13 +186,13 @@ function noticeView() {
 }
 
 function loadingView() {
-  return `<div class="empty">Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¨Ø·ÙˆÙ„Ø© Ù…Ù† Ø§Ù„Ø³ÙŠØ±ÙØ±...</div>`;
+  return `<div class="empty">جاري تحميل بيانات البطولة من السيرفر...</div>`;
 }
 
 function errorView(message) {
   return `
     <div class="notice danger-notice">${escapeHtml(message)}</div>
-    <button class="primary-btn" id="retryBtn" type="button">Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©</button>
+    <button class="primary-btn" id="retryBtn" type="button">إعادة المحاولة</button>
   `;
 }
 
@@ -191,12 +213,12 @@ function participantMatchesView() {
   return `
     ${summaryView()}
     <div class="section-title">
-      <h2>Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…Ø¨Ø§Ø±ÙŠØ§Øª</h2>
-      <span class="small">Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ù…Ø­ÙÙˆØ¸Ø© Ø¹Ù„Ù‰ Ø§Ù„Ø³ÙŠØ±ÙØ±</span>
+      <h2>قائمة المباريات</h2>
+      <span class="small">التوقعات محفوظة على السيرفر</span>
     </div>
     ${roundTabs()}
     <div class="match-list">
-      ${matches.length ? matches.map(match => matchCard(match, state.predictions[match.id])).join("") : emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¨Ø§Ø±ÙŠØ§Øª ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ø­Ø§Ù„ÙŠØ§Ù‹.")}
+      ${matches.length ? matches.map(match => matchCard(match, state.predictions[match.id])).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
   `;
 }
@@ -206,26 +228,26 @@ function manageView() {
   return `
     <form class="panel stack" id="matchForm">
       <div class="section-title">
-        <h2>Ø¥Ø¶Ø§ÙØ© Ù…Ø¨Ø§Ø±Ø§Ø©</h2>
-        <span class="small">ØªØ­ÙØ¸ Ù…Ø¨Ø§Ø´Ø±Ø© ÙÙŠ Ø§Ù„Ø³ÙŠØ±ÙØ±</span>
+        <h2>إضافة مباراة</h2>
+        <span class="small">تحفظ مباشرة في السيرفر</span>
       </div>
       <label class="field">
-        <span>Ø§Ù„Ø¯ÙˆØ±</span>
+        <span>الدور</span>
         <select id="matchRound">${rounds.map(r => `<option value="${r.id}">${r.name}</option>`).join("")}</select>
       </label>
-      <label class="field"><span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø£ÙˆÙ„</span><input id="teamA" required placeholder="Ø§Ø³Ù… Ø§Ù„ÙØ±ÙŠÙ‚" /></label>
-      <label class="field"><span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø«Ø§Ù†ÙŠ</span><input id="teamB" required placeholder="Ø§Ø³Ù… Ø§Ù„ÙØ±ÙŠÙ‚" /></label>
-      <label class="field"><span>ÙˆÙ‚Øª Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</span><input id="startsAt" required type="datetime-local" /></label>
-      <label class="field"><span>ÙˆÙ‚Øª Ø§Ù†ØªÙ‡Ø§Ø¡ Ø§Ù„ØªØµÙˆÙŠØª</span><input id="voteEndsAt" required type="datetime-local" /></label>
-      <button class="primary-btn" type="submit">Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</button>
+      <label class="field"><span>الفريق الأول</span><input id="teamA" required placeholder="اسم الفريق" /></label>
+      <label class="field"><span>الفريق الثاني</span><input id="teamB" required placeholder="اسم الفريق" /></label>
+      <label class="field"><span>وقت المباراة</span><input id="startsAt" required type="datetime-local" /></label>
+      <label class="field"><span>وقت انتهاء التصويت</span><input id="voteEndsAt" required type="datetime-local" /></label>
+      <button class="primary-btn" type="submit">إضافة المباراة</button>
     </form>
     <div class="section-title" style="margin-top:18px">
-      <h2>Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù†ØªØ§Ø¦Ø¬</h2>
-      <span class="small">ØªÙ†Ø¹ÙƒØ³ Ø¹Ù„Ù‰ ÙƒÙ„ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†</span>
+      <h2>إدارة النتائج</h2>
+      <span class="small">تنعكس على كل المشاركين</span>
     </div>
     ${roundTabs()}
     <div class="match-list">
-      ${matches.length ? matches.map(managerMatchCard).join("") : emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¨Ø§Ø±ÙŠØ§Øª ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ø­Ø§Ù„ÙŠØ§Ù‹.")}
+      ${matches.length ? matches.map(managerMatchCard).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
   `;
 }
@@ -233,8 +255,8 @@ function manageView() {
 function standingsView() {
   return `
     <div class="section-title">
-      <h2>ØªØ±ØªÙŠØ¨ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†</h2>
-      <span class="small">Ù…Ù† Ø§Ù„Ø£Ø¹Ù„Ù‰ Ù„Ù„Ø£Ù‚Ù„</span>
+      <h2>ترتيب المشاركين</h2>
+      <span class="small">من الأعلى للأقل</span>
     </div>
     <div class="leader-list">
       ${state.standings.length ? state.standings.map((row, index) => `
@@ -242,11 +264,11 @@ function standingsView() {
           <div class="rank">${index + 1}</div>
           <div class="leader-name">
             <strong>${escapeHtml(row.name)}</strong>
-            <span class="small">ØµØ­ÙŠØ­: ${row.correct_predictions} | Ø®Ø·Ø£: ${row.wrong_predictions}</span>
+            <span class="small">صحيح: ${row.correct_predictions} | خطأ: ${row.wrong_predictions}</span>
           </div>
           <div class="points">${row.points}</div>
         </div>
-      `).join("") : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø´Ø§Ø±ÙƒÙˆÙ† Ø­ØªÙ‰ Ø§Ù„Ø¢Ù†.")}
+      `).join("") : emptyView("لا يوجد مشاركون حتى الآن.")}
     </div>
   `;
 }
@@ -254,14 +276,14 @@ function standingsView() {
 function lawsView() {
   return `
     <div class="section-title">
-      <h2>Ù‚ÙˆØ§Ù†ÙŠÙ† Ø£Ø¯ÙˆØ§Ø± Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©</h2>
-      <span class="small">Ù†Ø¸Ø§Ù… Ø§Ù„Ù†Ù‚Ø§Ø· ÙˆØ§Ù„Ø¥ØºÙ„Ø§Ù‚</span>
+      <h2>قوانين أدوار البطولة</h2>
+      <span class="small">نظام النقاط والإغلاق</span>
     </div>
     <div class="law-list">
       ${rounds.map(round => `
         <article class="law-card">
           <h3>${round.name}</h3>
-          <p>${laws[round.id]} Ø§Ù„Ù†Ù‚Ø§Ø·: ${round.points} Ù„ÙƒÙ„ ØªÙˆÙ‚Ø¹ ØµØ­ÙŠØ­.</p>
+          <p>${laws[round.id]} النقاط: ${round.points} لكل توقع صحيح.</p>
         </article>
       `).join("")}
     </div>
@@ -272,30 +294,30 @@ function summaryView() {
   const mine = state.standings.find(row => row.id === state.currentUser.id) || { points: 0, correct_predictions: 0, wrong_predictions: 0 };
   return `
     <div class="summary-grid" style="margin-bottom:16px">
-      <div class="summary-card"><span class="small">Ø§Ù„Ù†Ù‚Ø§Ø·</span><strong>${mine.points}</strong></div>
-      <div class="summary-card"><span class="small">ØµØ­ÙŠØ­</span><strong>${mine.correct_predictions}</strong></div>
-      <div class="summary-card"><span class="small">Ø®Ø·Ø£</span><strong>${mine.wrong_predictions}</strong></div>
+      <div class="summary-card"><span class="small">النقاط</span><strong>${mine.points}</strong></div>
+      <div class="summary-card"><span class="small">صحيح</span><strong>${mine.correct_predictions}</strong></div>
+      <div class="summary-card"><span class="small">خطأ</span><strong>${mine.wrong_predictions}</strong></div>
     </div>
   `;
 }
 
 function matchCard(match, selected) {
   const locked = new Date(match.vote_ends_at) <= new Date();
-  const status = match.winner ? `<span class="status-chip done">Ø§Ù„ÙØ§Ø¦Ø²: ${escapeHtml(match.winner)}</span>` : `<span class="status-chip">Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ù†ØªÙŠØ¬Ø©</span>`;
+  const status = match.winner ? `<span class="status-chip done">الفائز: ${escapeHtml(match.winner)}</span>` : `<span class="status-chip">بانتظار النتيجة</span>`;
   return `
     <article class="match-card">
       <div class="match-head">
         <span class="round-badge">${roundName(match.round_id)}</span>
         ${status}
       </div>
-      <div class="teams">${escapeHtml(match.team_a)} Ø¶Ø¯ ${escapeHtml(match.team_b)}</div>
-      <div class="deadline">ÙˆÙ‚Øª Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©: ${formatDate(match.starts_at)}<br>Ù†Ù‡Ø§ÙŠØ© Ø§Ù„ØªØµÙˆÙŠØª: ${formatDate(match.vote_ends_at)}</div>
+      <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
+      <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
       <div class="choices">
         <button class="choice ${selected === match.team_a ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_a)}">${escapeHtml(match.team_a)}</button>
         <button class="choice ${selected === match.team_b ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_b)}">${escapeHtml(match.team_b)}</button>
       </div>
-      ${selected ? `<p class="small">ØªÙ… Ø­ÙØ¸ ØªÙˆÙ‚Ø¹Ùƒ: ${escapeHtml(selected)}</p>` : `<p class="small">Ù„Ù… ØªØ­ÙØ¸ ØªÙˆÙ‚Ø¹Ùƒ Ù„Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© Ø¨Ø¹Ø¯.</p>`}
-      ${locked ? `<p class="small">Ø§Ù†ØªÙ‡Ù‰ ÙˆÙ‚Øª Ø§Ù„ØªØµÙˆÙŠØª Ù„Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©.</p>` : ""}
+      ${selected ? `<p class="small">تم حفظ توقعك: ${escapeHtml(selected)}</p>` : `<p class="small">لم تحفظ توقعك لهذه المباراة بعد.</p>`}
+      ${locked ? `<p class="small">انتهى وقت التصويت لهذه المباراة.</p>` : ""}
     </article>
   `;
 }
@@ -305,15 +327,15 @@ function managerMatchCard(match) {
     <article class="match-card">
       <div class="match-head">
         <span class="round-badge">${roundName(match.round_id)}</span>
-        <span class="status-chip ${match.winner ? "done" : ""}">${match.winner ? "ØªÙ… Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ù†ØªÙŠØ¬Ø©" : "Ø¨Ø¯ÙˆÙ† Ù†ØªÙŠØ¬Ø©"}</span>
+        <span class="status-chip ${match.winner ? "done" : ""}">${match.winner ? "تم إدخال النتيجة" : "بدون نتيجة"}</span>
       </div>
-      <div class="teams">${escapeHtml(match.team_a)} Ø¶Ø¯ ${escapeHtml(match.team_b)}</div>
-      <div class="deadline">ÙˆÙ‚Øª Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©: ${formatDate(match.starts_at)}<br>Ù†Ù‡Ø§ÙŠØ© Ø§Ù„ØªØµÙˆÙŠØª: ${formatDate(match.vote_ends_at)}</div>
+      <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
+      <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
       <div class="result-row">
         <button class="choice ${match.winner === match.team_a ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_a)}">${escapeHtml(match.team_a)}</button>
         <button class="choice ${match.winner === match.team_b ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_b)}">${escapeHtml(match.team_b)}</button>
       </div>
-      <button class="ghost-btn" style="margin-top:8px" data-clear="${match.id}">Ù…Ø³Ø­ Ø§Ù„Ù†ØªÙŠØ¬Ø©</button>
+      <button class="ghost-btn" style="margin-top:8px" data-clear="${match.id}">مسح النتيجة</button>
     </article>
   `;
 }
@@ -334,7 +356,7 @@ function bindLogin() {
     const loginBtn = document.querySelector("#loginBtn");
     errorBox.classList.add("hidden");
     loginBtn.disabled = true;
-    loginBtn.textContent = "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¯Ø®ÙˆÙ„...";
+    loginBtn.textContent = "جاري الدخول...";
 
     try {
       const payload = await api("login", {
@@ -350,12 +372,32 @@ function bindLogin() {
       activeTab = payload.user.role === "organizer" ? "manage" : "matches";
       await loadData();
     } catch (error) {
-      errorBox.textContent = error.message || "ØªØ¹Ø°Ø± Ø§Ù„Ø¯Ø®ÙˆÙ„";
+      errorBox.textContent = error.message || "تعذر الدخول";
       errorBox.classList.remove("hidden");
     } finally {
       loginBtn.disabled = false;
-      loginBtn.textContent = "Ø¯Ø®ÙˆÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚";
+      loginBtn.textContent = "دخول التطبيق";
     }
+  });
+}
+
+function bindInstallControls() {
+  document.querySelector("#androidInstallBtn")?.addEventListener("click", async () => {
+    const help = document.querySelector("#installHelp");
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice.catch(() => null);
+      deferredInstallPrompt = null;
+      return;
+    }
+    help.textContent = "إذا لم تظهر نافذة التثبيت، افتح القائمة في Chrome واختر Install app أو Add to Home screen.";
+    help.classList.add("show");
+  });
+
+  document.querySelector("#iosInstallBtn")?.addEventListener("click", () => {
+    const help = document.querySelector("#installHelp");
+    help.textContent = "على الآيفون: افتح الرابط من Safari، اضغط زر المشاركة، ثم اختر Add to Home Screen.";
+    help.classList.add("show");
   });
 }
 
@@ -389,10 +431,10 @@ function bindApp() {
           method: "POST",
           body: JSON.stringify({ userId: state.currentUser.id, matchId: button.dataset.pick, winner: button.dataset.team })
         });
-        state.notice = "ØªÙ… Ø­ÙØ¸ ØªÙˆÙ‚Ø¹Ùƒ ÙÙŠ Ø§Ù„Ø³ÙŠØ±ÙØ±.";
+        state.notice = "تم حفظ توقعك في السيرفر.";
         await loadData();
       } catch (error) {
-        state.error = error.message || "ØªØ¹Ø°Ø± Ø­ÙØ¸ Ø§Ù„ØªÙˆÙ‚Ø¹";
+        state.error = error.message || "تعذر حفظ التوقع";
         render();
       }
     });
@@ -423,10 +465,10 @@ function bindApp() {
       };
       await api("match", { method: "POST", body: JSON.stringify(match) });
       activeRound = match.roundId;
-      state.notice = "ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© ÙÙŠ Ø§Ù„Ø³ÙŠØ±ÙØ±.";
+      state.notice = "تمت إضافة المباراة في السيرفر.";
       await loadData();
     } catch (error) {
-      state.error = error.message || "ØªØ¹Ø°Ø± Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©";
+      state.error = error.message || "تعذر إضافة المباراة";
       render();
     }
   });
@@ -438,10 +480,10 @@ async function saveResult(matchId, winner) {
       method: "POST",
       body: JSON.stringify({ userId: state.currentUser.id, matchId, winner })
     });
-    state.notice = winner ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù†ØªÙŠØ¬Ø© ÙˆØ§Ù„ØªØ±ØªÙŠØ¨." : "ØªÙ… Ù…Ø³Ø­ Ø§Ù„Ù†ØªÙŠØ¬Ø©.";
+    state.notice = winner ? "تم تحديث النتيجة والترتيب." : "تم مسح النتيجة.";
     await loadData();
   } catch (error) {
-    state.error = error.message || "ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù†ØªÙŠØ¬Ø©";
+    state.error = error.message || "تعذر تحديث النتيجة";
     render();
   }
 }
@@ -468,7 +510,7 @@ function emptyView(text) {
 }
 
 function formatDate(value) {
-  if (!value) return "ØºÙŠØ± Ù…Ø­Ø¯Ø¯";
+  if (!value) return "غير محدد";
   return new Intl.DateTimeFormat("ar-AE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
@@ -481,5 +523,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-loadData();
+if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+  navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => {});
+}
 
+loadData();

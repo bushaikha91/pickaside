@@ -463,6 +463,65 @@ button {
   background: #fffbfa;
 }
 
+.install-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid rgba(31, 88, 184, 0.22);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff, #eef5ff);
+}
+
+.install-panel h2 {
+  margin: 0 0 5px;
+  font-size: 18px;
+}
+
+.install-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.install-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.install-btn {
+  min-height: 44px;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.android-install {
+  color: #fff;
+  background: linear-gradient(135deg, var(--green), var(--blue));
+}
+
+.ios-install {
+  border: 1px solid #d0d5dd;
+  color: var(--navy);
+  background: #fff;
+}
+
+.install-help {
+  display: none;
+  padding: 10px;
+  border-radius: 8px;
+  color: #344054;
+  line-height: 1.6;
+  font-size: 13px;
+  background: #f2f4f7;
+}
+
+.install-help.show {
+  display: block;
+}
+
 .stack {
   display: grid;
   gap: 12px;

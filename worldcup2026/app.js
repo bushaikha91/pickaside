@@ -629,7 +629,7 @@ function managerMatchCardV2(match) {
       </div>
       <div class="admin-match-bottom">
         <button class="text-link result-link" data-result-open="${match.id}" type="button">${match.winner ? "تعديل نتيجة نهاية المباراة" : "إضافة نتيجة نهاية المباراة"}</button>
-        <button class="vote-count-link" data-voters="${match.id}" type="button">نتائج التصويت ${match.vote_count || 0}/${match.eligible_count || 0}</button>
+        <button class="vote-count-link" data-voters="${match.id}" type="button">${match.vote_count || 0}/${match.eligible_count || 0}</button>
       </div>
     </article>
   `;
@@ -743,13 +743,11 @@ function voterModal(matchId) {
 }
 
 function voterRow(user) {
-  const vote = user.vote_winner ? `صوّت: ${escapeHtml(user.vote_winner)}${user.is_joker ? " | جوكر" : ""}` : "";
   return `
     <div class="voter-row">
       ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        ${vote ? `<span class="vote-pick">${vote}</span>` : ""}
       </div>
     </div>
   `;

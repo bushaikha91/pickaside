@@ -1267,11 +1267,6 @@ button {
   font-size: 12px;
 }
 
-.voter-row .vote-pick {
-  color: var(--blue);
-  font-weight: 900;
-}
-
 .participant-detail-head {
   display: grid;
   grid-template-columns: auto 1fr;

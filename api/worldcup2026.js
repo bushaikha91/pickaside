@@ -107,18 +107,12 @@ async function fetchUserPredictions(userId) {
 function enrichMatchesForOrganizer(matches, participants, predictions) {
   const approved = participants.filter(user => user.participant_status === "approved");
   return matches.map(match => {
-    const matchPredictions = predictions.filter(item => item.match_id === match.id);
-    const predictionByUser = new Map(matchPredictions.map(item => [item.user_id, item]));
-    const votedIds = new Set(matchPredictions.map(item => item.user_id));
+    const votedIds = new Set(predictions.filter(item => item.match_id === match.id).map(item => item.user_id));
     return {
       ...match,
       vote_count: votedIds.size,
       eligible_count: approved.length,
-      voted_users: approved.filter(user => votedIds.has(user.id)).map(user => ({
-        ...publicParticipant(user),
-        vote_winner: predictionByUser.get(user.id)?.winner || "",
-        is_joker: !!predictionByUser.get(user.id)?.is_joker
-      })),
+      voted_users: approved.filter(user => votedIds.has(user.id)).map(publicParticipant),
       missing_users: approved.filter(user => !votedIds.has(user.id)).map(publicParticipant)
     };
   });

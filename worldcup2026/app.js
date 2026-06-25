@@ -802,6 +802,11 @@ function bindApp() {
     }
   });
 
+  document.querySelectorAll(".modal-card").forEach(card => {
+    card.addEventListener("click", event => event.stopPropagation());
+    card.addEventListener("touchstart", event => event.stopPropagation(), { passive: true });
+  });
+
   document.querySelectorAll("[data-match-edit-open]").forEach(button => {
     button.addEventListener("click", () => {
       state.editModalMatch = button.dataset.matchEditOpen;
@@ -824,20 +829,6 @@ function bindApp() {
   document.querySelector("[data-result-close]")?.addEventListener("click", () => {
     state.resultModalMatch = null;
     render();
-  });
-
-  document.querySelector("[data-edit-modal-close]")?.addEventListener("click", event => {
-    if (event.target === event.currentTarget) {
-      state.editModalMatch = null;
-      render();
-    }
-  });
-
-  document.querySelector("[data-result-modal-close]")?.addEventListener("click", event => {
-    if (event.target === event.currentTarget) {
-      state.resultModalMatch = null;
-      render();
-    }
   });
 
   document.querySelectorAll("[data-voters]").forEach(button => {

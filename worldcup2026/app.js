@@ -62,16 +62,17 @@ async function api(action, options = {}) {
   return payload;
 }
 
-async function loadData() {
+async function loadData(options = {}) {
+  const silent = !!options.silent;
   if (!state.currentUser) {
     state.loading = false;
     render();
     return;
   }
 
-  state.loading = true;
+  if (!silent) state.loading = true;
   state.error = "";
-  render();
+  if (!silent) render();
 
   try {
     const query = state.currentUser.id ? `state&userId=${encodeURIComponent(state.currentUser.id)}` : "state";
@@ -206,6 +207,7 @@ function appTemplate() {
     ${state.voterModalMatch ? voterModal(state.voterModalMatch) : ""}
     ${state.editModalMatch ? matchEditModal(state.editModalMatch) : ""}
     ${state.resultModalMatch ? resultModal(state.resultModalMatch) : ""}
+    ${state.addMatchOpen ? matchFormModal() : ""}
   `;
 }
 
@@ -386,20 +388,32 @@ function manageView() {
     </div>
     ${roundTabs()}
     <button class="add-match-toggle" id="addMatchToggle" type="button">
-      ${state.addMatchOpen ? "إغلاق إضافة المباراة" : `إضافة مباراة في ${roundName(activeRound)}`}
+      إضافة مباراة في ${roundName(activeRound)}
     </button>
-    ${state.addMatchOpen ? matchFormView() : ""}
     <div class="match-list">
       ${matches.length ? matches.map(managerMatchCardV2).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
   `;
 }
 
+function matchFormModal() {
+  return `
+    <div class="modal-backdrop">
+      <section class="modal-card stack add-match-modal">
+        <div class="section-title">
+          <h2>إضافة مباراة</h2>
+          <button class="icon-close" type="button" data-add-match-close>×</button>
+        </div>
+        ${matchFormView()}
+      </section>
+    </div>
+  `;
+}
+
 function matchFormView() {
   return `
-    <form class="panel stack match-form-card" id="matchForm">
+    <form class="stack match-form-card" id="matchForm">
       <div class="section-title">
-        <h2>إضافة مباراة</h2>
         <span class="small">${roundName(activeRound)}</span>
       </div>
       <div class="form-grid">
@@ -890,7 +904,12 @@ function bindApp() {
   });
 
   document.querySelector("#addMatchToggle")?.addEventListener("click", () => {
-    state.addMatchOpen = !state.addMatchOpen;
+    state.addMatchOpen = true;
+    render();
+  });
+
+  document.querySelector("[data-add-match-close]")?.addEventListener("click", () => {
+    state.addMatchOpen = false;
     render();
   });
 
@@ -906,7 +925,7 @@ function bindApp() {
           })
         });
         state.notice = button.dataset.participantStatus === "approved" ? "تم قبول المشارك." : "تم رفض المشارك.";
-        await loadData();
+        await loadData({ silent: true });
       } catch (error) {
         state.error = error.message || "تعذر تحديث طلب المشارك";
         render();
@@ -934,7 +953,7 @@ function bindApp() {
         });
         state.notice = "تم حذف اللاعب من البطولة.";
         closeSwipeRows();
-        await loadData();
+        await loadData({ silent: true });
       } catch (error) {
         closeSwipeRows();
         state.error = error.message || "تعذر حذف اللاعب";
@@ -956,7 +975,7 @@ function bindApp() {
           })
         });
         state.notice = "تم حفظ توقعك في السيرفر.";
-        await loadData();
+        await loadData({ silent: true });
       } catch (error) {
         state.error = error.message || "تعذر حفظ التوقع";
         render();
@@ -985,7 +1004,7 @@ function bindApp() {
           })
         });
         state.notice = prediction?.is_joker ? "تم إلغاء الجوكر." : "تم تفعيل الجوكر.";
-        await loadData();
+        await loadData({ silent: true });
       } catch (error) {
         state.error = error.message || "تعذر تحديث الجوكر";
         render();
@@ -1045,7 +1064,7 @@ function bindApp() {
         state.notice = "تم حذف المباراة وتحديث الترتيب.";
         state.editModalMatch = null;
         state.resultModalMatch = null;
-        await loadData();
+        await loadData({ silent: true });
       } catch (error) {
         state.error = error.message || "تعذر حذف المباراة";
         render();
@@ -1070,7 +1089,7 @@ function bindApp() {
       activeRound = match.roundId;
       state.addMatchOpen = false;
       state.notice = "تمت إضافة المباراة في السيرفر.";
-      await loadData();
+      await loadData({ silent: true });
     } catch (error) {
       state.error = error.message || "تعذر إضافة المباراة";
       render();
@@ -1127,7 +1146,7 @@ function bindProfileForm() {
       writeSession(state.currentUser);
       state.profileOpen = false;
       state.notice = "تم تحديث الملف الشخصي.";
-      await loadData();
+      await loadData({ silent: true });
     } catch (error) {
       if (errorBox) {
         errorBox.textContent = error.message || "تعذر حفظ الملف الشخصي";
@@ -1230,7 +1249,7 @@ async function saveMatchEdit(form) {
     });
     state.notice = "تم تعديل بطاقة المباراة.";
     state.editModalMatch = null;
-    await loadData();
+    await loadData({ silent: true });
   } catch (error) {
     showInlineError(errorBox, error.message || "تعذر تعديل المباراة");
   }
@@ -1307,7 +1326,7 @@ async function saveResult(matchId, winner, scoreA = null, scoreB = null) {
     });
     state.notice = winner ? "تم تحديث النتيجة والترتيب." : "تم مسح النتيجة.";
     state.resultModalMatch = null;
-    await loadData();
+    await loadData({ silent: true });
   } catch (error) {
     state.error = error.message || "تعذر تحديث النتيجة";
     render();

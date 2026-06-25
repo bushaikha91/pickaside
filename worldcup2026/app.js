@@ -469,29 +469,48 @@ function matchCard(match, prediction) {
   const isJoker = !!prediction?.is_joker;
   const points = state.matchPoints[match.id];
   const canUseJoker = ["r16", "sf"].includes(match.round_id);
-  const status = matchStatusView(match, selected, points, locked);
+  const status = participantMatchStatus(match, selected, points, locked);
   return `
-    <article class="match-card ${locked ? "locked-card" : ""}">
-      <div class="match-head">
-        <span class="round-badge">${roundName(match.round_id)}</span>
-        ${status}
+    <article class="match-card participant-match-card ${locked ? "locked-card" : ""}">
+      <div class="participant-match-top">
+        <span>${formatAdminMatchDate(match.starts_at)}</span>
+        <span class="participant-countdown ${locked ? "expired" : ""}">${locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</span>
       </div>
-      <div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>
-      <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
-      <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
-      <div class="countdown ${locked ? "expired" : ""}">${locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</div>
+      <div class="participant-choice-grid">
+        ${participantChoiceButton(match, match.team_a, match.team_a_flag, selected, locked, isJoker)}
+        ${participantChoiceButton(match, match.team_b, match.team_b_flag, selected, locked, isJoker)}
+      </div>
       ${canUseJoker ? `
-        <button class="joker-toggle ${isJoker ? "active" : ""}" ${locked ? "disabled" : ""} data-joker="${match.id}" type="button">
+        <button class="joker-toggle participant-joker ${isJoker ? "active" : ""}" ${locked ? "disabled" : ""} data-joker="${match.id}" type="button">
           ${isJoker ? "الجوكر مفعل ×2" : "تفعيل الجوكر ×2"}
         </button>
       ` : ""}
-      <div class="choices">
-        <button class="choice ${selected === match.team_a ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_a)}" data-joker-state="${isJoker ? "true" : "false"}">${escapeHtml(match.team_a)}</button>
-        <button class="choice ${selected === match.team_b ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(match.team_b)}" data-joker-state="${isJoker ? "true" : "false"}">${escapeHtml(match.team_b)}</button>
+      <div class="participant-match-footer">
+        ${status}
+        <span class="saved-pick">${selected ? `تم حفظ توقعك: ${escapeHtml(selected)}` : "اختر الفائز لحفظ توقعك"}</span>
       </div>
-      ${selected ? `<p class="small">تم حفظ توقعك: ${escapeHtml(selected)}</p>` : `<p class="small">لم تحفظ توقعك لهذه المباراة بعد.</p>`}
     </article>
   `;
+}
+
+function participantChoiceButton(match, team, flagUrl, selected, locked, isJoker) {
+  const active = selected === team;
+  const flag = flagUrl ? `<img src="${escapeHtml(flagUrl)}" alt="${escapeHtml(team)}" />` : "";
+  return `
+    <button class="participant-choice ${active ? "active" : ""}" ${locked ? "disabled" : ""} data-pick="${match.id}" data-team="${escapeHtml(team)}" data-joker-state="${isJoker ? "true" : "false"}" type="button">
+      <span class="participant-team-name">${escapeHtml(team)}</span>
+      <span class="participant-pick-circle">${flag}</span>
+    </button>
+  `;
+}
+
+function participantMatchStatus(match, selected, points, locked) {
+  if (match.winner && points) {
+    return `<span class="participant-status ${points.correct ? "correct" : "wrong"}"><span></span>${points.correct ? "توقع صحيح" : "توقع خاطئ"}: ${points.points} نقطة${points.is_joker ? " ×2" : ""}</span>`;
+  }
+  if (locked) return `<span class="participant-status pending"><span></span>بانتظار اعتماد النتائج</span>`;
+  if (selected) return `<span class="participant-status saved"><span></span>تم حفظ التوقع</span>`;
+  return `<span class="participant-status open"><span></span>لم يتم التصويت</span>`;
 }
 
 function managerMatchCard(match) {

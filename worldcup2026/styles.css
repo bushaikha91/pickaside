@@ -370,6 +370,173 @@ button {
   padding: 13px;
 }
 
+.participant-match-card {
+  overflow: hidden;
+  padding: 0;
+  border-color: #d8dee8;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.1);
+}
+
+.participant-match-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  min-height: 50px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  color: #101828;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.participant-match-top > span:first-child {
+  grid-column: 2;
+  justify-self: end;
+  direction: rtl;
+  white-space: nowrap;
+}
+
+.participant-countdown {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  color: #d72235;
+  direction: ltr;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.participant-countdown.expired {
+  color: #b42318;
+}
+
+.participant-choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 18px 18px 12px;
+  direction: rtl;
+}
+
+.participant-choice {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  min-width: 0;
+  min-height: 62px;
+  padding: 8px 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 9px;
+  color: #101828;
+  direction: rtl;
+  background: #fff;
+}
+
+.participant-choice-grid .participant-choice:nth-child(2) {
+  direction: ltr;
+}
+
+.participant-choice.active {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.participant-choice:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.participant-team-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.participant-pick-circle {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border: 1.8px solid #101828;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.participant-choice.active .participant-pick-circle {
+  border-color: rgba(255, 255, 255, 0.96);
+}
+
+.participant-pick-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.participant-joker {
+  width: calc(100% - 36px);
+  margin: 0 18px 12px;
+}
+
+.participant-match-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px 16px;
+}
+
+.participant-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.participant-status span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #98a2b3;
+}
+
+.participant-status.correct span,
+.participant-status.saved span {
+  background: var(--green);
+}
+
+.participant-status.wrong span {
+  background: var(--red);
+}
+
+.participant-status.pending span {
+  background: var(--gold);
+}
+
+.saved-pick {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+}
+
 .match-head,
 .result-row,
 .leader-row,

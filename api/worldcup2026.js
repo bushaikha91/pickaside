@@ -234,6 +234,7 @@ async function savePrediction(req, res) {
 
   const [match] = await supabase(`worldcup2026_matches?id=eq.${encodeURIComponent(matchId)}&limit=1`);
   if (!match) throw httpError(404, "المباراة غير موجودة");
+  if (match.winner) throw httpError(409, "تم إغلاق التصويت بعد اعتماد نتيجة المباراة");
   if (new Date(match.vote_ends_at) <= new Date()) throw httpError(409, "انتهى وقت التصويت لهذه المباراة");
   if (![match.team_a, match.team_b].includes(winner)) throw httpError(400, "الفائز المختار غير صحيح");
   if (isJoker) await validateJokerPick(userId, match);
@@ -408,7 +409,11 @@ function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, mat
 
     for (const user of users) {
       const prediction = predictionByUserMatch.get(`${user.id}:${match.id}`);
-      if (!prediction) continue;
+      if (!prediction) {
+        lostPool += rule.total;
+        outcomes.set(user.id, { correct: false, baseReturn: 0, isJoker: false });
+        continue;
+      }
       const correct = prediction.winner === match.winner;
       const baseReturn = correct ? rule.winnerStake : rule.safetyStake;
       const lostStake = correct ? rule.safetyStake : rule.winnerStake;
@@ -448,8 +453,12 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, 
 
     for (const user of users) {
       const prediction = predictionByUserMatch.get(`${user.id}:${match.id}`);
-      if (!prediction) continue;
       const matchBudget = startingPoints.get(user.id) / rule.matchCount;
+      if (!prediction) {
+        lostPool += matchBudget;
+        outcomes.set(user.id, { correct: false, baseReturn: 0, isJoker: false });
+        continue;
+      }
       const correct = prediction.winner === match.winner;
       const baseReturn = matchBudget * (correct ? rule.winnerPercent : rule.safetyPercent);
       const lostStake = matchBudget * (correct ? rule.safetyPercent : rule.winnerPercent);
@@ -486,7 +495,11 @@ function applyFinalRound(users, stats, predictionByUserMatch, matches, matchPoin
 
   for (const user of users) {
     const prediction = predictionByUserMatch.get(`${user.id}:${finalMatch.id}`);
-    if (!prediction) continue;
+    if (!prediction) {
+      outcomes.set(user.id, false);
+      lostPool += startingPoints.get(user.id);
+      continue;
+    }
     const correct = prediction.winner === finalMatch.winner;
     outcomes.set(user.id, correct);
     if (correct) correctUsers.push(user.id);

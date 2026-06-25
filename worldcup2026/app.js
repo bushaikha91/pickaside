@@ -232,7 +232,7 @@ function profileModal() {
           ${avatarTile(state.currentUser, "avatar-large", "profileAvatarPreview")}
           <label class="field image-upload-field">
             <span>اختيار صورة</span>
-            <input id="profileAvatar" type="file" accept="image/png,image/jpeg,image/webp" />
+            <input id="profileAvatar" type="file" accept="image/*" />
           </label>
         </div>
         <div id="profileError" class="notice danger-notice hidden"></div>
@@ -561,6 +561,7 @@ function matchEditModal(matchId) {
           <h2>تعديل بطاقة المباراة</h2>
           <button class="icon-close" type="button" data-edit-close>×</button>
         </div>
+        <div id="editError" class="notice danger-notice hidden"></div>
         <form class="stack manager-match-form" data-match-edit="${match.id}">
           <div class="form-grid">
             <label class="field"><span>الفريق الأول</span><input name="teamA" required value="${escapeHtml(match.team_a)}" /></label>
@@ -571,7 +572,7 @@ function matchEditModal(matchId) {
               <span>علم الفريق الأول</span>
               <div class="image-input-row">
                 <span class="flag-tile preview-tile" data-flag-preview="teamA-${match.id}">${match.team_a_flag ? `<img src="${escapeHtml(match.team_a_flag)}" alt="" />` : "A"}</span>
-                <input name="teamAFlagFile" data-edit-flag="teamA-${match.id}" type="file" accept="image/png,image/jpeg,image/webp" />
+                <input name="teamAFlagFile" data-edit-flag="teamA-${match.id}" type="file" accept="image/*" />
                 <input name="teamAFlag" type="hidden" value="${escapeHtml(match.team_a_flag || "")}" />
               </div>
             </label>
@@ -579,7 +580,7 @@ function matchEditModal(matchId) {
               <span>علم الفريق الثاني</span>
               <div class="image-input-row">
                 <span class="flag-tile preview-tile" data-flag-preview="teamB-${match.id}">${match.team_b_flag ? `<img src="${escapeHtml(match.team_b_flag)}" alt="" />` : "B"}</span>
-                <input name="teamBFlagFile" data-edit-flag="teamB-${match.id}" type="file" accept="image/png,image/jpeg,image/webp" />
+                <input name="teamBFlagFile" data-edit-flag="teamB-${match.id}" type="file" accept="image/*" />
                 <input name="teamBFlag" type="hidden" value="${escapeHtml(match.team_b_flag || "")}" />
               </div>
             </label>
@@ -607,6 +608,7 @@ function resultModal(matchId) {
           <button class="icon-close" type="button" data-result-close>×</button>
         </div>
         <div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>
+        <div id="resultError" class="notice danger-notice hidden"></div>
         <form class="manager-result-form" data-result-form="${match.id}">
           <div class="score-grid">
             <label class="field"><span>أهداف ${escapeHtml(match.team_a)}</span><input name="scoreA" required min="0" step="1" type="number" value="${scoreA}" /></label>
@@ -1001,14 +1003,14 @@ function bindApp() {
       const match = state.matches.find(item => item.id === form.dataset.resultForm);
       const scoreA = Number(form.elements.scoreA.value);
       const scoreB = Number(form.elements.scoreB.value);
+      const errorBox = document.querySelector("#resultError");
+      errorBox?.classList.add("hidden");
       if (!match || !Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) {
-        state.error = "أدخل أهداف الفريقين بشكل صحيح";
-        render();
+        showInlineError(errorBox, "أدخل أهداف الفريقين بشكل صحيح");
         return;
       }
       if (scoreA === scoreB) {
-        state.error = "لا يمكن اعتماد تعادل في أدوار خروج المغلوب. عدل الأهداف حسب النتيجة النهائية.";
-        render();
+        showInlineError(errorBox, "لا يمكن اعتماد تعادل في أدوار خروج المغلوب. عدل الأهداف حسب النتيجة النهائية.");
         return;
       }
       await saveResult(match.id, scoreA > scoreB ? match.team_a : match.team_b, scoreA, scoreB);
@@ -1143,14 +1145,14 @@ function bindMatchFlagFields() {
       <span>علم الفريق الأول</span>
       <div class="image-input-row">
         <span class="flag-tile preview-tile" id="teamAFlagPreview">A</span>
-        <input id="teamAFlag" type="file" accept="image/png,image/jpeg,image/webp" />
+        <input id="teamAFlag" type="file" accept="image/*" />
       </div>
     </label>
     <label class="field image-field">
       <span>علم الفريق الثاني</span>
       <div class="image-input-row">
         <span class="flag-tile preview-tile" id="teamBFlagPreview">B</span>
-        <input id="teamBFlag" type="file" accept="image/png,image/jpeg,image/webp" />
+        <input id="teamBFlag" type="file" accept="image/*" />
       </div>
     </label>
   `);
@@ -1200,28 +1202,40 @@ function bindInlineFlagInputs() {
 }
 
 async function saveMatchEdit(form) {
+  const errorBox = document.querySelector("#editError");
+  errorBox?.classList.add("hidden");
   try {
+    const formData = new FormData(form);
     await api("match", {
       method: "POST",
       body: JSON.stringify({
         userId: state.currentUser.id,
         matchId: form.dataset.matchEdit,
         roundId: activeRound,
-        teamA: form.elements.teamA.value.trim(),
-        teamB: form.elements.teamB.value.trim(),
-        teamAFlag: form.elements.teamAFlag.value,
-        teamBFlag: form.elements.teamBFlag.value,
-        startsAt: form.elements.startsAt.value,
-        voteEndsAt: form.elements.voteEndsAt.value
+        teamA: String(formData.get("teamA") || "").trim(),
+        teamB: String(formData.get("teamB") || "").trim(),
+        teamAFlag: String(formData.get("teamAFlag") || ""),
+        teamBFlag: String(formData.get("teamBFlag") || ""),
+        startsAt: String(formData.get("startsAt") || ""),
+        voteEndsAt: String(formData.get("voteEndsAt") || "")
       })
     });
     state.notice = "تم تعديل بطاقة المباراة.";
     state.editModalMatch = null;
     await loadData();
   } catch (error) {
-    state.error = error.message || "تعذر تعديل المباراة";
-    render();
+    showInlineError(errorBox, error.message || "تعذر تعديل المباراة");
   }
+}
+
+function showInlineError(errorBox, message) {
+  if (!errorBox) {
+    state.error = message;
+    render();
+    return;
+  }
+  errorBox.textContent = message;
+  errorBox.classList.remove("hidden");
 }
 
 function syncCountdownTimer() {
@@ -1354,7 +1368,7 @@ function initials(value) {
 
 function imageFileToDataUrl(file, size = 320) {
   return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) {
+    if (file.type && !file.type.startsWith("image/")) {
       reject(new Error("اختر ملف صورة فقط"));
       return;
     }

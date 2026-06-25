@@ -31,6 +31,8 @@ const state = {
   notice: "",
   profileOpen: false,
   voterModalMatch: null,
+  editModalMatch: null,
+  resultModalMatch: null,
   addMatchOpen: false
 };
 
@@ -202,6 +204,8 @@ function appTemplate() {
     </section>
     ${state.profileOpen ? profileModal() : ""}
     ${state.voterModalMatch ? voterModal(state.voterModalMatch) : ""}
+    ${state.editModalMatch ? matchEditModal(state.editModalMatch) : ""}
+    ${state.resultModalMatch ? resultModal(state.resultModalMatch) : ""}
   `;
 }
 
@@ -514,22 +518,49 @@ function managerMatchCard(match) {
 }
 
 function managerMatchCardV2(match) {
-  const teamsView = `<div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>`;
   const scoreA = Number.isInteger(match.score_a) ? match.score_a : "";
   const scoreB = Number.isInteger(match.score_b) ? match.score_b : "";
   return `
-    <article class="match-card">
-      <div class="match-head">
-        <span class="round-badge">${roundName(match.round_id)}</span>
-        <span class="status-chip ${match.winner ? "done" : ""}">${match.winner ? `تم اعتماد النتيجة ${scoreA} - ${scoreB}` : "بدون نتيجة"}</span>
+    <article class="admin-match-card">
+      <div class="admin-match-top">
+        <button class="text-link" data-match-edit-open="${match.id}" type="button">تعديل</button>
+        <span>${formatAdminMatchDate(match.starts_at)}</span>
       </div>
-      ${teamsView}
-      <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
-      <button class="vote-count-btn" data-voters="${match.id}" type="button">
-        التصويت: ${match.vote_count || 0} من ${match.eligible_count || 0}
-      </button>
-      <details class="manager-tools">
-        <summary>تعديل بطاقة المباراة</summary>
+      <div class="admin-match-body">
+        ${adminTeamView(match.team_a, match.team_a_flag)}
+        <div class="admin-match-center ${match.winner ? "has-result" : ""}">
+          ${match.winner ? `${scoreA} : ${scoreB}` : countdownText(match.vote_ends_at)}
+        </div>
+        ${adminTeamView(match.team_b, match.team_b_flag)}
+      </div>
+      <div class="admin-match-bottom">
+        <button class="text-link result-link" data-result-open="${match.id}" type="button">${match.winner ? "تعديل نتيجة نهاية المباراة" : "إضافة نتيجة نهاية المباراة"}</button>
+        <button class="vote-count-link" data-voters="${match.id}" type="button">${match.vote_count || 0}/${match.eligible_count || 0}</button>
+      </div>
+    </article>
+  `;
+}
+
+function adminTeamView(name, flagUrl) {
+  const flag = flagUrl ? `<img src="${escapeHtml(flagUrl)}" alt="${escapeHtml(name)}" />` : "";
+  return `
+    <div class="admin-team">
+      <span class="admin-flag">${flag}</span>
+      <strong>${escapeHtml(name)}</strong>
+    </div>
+  `;
+}
+
+function matchEditModal(matchId) {
+  const match = state.matches.find(item => item.id === matchId);
+  if (!match) return "";
+  return `
+    <div class="modal-backdrop" data-edit-modal-close>
+      <section class="modal-card stack">
+        <div class="section-title">
+          <h2>تعديل بطاقة المباراة</h2>
+          <button class="icon-close" type="button" data-edit-close>×</button>
+        </div>
         <form class="stack manager-match-form" data-match-edit="${match.id}">
           <div class="form-grid">
             <label class="field"><span>الفريق الأول</span><input name="teamA" required value="${escapeHtml(match.team_a)}" /></label>
@@ -557,19 +588,35 @@ function managerMatchCardV2(match) {
           <label class="field"><span>وقت انتهاء التصويت</span><input name="voteEndsAt" required type="datetime-local" value="${datetimeLocalValue(match.vote_ends_at)}" /></label>
           <button class="primary-btn" type="submit">حفظ تعديل المباراة</button>
         </form>
-      </details>
-      <form class="manager-result-form" data-result-form="${match.id}">
-        <div class="score-grid">
-          <label class="field"><span>أهداف ${escapeHtml(match.team_a)}</span><input name="scoreA" required min="0" step="1" type="number" value="${scoreA}" /></label>
-          <label class="field"><span>أهداف ${escapeHtml(match.team_b)}</span><input name="scoreB" required min="0" step="1" type="number" value="${scoreB}" /></label>
-        </div>
-        <button class="primary-btn" type="submit">${match.winner ? "تعديل النتيجة" : "اعتماد النتيجة"}</button>
-      </form>
-      <div class="manager-actions">
-        <button class="ghost-btn" data-clear="${match.id}" type="button">مسح النتيجة</button>
         <button class="danger-btn" data-match-delete="${match.id}" data-match-name="${escapeHtml(`${match.team_a} ضد ${match.team_b}`)}" type="button">حذف المباراة</button>
-      </div>
-    </article>
+      </section>
+    </div>
+  `;
+}
+
+function resultModal(matchId) {
+  const match = state.matches.find(item => item.id === matchId);
+  if (!match) return "";
+  const scoreA = Number.isInteger(match.score_a) ? match.score_a : "";
+  const scoreB = Number.isInteger(match.score_b) ? match.score_b : "";
+  return `
+    <div class="modal-backdrop" data-result-modal-close>
+      <section class="modal-card stack">
+        <div class="section-title">
+          <h2>${match.winner ? "تعديل نتيجة المباراة" : "إضافة نتيجة المباراة"}</h2>
+          <button class="icon-close" type="button" data-result-close>×</button>
+        </div>
+        <div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>
+        <form class="manager-result-form" data-result-form="${match.id}">
+          <div class="score-grid">
+            <label class="field"><span>أهداف ${escapeHtml(match.team_a)}</span><input name="scoreA" required min="0" step="1" type="number" value="${scoreA}" /></label>
+            <label class="field"><span>أهداف ${escapeHtml(match.team_b)}</span><input name="scoreB" required min="0" step="1" type="number" value="${scoreB}" /></label>
+          </div>
+          <button class="primary-btn" type="submit">${match.winner ? "حفظ تعديل النتيجة" : "اعتماد النتيجة"}</button>
+        </form>
+        ${match.winner ? `<button class="ghost-btn" data-clear="${match.id}" type="button">مسح النتيجة</button>` : ""}
+      </section>
+    </div>
   `;
 }
 
@@ -749,6 +796,46 @@ function bindApp() {
     if (event.target === event.currentTarget) {
       state.profileOpen = false;
       state.voterModalMatch = null;
+      state.editModalMatch = null;
+      state.resultModalMatch = null;
+      render();
+    }
+  });
+
+  document.querySelectorAll("[data-match-edit-open]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.editModalMatch = button.dataset.matchEditOpen;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-result-open]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.resultModalMatch = button.dataset.resultOpen;
+      render();
+    });
+  });
+
+  document.querySelector("[data-edit-close]")?.addEventListener("click", () => {
+    state.editModalMatch = null;
+    render();
+  });
+
+  document.querySelector("[data-result-close]")?.addEventListener("click", () => {
+    state.resultModalMatch = null;
+    render();
+  });
+
+  document.querySelector("[data-edit-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.editModalMatch = null;
+      render();
+    }
+  });
+
+  document.querySelector("[data-result-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.resultModalMatch = null;
       render();
     }
   });
@@ -946,6 +1033,8 @@ function bindApp() {
           body: JSON.stringify({ userId: state.currentUser.id, matchId: button.dataset.matchDelete })
         });
         state.notice = "تم حذف المباراة وتحديث الترتيب.";
+        state.editModalMatch = null;
+        state.resultModalMatch = null;
         await loadData();
       } catch (error) {
         state.error = error.message || "تعذر حذف المباراة";
@@ -1127,6 +1216,7 @@ async function saveMatchEdit(form) {
       })
     });
     state.notice = "تم تعديل بطاقة المباراة.";
+    state.editModalMatch = null;
     await loadData();
   } catch (error) {
     state.error = error.message || "تعذر تعديل المباراة";
@@ -1193,6 +1283,7 @@ async function saveResult(matchId, winner, scoreA = null, scoreB = null) {
       body: JSON.stringify({ userId: state.currentUser.id, matchId, winner, scoreA, scoreB })
     });
     state.notice = winner ? "تم تحديث النتيجة والترتيب." : "تم مسح النتيجة.";
+    state.resultModalMatch = null;
     await loadData();
   } catch (error) {
     state.error = error.message || "تعذر تحديث النتيجة";
@@ -1293,6 +1384,17 @@ function imageFileToDataUrl(file, size = 320) {
 function formatDate(value) {
   if (!value) return "غير محدد";
   return new Intl.DateTimeFormat("ar-AE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function formatAdminMatchDate(value) {
+  if (!value) return "غير محدد";
+  return new Intl.DateTimeFormat("ar-AE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function datetimeLocalValue(value) {

@@ -499,6 +499,114 @@ button {
   margin-top: 10px;
 }
 
+.admin-match-card {
+  overflow: hidden;
+  border: 1px solid #d8dee8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.12);
+}
+
+.admin-match-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 45px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  color: #101828;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.text-link,
+.vote-count-link {
+  width: max-content;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  color: #2c7a7b;
+  font-size: 16px;
+  font-weight: 500;
+  background: transparent;
+}
+
+.admin-match-body {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 90px;
+  padding: 20px 24px 10px;
+}
+
+.admin-team {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  direction: rtl;
+}
+
+.admin-team:first-child {
+  grid-template-columns: 1fr auto;
+  direction: ltr;
+}
+
+.admin-team strong {
+  overflow-wrap: anywhere;
+  color: #101828;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-flag {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  overflow: hidden;
+  border: 1.5px solid #101828;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.admin-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-match-center {
+  min-width: 88px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #e6fffb;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+  background: linear-gradient(135deg, var(--green), var(--blue));
+}
+
+.admin-match-center.has-result {
+  font-size: 18px;
+}
+
+.admin-match-bottom {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px 14px;
+}
+
+.result-link {
+  justify-self: center;
+  font-size: 16px;
+}
+
 .manager-tools {
   margin-top: 12px;
   border: 1px solid var(--line);

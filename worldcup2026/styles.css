@@ -489,8 +489,13 @@ button {
 }
 
 .participant-joker {
-  width: calc(100% - 36px);
-  margin: 0 18px 12px;
+  width: auto;
+  min-width: 132px;
+  min-height: 32px;
+  margin: 0 auto 10px;
+  padding: 6px 14px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .participant-match-footer {
@@ -929,9 +934,9 @@ button {
 }
 
 .joker-toggle.active {
-  border-color: var(--gold);
-  color: #6f4d00;
-  background: #fff8df;
+  border-color: rgba(31, 88, 184, 0.45);
+  color: var(--blue);
+  background: #e8f1ff;
 }
 
 .joker-toggle:disabled {

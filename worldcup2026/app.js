@@ -1082,8 +1082,8 @@ function bindApp() {
         teamB: document.querySelector("#teamB").value.trim(),
         teamAFlag: matchFlagState.teamAFlag,
         teamBFlag: matchFlagState.teamBFlag,
-        startsAt: document.querySelector("#startsAt").value,
-        voteEndsAt: document.querySelector("#voteEndsAt").value
+        startsAt: datetimeLocalToIso(document.querySelector("#startsAt").value),
+        voteEndsAt: datetimeLocalToIso(document.querySelector("#voteEndsAt").value)
       };
       await api("match", { method: "POST", body: JSON.stringify(match) });
       activeRound = match.roundId;
@@ -1243,8 +1243,8 @@ async function saveMatchEdit(form) {
         teamB: String(formData.get("teamB") || "").trim(),
         teamAFlag: String(formData.get("teamAFlag") || ""),
         teamBFlag: String(formData.get("teamBFlag") || ""),
-        startsAt: String(formData.get("startsAt") || ""),
-        voteEndsAt: String(formData.get("voteEndsAt") || "")
+        startsAt: datetimeLocalToIso(String(formData.get("startsAt") || "")),
+        voteEndsAt: datetimeLocalToIso(String(formData.get("voteEndsAt") || ""))
       })
     });
     state.notice = "تم تعديل بطاقة المباراة.";
@@ -1445,6 +1445,13 @@ function datetimeLocalValue(value) {
   if (Number.isNaN(date.getTime())) return "";
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+function datetimeLocalToIso(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString();
 }
 
 function escapeHtml(value) {

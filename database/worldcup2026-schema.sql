@@ -48,6 +48,8 @@ create table if not exists public.worldcup2026_matches (
   starts_at timestamptz not null,
   vote_ends_at timestamptz not null,
   winner text,
+  score_a integer,
+  score_b integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -57,6 +59,12 @@ alter table public.worldcup2026_matches
 
 alter table public.worldcup2026_matches
   add column if not exists team_b_flag text;
+
+alter table public.worldcup2026_matches
+  add column if not exists score_a integer;
+
+alter table public.worldcup2026_matches
+  add column if not exists score_b integer;
 
 create table if not exists public.worldcup2026_predictions (
   id uuid primary key default gen_random_uuid(),

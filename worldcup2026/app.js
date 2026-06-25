@@ -291,7 +291,6 @@ function requestRow(user) {
       ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        <span>${escapeHtml(user.phone)}</span>
       </div>
       <span class="status-chip ${user.participant_status}">${statusLabel(user.participant_status)}</span>
       <div class="participant-actions">
@@ -310,7 +309,6 @@ function participantRow(user) {
         ${avatarTile(user, "avatar-small")}
         <div>
           <strong>${escapeHtml(user.name)}</strong>
-          <span>${escapeHtml(user.phone)}</span>
         </div>
         <span class="status-chip approved">مقبول</span>
       </div>
@@ -324,7 +322,6 @@ function rejectedRow(user) {
       ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        <span>${escapeHtml(user.phone)}</span>
       </div>
       <span class="status-chip rejected">مرفوض</span>
     </article>
@@ -362,7 +359,7 @@ function roundTabs() {
 }
 
 function participantMatchesView() {
-  const matches = state.matches.filter(match => match.round_id === activeRound);
+  const matches = sortMatches(state.matches.filter(match => match.round_id === activeRound));
   return `
     ${summaryView()}
     <div class="section-title">
@@ -377,7 +374,7 @@ function participantMatchesView() {
 }
 
 function manageView() {
-  const matches = state.matches.filter(match => match.round_id === activeRound);
+  const matches = sortMatches(state.matches.filter(match => match.round_id === activeRound));
   return `
     <div class="section-title">
       <h2>إدارة النتائج</h2>
@@ -389,7 +386,7 @@ function manageView() {
     </button>
     ${state.addMatchOpen ? matchFormView() : ""}
     <div class="match-list">
-      ${matches.length ? matches.map(managerMatchCard).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
+      ${matches.length ? matches.map(managerMatchCardV2).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
   `;
 }
@@ -516,6 +513,66 @@ function managerMatchCard(match) {
   `;
 }
 
+function managerMatchCardV2(match) {
+  const teamsView = `<div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>`;
+  const scoreA = Number.isInteger(match.score_a) ? match.score_a : "";
+  const scoreB = Number.isInteger(match.score_b) ? match.score_b : "";
+  return `
+    <article class="match-card">
+      <div class="match-head">
+        <span class="round-badge">${roundName(match.round_id)}</span>
+        <span class="status-chip ${match.winner ? "done" : ""}">${match.winner ? `تم اعتماد النتيجة ${scoreA} - ${scoreB}` : "بدون نتيجة"}</span>
+      </div>
+      ${teamsView}
+      <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
+      <button class="vote-count-btn" data-voters="${match.id}" type="button">
+        التصويت: ${match.vote_count || 0} من ${match.eligible_count || 0}
+      </button>
+      <details class="manager-tools">
+        <summary>تعديل بطاقة المباراة</summary>
+        <form class="stack manager-match-form" data-match-edit="${match.id}">
+          <div class="form-grid">
+            <label class="field"><span>الفريق الأول</span><input name="teamA" required value="${escapeHtml(match.team_a)}" /></label>
+            <label class="field"><span>الفريق الثاني</span><input name="teamB" required value="${escapeHtml(match.team_b)}" /></label>
+          </div>
+          <div class="form-grid">
+            <label class="field image-field">
+              <span>علم الفريق الأول</span>
+              <div class="image-input-row">
+                <span class="flag-tile preview-tile" data-flag-preview="teamA-${match.id}">${match.team_a_flag ? `<img src="${escapeHtml(match.team_a_flag)}" alt="" />` : "A"}</span>
+                <input name="teamAFlagFile" data-edit-flag="teamA-${match.id}" type="file" accept="image/png,image/jpeg,image/webp" />
+                <input name="teamAFlag" type="hidden" value="${escapeHtml(match.team_a_flag || "")}" />
+              </div>
+            </label>
+            <label class="field image-field">
+              <span>علم الفريق الثاني</span>
+              <div class="image-input-row">
+                <span class="flag-tile preview-tile" data-flag-preview="teamB-${match.id}">${match.team_b_flag ? `<img src="${escapeHtml(match.team_b_flag)}" alt="" />` : "B"}</span>
+                <input name="teamBFlagFile" data-edit-flag="teamB-${match.id}" type="file" accept="image/png,image/jpeg,image/webp" />
+                <input name="teamBFlag" type="hidden" value="${escapeHtml(match.team_b_flag || "")}" />
+              </div>
+            </label>
+          </div>
+          <label class="field"><span>وقت المباراة</span><input name="startsAt" required type="datetime-local" value="${datetimeLocalValue(match.starts_at)}" /></label>
+          <label class="field"><span>وقت انتهاء التصويت</span><input name="voteEndsAt" required type="datetime-local" value="${datetimeLocalValue(match.vote_ends_at)}" /></label>
+          <button class="primary-btn" type="submit">حفظ تعديل المباراة</button>
+        </form>
+      </details>
+      <form class="manager-result-form" data-result-form="${match.id}">
+        <div class="score-grid">
+          <label class="field"><span>أهداف ${escapeHtml(match.team_a)}</span><input name="scoreA" required min="0" step="1" type="number" value="${scoreA}" /></label>
+          <label class="field"><span>أهداف ${escapeHtml(match.team_b)}</span><input name="scoreB" required min="0" step="1" type="number" value="${scoreB}" /></label>
+        </div>
+        <button class="primary-btn" type="submit">${match.winner ? "تعديل النتيجة" : "اعتماد النتيجة"}</button>
+      </form>
+      <div class="manager-actions">
+        <button class="ghost-btn" data-clear="${match.id}" type="button">مسح النتيجة</button>
+        <button class="danger-btn" data-match-delete="${match.id}" data-match-name="${escapeHtml(`${match.team_a} ضد ${match.team_b}`)}" type="button">حذف المباراة</button>
+      </div>
+    </article>
+  `;
+}
+
 function voterModal(matchId) {
   const match = state.matches.find(item => item.id === matchId);
   if (!match) return "";
@@ -548,7 +605,6 @@ function voterRow(user) {
       ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        <span>${escapeHtml(user.phone || "")}</span>
       </div>
     </div>
   `;
@@ -718,6 +774,7 @@ function bindApp() {
 
   bindProfileForm();
   const matchFlagState = bindMatchFlagFields();
+  bindInlineFlagInputs();
   syncCountdownTimer();
 
   document.querySelectorAll("[data-tab]").forEach(button => {
@@ -848,6 +905,52 @@ function bindApp() {
   document.querySelectorAll("[data-clear]").forEach(button => {
     button.addEventListener("click", async () => {
       await saveResult(button.dataset.clear, "");
+    });
+  });
+
+  document.querySelectorAll("[data-result-form]").forEach(form => {
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const match = state.matches.find(item => item.id === form.dataset.resultForm);
+      const scoreA = Number(form.elements.scoreA.value);
+      const scoreB = Number(form.elements.scoreB.value);
+      if (!match || !Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) {
+        state.error = "أدخل أهداف الفريقين بشكل صحيح";
+        render();
+        return;
+      }
+      if (scoreA === scoreB) {
+        state.error = "لا يمكن اعتماد تعادل في أدوار خروج المغلوب. عدل الأهداف حسب النتيجة النهائية.";
+        render();
+        return;
+      }
+      await saveResult(match.id, scoreA > scoreB ? match.team_a : match.team_b, scoreA, scoreB);
+    });
+  });
+
+  document.querySelectorAll("[data-match-edit]").forEach(form => {
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      await saveMatchEdit(form);
+    });
+  });
+
+  document.querySelectorAll("[data-match-delete]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const matchName = button.dataset.matchName || "هذه المباراة";
+      const confirmed = confirm(`سيتم حذف ${matchName} مع نتيجتها وكل توقعاتها، وسيعاد ترتيب النقاط كأن المباراة غير موجودة. هل تريد المتابعة؟`);
+      if (!confirmed) return;
+      try {
+        await api("match-delete", {
+          method: "POST",
+          body: JSON.stringify({ userId: state.currentUser.id, matchId: button.dataset.matchDelete })
+        });
+        state.notice = "تم حذف المباراة وتحديث الترتيب.";
+        await loadData();
+      } catch (error) {
+        state.error = error.message || "تعذر حذف المباراة";
+        render();
+      }
     });
   });
 
@@ -987,6 +1090,50 @@ function bindFlagInput(inputSelector, previewSelector, onChange) {
   });
 }
 
+function bindInlineFlagInputs() {
+  document.querySelectorAll("[data-edit-flag]").forEach(input => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const value = await imageFileToDataUrl(file, 180);
+        const key = input.dataset.editFlag;
+        const preview = document.querySelector(`[data-flag-preview="${key}"]`);
+        const hidden = input.closest(".image-input-row")?.querySelector("input[type='hidden']");
+        if (hidden) hidden.value = value;
+        if (preview) preview.innerHTML = `<img src="${escapeHtml(value)}" alt="" />`;
+      } catch (error) {
+        state.error = error.message || "تعذر تجهيز العلم";
+        render();
+      }
+    });
+  });
+}
+
+async function saveMatchEdit(form) {
+  try {
+    await api("match", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: state.currentUser.id,
+        matchId: form.dataset.matchEdit,
+        roundId: activeRound,
+        teamA: form.elements.teamA.value.trim(),
+        teamB: form.elements.teamB.value.trim(),
+        teamAFlag: form.elements.teamAFlag.value,
+        teamBFlag: form.elements.teamBFlag.value,
+        startsAt: form.elements.startsAt.value,
+        voteEndsAt: form.elements.voteEndsAt.value
+      })
+    });
+    state.notice = "تم تعديل بطاقة المباراة.";
+    await loadData();
+  } catch (error) {
+    state.error = error.message || "تعذر تعديل المباراة";
+    render();
+  }
+}
+
 function syncCountdownTimer() {
   const hasOpenMatch = state.currentUser && state.matches.some(match => new Date(match.vote_ends_at) > new Date() && !match.winner);
   if (hasOpenMatch && !countdownTimer) {
@@ -1039,11 +1186,11 @@ function closeSwipeRows(exceptRow) {
   });
 }
 
-async function saveResult(matchId, winner) {
+async function saveResult(matchId, winner, scoreA = null, scoreB = null) {
   try {
     await api("result", {
       method: "POST",
-      body: JSON.stringify({ userId: state.currentUser.id, matchId, winner })
+      body: JSON.stringify({ userId: state.currentUser.id, matchId, winner, scoreA, scoreB })
     });
     state.notice = winner ? "تم تحديث النتيجة والترتيب." : "تم مسح النتيجة.";
     await loadData();
@@ -1074,6 +1221,14 @@ function statusLabel(status) {
 
 function roundName(id) {
   return rounds.find(round => round.id === id)?.name || id;
+}
+
+function sortMatches(matches) {
+  return [...matches].sort((a, b) => {
+    const resultOrder = Number(!!a.winner) - Number(!!b.winner);
+    if (resultOrder) return resultOrder;
+    return new Date(a.starts_at || 0) - new Date(b.starts_at || 0);
+  });
 }
 
 function emptyView(text) {
@@ -1138,6 +1293,14 @@ function imageFileToDataUrl(file, size = 320) {
 function formatDate(value) {
   if (!value) return "غير محدد";
   return new Intl.DateTimeFormat("ar-AE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function datetimeLocalValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 }
 
 function escapeHtml(value) {

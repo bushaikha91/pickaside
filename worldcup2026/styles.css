@@ -499,6 +499,67 @@ button {
   margin-top: 10px;
 }
 
+.manager-tools {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.manager-tools summary {
+  min-height: 44px;
+  padding: 11px 12px;
+  color: var(--navy);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.manager-match-form,
+.manager-result-form {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.score-grid,
+.manager-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.manager-result-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  border: 1px solid rgba(31, 88, 184, 0.18);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.manager-actions {
+  margin-top: 10px;
+}
+
+.danger-btn {
+  min-height: 44px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 900;
+  background: #b42318;
+}
+
+.scoreline {
+  margin: 8px auto 4px;
+  width: max-content;
+  min-width: 88px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  color: var(--navy);
+  font-size: 18px;
+  font-weight: 900;
+  background: #eef4ff;
+}
+
 .status-chip {
   display: inline-flex;
   justify-content: center;

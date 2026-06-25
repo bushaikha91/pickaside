@@ -344,6 +344,28 @@ button {
   gap: 10px;
 }
 
+.add-match-toggle {
+  width: 100%;
+  min-height: 46px;
+  margin: 0 0 12px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.match-form-card {
+  margin-bottom: 14px;
+  border-color: rgba(31, 88, 184, 0.28);
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .match-card {
   padding: 13px;
 }

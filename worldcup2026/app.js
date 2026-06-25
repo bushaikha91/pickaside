@@ -30,7 +30,8 @@ const state = {
   error: "",
   notice: "",
   profileOpen: false,
-  voterModalMatch: null
+  voterModalMatch: null,
+  addMatchOpen: false
 };
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
@@ -378,29 +379,36 @@ function participantMatchesView() {
 function manageView() {
   const matches = state.matches.filter(match => match.round_id === activeRound);
   return `
-    <form class="panel stack" id="matchForm">
-      <div class="section-title">
-        <h2>إضافة مباراة</h2>
-        <span class="small">تحفظ مباشرة في السيرفر</span>
-      </div>
-      <label class="field">
-        <span>الدور</span>
-        <select id="matchRound">${rounds.map(r => `<option value="${r.id}">${r.name}</option>`).join("")}</select>
-      </label>
-      <label class="field"><span>الفريق الأول</span><input id="teamA" required placeholder="اسم الفريق" /></label>
-      <label class="field"><span>الفريق الثاني</span><input id="teamB" required placeholder="اسم الفريق" /></label>
-      <label class="field"><span>وقت المباراة</span><input id="startsAt" required type="datetime-local" /></label>
-      <label class="field"><span>وقت انتهاء التصويت</span><input id="voteEndsAt" required type="datetime-local" /></label>
-      <button class="primary-btn" type="submit">إضافة المباراة</button>
-    </form>
-    <div class="section-title" style="margin-top:18px">
+    <div class="section-title">
       <h2>إدارة النتائج</h2>
       <span class="small">تنعكس على كل المشاركين</span>
     </div>
     ${roundTabs()}
+    <button class="add-match-toggle" id="addMatchToggle" type="button">
+      ${state.addMatchOpen ? "إغلاق إضافة المباراة" : `إضافة مباراة في ${roundName(activeRound)}`}
+    </button>
+    ${state.addMatchOpen ? matchFormView() : ""}
     <div class="match-list">
       ${matches.length ? matches.map(managerMatchCard).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
+  `;
+}
+
+function matchFormView() {
+  return `
+    <form class="panel stack match-form-card" id="matchForm">
+      <div class="section-title">
+        <h2>إضافة مباراة</h2>
+        <span class="small">${roundName(activeRound)}</span>
+      </div>
+      <div class="form-grid">
+        <label class="field"><span>الفريق الأول</span><input id="teamA" required placeholder="اسم الفريق" /></label>
+        <label class="field"><span>الفريق الثاني</span><input id="teamB" required placeholder="اسم الفريق" /></label>
+      </div>
+      <label class="field"><span>وقت المباراة</span><input id="startsAt" required type="datetime-local" /></label>
+      <label class="field"><span>وقت انتهاء التصويت</span><input id="voteEndsAt" required type="datetime-local" /></label>
+      <button class="primary-btn" type="submit">حفظ المباراة</button>
+    </form>
   `;
 }
 
@@ -722,8 +730,14 @@ function bindApp() {
   document.querySelectorAll("[data-round]").forEach(button => {
     button.addEventListener("click", () => {
       activeRound = button.dataset.round;
+      state.addMatchOpen = false;
       render();
     });
+  });
+
+  document.querySelector("#addMatchToggle")?.addEventListener("click", () => {
+    state.addMatchOpen = !state.addMatchOpen;
+    render();
   });
 
   document.querySelectorAll("[data-participant-id]").forEach(button => {
@@ -842,7 +856,7 @@ function bindApp() {
     try {
       const match = {
         userId: state.currentUser.id,
-        roundId: document.querySelector("#matchRound").value,
+        roundId: activeRound,
         teamA: document.querySelector("#teamA").value.trim(),
         teamB: document.querySelector("#teamB").value.trim(),
         teamAFlag: matchFlagState.teamAFlag,
@@ -852,6 +866,7 @@ function bindApp() {
       };
       await api("match", { method: "POST", body: JSON.stringify(match) });
       activeRound = match.roundId;
+      state.addMatchOpen = false;
       state.notice = "تمت إضافة المباراة في السيرفر.";
       await loadData();
     } catch (error) {

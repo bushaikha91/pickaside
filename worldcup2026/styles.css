@@ -983,6 +983,16 @@ button {
   margin-bottom: 3px;
 }
 
+.leader-name-button {
+  display: block;
+  width: 100%;
+  min-height: auto;
+  padding: 0;
+  color: var(--ink);
+  text-align: start;
+  background: transparent;
+}
+
 .points {
   color: var(--blue);
   font-size: 20px;
@@ -1077,6 +1087,7 @@ button {
 .swipe-delete {
   position: absolute;
   inset: 0 0 0 auto;
+  z-index: 1;
   width: 86px;
   color: #fff;
   font-weight: 900;
@@ -1254,6 +1265,71 @@ button {
   margin-top: 3px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.participant-detail-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.participant-detail-head strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.detail-match-list {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-match-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.detail-match-row strong,
+.detail-match-row span,
+.detail-pick em {
+  display: block;
+}
+
+.detail-match-row strong {
+  font-size: 12px;
+}
+
+.detail-match-row span,
+.detail-pick em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.detail-pick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-pick em.ok {
+  color: #067647;
+  font-weight: 900;
+}
+
+.detail-pick em.bad {
+  color: #b42318;
+  font-weight: 900;
 }
 
 .install-panel {

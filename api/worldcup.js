@@ -29,6 +29,7 @@ module.exports = async function handler(req, res) {
     if (action === "profile" && req.method === "POST") return await updateProfile(req, res);
     if (action === "participant-status" && req.method === "POST") return await updateParticipantStatus(req, res);
     if (action === "participant-delete" && req.method === "POST") return await deleteParticipant(req, res);
+    if (action === "participant-reapply" && req.method === "POST") return await reapplyParticipant(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -55,6 +56,8 @@ async function sendState(req, res) {
     matches: isOrganizer ? enrichMatchesForOrganizer(matches, participants, tournament.predictions) : matches,
     predictions: Object.fromEntries(predictions.map(item => [item.match_id, { winner: item.winner, is_joker: !!item.is_joker }])),
     matchPoints: userId ? tournament.matchPoints[userId] || {} : {},
+    allPredictions: isOrganizer ? tournament.predictions : [],
+    allMatchPoints: isOrganizer ? tournament.matchPoints : {},
     standings: tournament.standings,
     participants
   });
@@ -311,6 +314,7 @@ async function updateParticipantStatus(req, res) {
   const participantId = clean(body.participantId);
   const status = clean(body.status);
   if (!["approved", "rejected", "pending"].includes(status)) throw httpError(400, "حالة المشارك غير صحيحة");
+  if (status === "rejected") await deleteParticipantPredictions(participantId);
   const [user] = await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant`, {
     method: "PATCH",
     prefer: "return=representation",
@@ -325,11 +329,33 @@ async function deleteParticipant(req, res) {
   await requireOrganizer(body.userId);
   const participantId = clean(body.participantId);
   if (!participantId) throw httpError(400, "بيانات المشارك غير مكتملة");
+  await deleteParticipantPredictions(participantId);
   await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: JSON.stringify({ participant_status: "rejected", updated_at: new Date().toISOString() })
+  });
+  return res.status(200).json({ ok: true });
+}
+
+async function reapplyParticipant(req, res) {
+  const body = await readBody(req);
+  const userId = clean(body.userId);
+  const [user] = await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(userId)}&role=eq.participant`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: JSON.stringify({ participant_status: "pending", updated_at: new Date().toISOString() })
+  });
+  if (!user) throw httpError(404, "المشارك غير موجود");
+  return res.status(200).json({ user: publicUser(user) });
+}
+
+async function deleteParticipantPredictions(participantId) {
+  if (!participantId) return;
+  await supabase(`worldcup2026_predictions?user_id=eq.${encodeURIComponent(participantId)}`, {
     method: "DELETE",
     prefer: "return=minimal"
   });
-  return res.status(200).json({ ok: true });
 }
 
 async function requireOrganizer(userId) {

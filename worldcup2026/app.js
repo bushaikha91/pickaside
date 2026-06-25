@@ -25,6 +25,8 @@ const state = {
   standings: [],
   predictions: {},
   matchPoints: {},
+  allPredictions: [],
+  allMatchPoints: {},
   participants: [],
   loading: true,
   error: "",
@@ -33,6 +35,7 @@ const state = {
   voterModalMatch: null,
   editModalMatch: null,
   resultModalMatch: null,
+  detailParticipantId: null,
   addMatchOpen: false
 };
 
@@ -85,6 +88,8 @@ async function loadData(options = {}) {
     state.standings = payload.standings || [];
     state.predictions = payload.predictions || {};
     state.matchPoints = payload.matchPoints || {};
+    state.allPredictions = payload.allPredictions || [];
+    state.allMatchPoints = payload.allMatchPoints || {};
     state.participants = payload.participants || [];
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
@@ -207,6 +212,7 @@ function appTemplate() {
     ${state.voterModalMatch ? voterModal(state.voterModalMatch) : ""}
     ${state.editModalMatch ? matchEditModal(state.editModalMatch) : ""}
     ${state.resultModalMatch ? resultModal(state.resultModalMatch) : ""}
+    ${state.detailParticipantId ? participantDetailModal(state.detailParticipantId) : ""}
     ${state.addMatchOpen ? matchFormModal() : ""}
   `;
 }
@@ -254,8 +260,8 @@ function participantStatusView() {
     <section class="panel waiting-panel">
       <span class="status-chip ${rejected ? "rejected" : ""}">${rejected ? "تم رفض الطلب" : "بانتظار موافقة المنظم"}</span>
       <h2>${rejected ? "لم يتم قبول دخولك" : "طلبك وصل للمنظم"}</h2>
-      <p class="small">${rejected ? "راجع المنظم إذا كنت تعتقد أن الرفض بالخطأ." : "بعد قبولك ستظهر لك المباريات والتوقعات تلقائياً عند إعادة المحاولة."}</p>
-      <button class="primary-btn" id="retryBtn" type="button">تحديث الحالة</button>
+      <p class="small">${rejected ? "يمكنك تقديم طلب انضمام جديد، وسيظهر الطلب مرة أخرى عند المنظم." : "بعد قبولك ستظهر لك المباريات والتوقعات تلقائياً عند إعادة المحاولة."}</p>
+      <button class="primary-btn" id="${rejected ? "reapplyBtn" : "retryBtn"}" type="button">${rejected ? "تقديم طلب انضمام" : "تحديث الحالة"}</button>
     </section>
   `;
 }
@@ -428,6 +434,7 @@ function matchFormView() {
 }
 
 function standingsView() {
+  const canInspect = state.currentUser.role === "organizer";
   return `
     <div class="section-title">
       <h2>ترتيب المشاركين</h2>
@@ -439,12 +446,66 @@ function standingsView() {
           <div class="rank">${index + 1}</div>
           ${avatarTile(row, "avatar-small")}
           <div class="leader-name">
-            <strong>${escapeHtml(row.name)}</strong>
+            ${canInspect ? `<button class="leader-name-button" data-participant-detail="${row.id}" type="button"><strong>${escapeHtml(row.name)}</strong></button>` : `<strong>${escapeHtml(row.name)}</strong>`}
             <span class="small">صحيح: ${row.correct_predictions} | خطأ: ${row.wrong_predictions}</span>
           </div>
           <div class="points">${row.points}</div>
         </div>
       `).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
+    </div>
+  `;
+}
+
+function participantDetailModal(participantId) {
+  const participant = state.standings.find(row => row.id === participantId)
+    || state.participants.find(row => row.id === participantId);
+  if (!participant) return "";
+  const participantPredictions = new Map(
+    state.allPredictions
+      .filter(item => item.user_id === participantId)
+      .map(item => [item.match_id, item])
+  );
+  const participantPoints = state.allMatchPoints[participantId] || {};
+  const rows = sortMatches(state.matches).map(match => {
+    const prediction = participantPredictions.get(match.id);
+    const points = participantPoints[match.id];
+    const status = !match.winner
+      ? "بانتظار النتيجة"
+      : points
+        ? `${points.correct ? "صحيح" : "خطأ"} - ${points.points} نقطة${points.is_joker ? " ×2" : ""}`
+        : "لم يدخل في الحسبة";
+    return `
+      <article class="detail-match-row">
+        <div>
+          <strong>${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</strong>
+          <span>${roundName(match.round_id)} | ${formatAdminMatchDate(match.starts_at)}</span>
+        </div>
+        <div class="detail-pick">
+          <span>${prediction ? `توقع: ${escapeHtml(prediction.winner)}${prediction.is_joker ? " | جوكر" : ""}` : "لم يصوت"}</span>
+          <em class="${points?.correct ? "ok" : match.winner ? "bad" : ""}">${status}</em>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <div class="modal-backdrop" data-detail-modal-close>
+      <section class="modal-card stack participant-detail-modal">
+        <div class="section-title">
+          <h2>تفاصيل المشارك</h2>
+          <button class="icon-close" type="button" data-detail-close>×</button>
+        </div>
+        <div class="participant-detail-head">
+          ${avatarTile(participant, "avatar-small")}
+          <div>
+            <strong>${escapeHtml(participant.name)}</strong>
+            <span class="small">النقاط: ${participant.points || 0} | صحيح: ${participant.correct_predictions || 0} | خطأ: ${participant.wrong_predictions || 0}</span>
+          </div>
+        </div>
+        <div class="detail-match-list">
+          ${rows || emptyView("لا توجد مباريات لعرضها.")}
+        </div>
+      </section>
     </div>
   `;
 }
@@ -815,6 +876,22 @@ function bindApp() {
 
   document.querySelector("#retryBtn")?.addEventListener("click", loadData);
 
+  document.querySelector("#reapplyBtn")?.addEventListener("click", async () => {
+    try {
+      const payload = await api("participant-reapply", {
+        method: "POST",
+        body: JSON.stringify({ userId: state.currentUser.id })
+      });
+      state.currentUser = { ...state.currentUser, ...payload.user };
+      writeSession(state.currentUser);
+      state.notice = "تم تقديم طلب الانضمام من جديد.";
+      await loadData({ silent: true });
+    } catch (error) {
+      state.error = error.message || "تعذر تقديم طلب الانضمام";
+      render();
+    }
+  });
+
   document.querySelector("#profileOpenBtn")?.addEventListener("click", () => {
     state.profileOpen = true;
     render();
@@ -825,14 +902,20 @@ function bindApp() {
     render();
   });
 
-  document.querySelector("[data-modal-close]")?.addEventListener("click", event => {
+  document.querySelectorAll("[data-modal-close], [data-detail-modal-close]").forEach(backdrop => backdrop.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.profileOpen = false;
       state.voterModalMatch = null;
       state.editModalMatch = null;
       state.resultModalMatch = null;
+      state.detailParticipantId = null;
       render();
     }
+  }));
+
+  document.querySelector("[data-detail-close]")?.addEventListener("click", () => {
+    state.detailParticipantId = null;
+    render();
   });
 
   document.querySelectorAll(".modal-card").forEach(card => {
@@ -850,6 +933,13 @@ function bindApp() {
   document.querySelectorAll("[data-result-open]").forEach(button => {
     button.addEventListener("click", () => {
       state.resultModalMatch = button.dataset.resultOpen;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-participant-detail]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.detailParticipantId = button.dataset.participantDetail;
       render();
     });
   });
@@ -1270,7 +1360,7 @@ function syncCountdownTimer() {
   if (hasOpenMatch && !countdownTimer) {
     countdownTimer = setInterval(() => {
       if (!state.currentUser) return;
-      if (state.profileOpen || state.voterModalMatch || state.editModalMatch || state.resultModalMatch || state.addMatchOpen) return;
+      if (state.profileOpen || state.voterModalMatch || state.editModalMatch || state.resultModalMatch || state.detailParticipantId || state.addMatchOpen) return;
       render();
     }, 1000);
   }
@@ -1288,6 +1378,7 @@ function bindSwipeRows() {
     let dragging = false;
 
     row.addEventListener("touchstart", event => {
+      if (event.target.closest("[data-participant-delete]")) return;
       startX = event.touches[0].clientX;
       currentX = startX;
       dragging = true;
@@ -1302,9 +1393,13 @@ function bindSwipeRows() {
     }, { passive: true });
 
     row.addEventListener("touchend", () => {
+      if (!dragging) return;
       dragging = false;
       content.style.transition = "";
-      const shouldOpen = currentX - startX < -42;
+      const delta = currentX - startX;
+      const shouldOpen = row.classList.contains("open")
+        ? delta > 24 ? false : true
+        : delta < -42;
       closeSwipeRows(row);
       row.classList.toggle("open", shouldOpen);
       content.style.transform = "";

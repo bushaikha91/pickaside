@@ -1251,7 +1251,7 @@ function syncCountdownTimer() {
   if (hasOpenMatch && !countdownTimer) {
     countdownTimer = setInterval(() => {
       if (!state.currentUser) return;
-      if (state.profileOpen || state.voterModalMatch || state.editModalMatch || state.resultModalMatch) return;
+      if (state.profileOpen || state.voterModalMatch || state.editModalMatch || state.resultModalMatch || state.addMatchOpen) return;
       render();
     }, 1000);
   }

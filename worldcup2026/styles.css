@@ -388,6 +388,7 @@ button {
   color: #101828;
   font-size: 13px;
   font-weight: 700;
+  direction: ltr;
 }
 
 .participant-match-top > span:first-child {

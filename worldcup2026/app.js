@@ -464,7 +464,7 @@ function summaryView() {
 }
 
 function matchCard(match, prediction) {
-  const locked = new Date(match.vote_ends_at) <= new Date();
+  const locked = !!match.winner || new Date(match.vote_ends_at) <= new Date();
   const selected = prediction?.winner || prediction || "";
   const isJoker = !!prediction?.is_joker;
   const points = state.matchPoints[match.id];
@@ -474,7 +474,7 @@ function matchCard(match, prediction) {
     <article class="match-card participant-match-card ${locked ? "locked-card" : ""}">
       <div class="participant-match-top">
         <span>${formatAdminMatchDate(match.starts_at)}</span>
-        <span class="participant-countdown ${locked ? "expired" : ""}">${locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</span>
+        <span class="participant-countdown ${locked ? "expired" : ""}">${match.winner ? "مغلق" : locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</span>
       </div>
       <div class="participant-choice-grid">
         ${participantChoiceButton(match, match.team_a, match.team_a_flag, selected, locked, isJoker)}

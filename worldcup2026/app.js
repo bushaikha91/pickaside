@@ -394,7 +394,7 @@ function manageView() {
   const matches = sortMatches(state.matches.filter(match => match.round_id === activeRound));
   return `
     <div class="section-title">
-      <h2>إدارة النتائج</h2>
+      <h2>المباريات</h2>
       <span class="small">تنعكس على كل المشاركين</span>
     </div>
     ${roundTabs()}

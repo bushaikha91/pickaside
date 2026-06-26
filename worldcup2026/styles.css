@@ -1106,6 +1106,9 @@ button {
 
 .matrix-head,
 .matrix-head-row .matrix-cell {
+  position: sticky;
+  top: 128px;
+  z-index: 20;
   color: #fff;
   font-size: 8.5px;
   font-weight: 900;
@@ -1116,13 +1119,6 @@ button {
   background:
     linear-gradient(270deg, var(--navy) 0%, var(--blue) 36%, var(--green) 70%, var(--red) 112%)
     fixed center top / 100vw 44px;
-}
-
-.matrix-head,
-.matrix-head-row {
-  position: sticky;
-  top: 128px;
-  z-index: 2;
 }
 
 .rank-head,

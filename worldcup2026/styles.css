@@ -1122,13 +1122,13 @@ button {
 .player-head,
 .rank-cell,
 .player-cell {
-  color: #fff;
-  background: #102f63;
+  color: #344054;
+  background: #f2f4f7;
 }
 
 .total-cell {
-  color: #fff;
-  background: #0b6f47;
+  color: #344054;
+  background: #f2f4f7;
 }
 
 .standings-board .matrix-head,
@@ -1156,7 +1156,7 @@ button {
   justify-content: flex-start;
   gap: 5px;
   min-width: 0;
-  color: #fff;
+  color: #344054;
   direction: rtl;
 }
 
@@ -1166,18 +1166,6 @@ button {
   overflow: hidden;
   font-size: 10px;
   text-overflow: ellipsis;
-}
-
-.matrix-player-row.highlight-row .rank-cell,
-.matrix-player-row.highlight-row .player-cell,
-.total-cell.highlight-row {
-  color: #344054;
-  background: #f2f4f7;
-}
-
-.matrix-player-row.highlight-row .leader-name-button,
-.matrix-player-row.highlight-row .player-cell strong {
-  color: #344054;
 }
 
 .rank-cell,

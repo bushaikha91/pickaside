@@ -58,6 +58,7 @@ async function sendState(req, res) {
     matchPoints: userId ? tournament.matchPoints[userId] || {} : {},
     allPredictions: isOrganizer ? tournament.predictions : [],
     allMatchPoints: isOrganizer ? tournament.matchPoints : {},
+    allMatchStakes: isOrganizer ? tournament.matchStakes : {},
     standings: tournament.standings,
     participants
   });
@@ -373,12 +374,13 @@ async function requireApprovedParticipant(userId) {
 async function calculateTournament() {
   const [users, matches, predictions] = await Promise.all([
     fetchStandingUsers(),
-    supabase("worldcup2026_matches?select=id,round_id,winner,starts_at"),
+    supabase("worldcup2026_matches?select=id,round_id,winner,starts_at,team_a,team_b"),
     fetchAllPredictions()
   ]);
 
   const predictionByUserMatch = new Map(predictions.map(item => [`${item.user_id}:${item.match_id}`, item]));
   const matchPoints = Object.fromEntries(users.map(user => [user.id, {}]));
+  const matchStakes = Object.fromEntries(users.map(user => [user.id, {}]));
   const stats = new Map(users.map(user => [user.id, {
     id: user.id,
     name: user.name,
@@ -396,17 +398,18 @@ async function calculateTournament() {
     if (!rule || !roundMatches.length) continue;
 
     if (rule.type === "fixed") {
-      applyFixedRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints);
+      applyFixedRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints, matchStakes);
     } else if (rule.type === "bankroll") {
-      applyBankrollRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints);
+      applyBankrollRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints, matchStakes);
     } else if (rule.type === "final") {
-      applyFinalRound(users, stats, predictionByUserMatch, roundMatches, matchPoints);
+      applyFinalRound(users, stats, predictionByUserMatch, roundMatches, matchPoints, matchStakes);
     }
   }
 
   return {
     predictions,
     matchPoints,
+    matchStakes,
     standings: Array.from(stats.values())
       .map(row => ({ ...row, points: roundPoints(row.points) }))
       .sort((a, b) => b.points - a.points || b.correct_predictions - a.correct_predictions || a.wrong_predictions - b.wrong_predictions)
@@ -427,7 +430,7 @@ async function buildStandings() {
   return (await calculateTournament()).standings;
 }
 
-function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, matchPoints) {
+function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, matchPoints, matchStakes) {
   for (const match of matches.filter(item => item.winner)) {
     const correctUsers = [];
     let lostPool = 0;
@@ -443,6 +446,7 @@ function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, mat
       const correct = prediction.winner === match.winner;
       const baseReturn = correct ? rule.winnerStake : rule.safetyStake;
       const lostStake = correct ? rule.safetyStake : rule.winnerStake;
+      matchStakes[user.id][match.id] = stakeRow(match, prediction.winner, rule.winnerStake, rule.safetyStake);
       outcomes.set(user.id, { correct, baseReturn, isJoker: !!prediction.is_joker });
       if (correct) correctUsers.push(user.id);
       else lostPool += lostStake;
@@ -461,7 +465,7 @@ function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, mat
   }
 }
 
-function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, matchPoints) {
+function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, matchPoints, matchStakes) {
   const settledMatches = matches.filter(item => item.winner);
   if (!settledMatches.length) return;
 
@@ -488,6 +492,7 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, 
       const correct = prediction.winner === match.winner;
       const baseReturn = matchBudget * (correct ? rule.winnerPercent : rule.safetyPercent);
       const lostStake = matchBudget * (correct ? rule.safetyPercent : rule.winnerPercent);
+      matchStakes[user.id][match.id] = stakeRow(match, prediction.winner, matchBudget * rule.winnerPercent, matchBudget * rule.safetyPercent);
       outcomes.set(user.id, { correct, baseReturn, isJoker: !!prediction.is_joker });
       if (correct) correctUsers.push(user.id);
       else lostPool += lostStake;
@@ -510,7 +515,7 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, 
   }
 }
 
-function applyFinalRound(users, stats, predictionByUserMatch, matches, matchPoints) {
+function applyFinalRound(users, stats, predictionByUserMatch, matches, matchPoints, matchStakes) {
   const finalMatch = matches.find(item => item.winner);
   if (!finalMatch) return;
 
@@ -527,6 +532,7 @@ function applyFinalRound(users, stats, predictionByUserMatch, matches, matchPoin
       continue;
     }
     const correct = prediction.winner === finalMatch.winner;
+    matchStakes[user.id][finalMatch.id] = stakeRow(finalMatch, prediction.winner, startingPoints.get(user.id), 0);
     outcomes.set(user.id, correct);
     if (correct) correctUsers.push(user.id);
     else lostPool += startingPoints.get(user.id);
@@ -554,6 +560,13 @@ function matchPointRow(points, correct, isJoker) {
     points: roundPoints(points),
     correct,
     is_joker: !!isJoker
+  };
+}
+
+function stakeRow(match, pickedWinner, winnerStake, safetyStake) {
+  return {
+    team_a: roundPoints(pickedWinner === match.team_a ? winnerStake : safetyStake),
+    team_b: roundPoints(pickedWinner === match.team_b ? winnerStake : safetyStake)
   };
 }
 

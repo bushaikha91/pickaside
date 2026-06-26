@@ -27,6 +27,7 @@ const state = {
   matchPoints: {},
   allPredictions: [],
   allMatchPoints: {},
+  allMatchStakes: {},
   participants: [],
   loading: true,
   error: "",
@@ -90,6 +91,7 @@ async function loadData(options = {}) {
     state.matchPoints = payload.matchPoints || {};
     state.allPredictions = payload.allPredictions || [];
     state.allMatchPoints = payload.allMatchPoints || {};
+    state.allMatchStakes = payload.allMatchStakes || {};
     state.participants = payload.participants || [];
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
@@ -507,9 +509,10 @@ function organizerStandingsMatrixView() {
 
 function matchVoteCells(userId, match) {
   const prediction = state.allPredictions.find(item => item.user_id === userId && item.match_id === match.id);
+  const stakes = state.allMatchStakes[userId]?.[match.id] || {};
   return `
-    <td class="team-vote ${prediction?.winner === match.team_a ? "picked" : ""}">${prediction?.winner === match.team_a ? "✓" : ""}</td>
-    <td class="team-vote ${prediction?.winner === match.team_b ? "picked" : ""}">${prediction?.winner === match.team_b ? "✓" : ""}</td>
+    <td class="team-vote ${prediction?.winner === match.team_a ? "picked" : ""}">${stakes.team_a ?? 0}</td>
+    <td class="team-vote ${prediction?.winner === match.team_b ? "picked" : ""}">${stakes.team_b ?? 0}</td>
   `;
 }
 

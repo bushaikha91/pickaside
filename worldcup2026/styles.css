@@ -1003,12 +1003,11 @@ button {
   overflow-x: auto;
   border: 1px solid #d8dee8;
   border-radius: 12px;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0), #fff 16px) left/24px 100% no-repeat,
-    #fff;
+  background: #fff;
   box-shadow: 0 8px 22px rgba(9, 27, 63, 0.1);
   direction: rtl;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
 }
 
 .standings-matrix {
@@ -1022,7 +1021,7 @@ button {
 
 .standings-matrix th,
 .standings-matrix td {
-  min-width: 50px;
+  min-width: 66px;
   height: 40px;
   padding: 6px 4px;
   border-bottom: 1px solid #e8edf5;
@@ -1038,7 +1037,7 @@ button {
   z-index: 2;
   color: #fff;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--navy), var(--blue));
+  background: #12376f;
 }
 
 .standings-matrix tbody tr:last-child th,
@@ -1070,7 +1069,7 @@ button {
 
 .standings-matrix thead .sticky-rank,
 .standings-matrix thead .sticky-player {
-  background: linear-gradient(135deg, var(--red), var(--navy));
+  background: #0d2c5f;
 }
 
 .standings-matrix .sticky-total {
@@ -1079,28 +1078,29 @@ button {
   z-index: 3;
   min-width: 62px;
   max-width: 62px;
-  background: #0b7f45;
+  background: #0b6f47;
   color: #fff;
   font-weight: 900;
 }
 
 .standings-matrix thead .sticky-total {
-  background: linear-gradient(135deg, var(--green), var(--blue));
+  background: #0b6f47;
 }
 
 .match-team-head,
 .match-round-head {
-  max-width: 50px;
+  max-width: 66px;
   overflow: hidden;
   text-overflow: ellipsis;
+  scroll-snap-align: start;
 }
 
 .match-team-head {
-  background: linear-gradient(135deg, rgba(31, 88, 184, 0.94), rgba(0, 140, 69, 0.9)) !important;
+  background: #1f58b8 !important;
 }
 
 .match-round-head {
-  background: linear-gradient(135deg, #344054, #667085) !important;
+  background: #4b5f7d !important;
 }
 
 .player-cell .leader-name-button {
@@ -1126,25 +1126,25 @@ button {
 
 .team-vote {
   color: #98a2b3;
-  background: #f8fafc;
-  font-size: 13px;
+  background: #fbfcfe;
+  font-size: 11px;
   font-weight: 900;
 }
 
 .team-vote.picked {
-  color: #fff;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  color: var(--navy);
+  background: #dbeafe;
 }
 
 .standings-matrix .round-points.correct {
-  background: #dcfae6;
+  background: #ecfdf3;
   color: #067647;
   font-weight: 900;
 }
 
 .standings-matrix .round-points.wrong {
   color: #b42318;
-  background: #fee4e2;
+  background: #fff1f0;
   font-weight: 900;
 }
 

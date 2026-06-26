@@ -470,47 +470,63 @@ function organizerStandingsMatrixView() {
   return `
     <div class="section-title">
       <h2>ترتيب المشاركين</h2>
-      <span class="small">اسحب أعمدة المباريات يمين ويسار</span>
+      <span class="small">اسحب منطقة المباريات يمين ويسار</span>
     </div>
     ${state.standings.length ? `
-      <div class="standings-table-scroll" role="region" aria-label="جدول ترتيب المشاركين">
-        <table class="standings-matrix">
-          <thead>
-            <tr>
-              <th class="sticky-rank">الترتيب</th>
-              <th class="sticky-player">المتسابق</th>
+      <div class="standings-board" role="region" aria-label="جدول ترتيب المشاركين">
+        <div class="standings-total-col">
+          <div class="matrix-cell matrix-head total-head">إجمالي النقاط</div>
+          ${state.standings.map(row => `<div class="matrix-cell total-cell">${row.points}</div>`).join("")}
+        </div>
+        <div class="standings-middle-scroll">
+          <div class="standings-scroll-table">
+            <div class="standings-middle-row matrix-head-row">
               ${settledMatches.map(match => `
-                <th class="match-team-head">${escapeHtml(match.team_a)}</th>
-                <th class="match-team-head">${escapeHtml(match.team_b)}</th>
-                <th class="match-round-head">نقاط الجولة</th>
+                <div class="match-score-group">
+                  <div class="matrix-cell match-team-head">${escapeHtml(match.team_a)}</div>
+                  <div class="matrix-cell match-team-head">${escapeHtml(match.team_b)}</div>
+                  <div class="matrix-cell match-round-head">نقاط الجولة</div>
+                </div>
               `).join("")}
-              <th class="summary-head">إجمالي الصحيح</th>
-              <th class="summary-head">إجمالي الخطأ</th>
-              <th class="summary-head">نسبة الصحيح</th>
-              <th class="sticky-total">إجمالي النقاط</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${state.standings.map((row, index) => `
-              <tr>
-                <td class="sticky-rank rank-cell"><span class="rank-number">${index + 1}</span>${rankTrendView(row.id)}</td>
-                <th class="sticky-player player-cell">
-                  <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
-                    <strong>${escapeHtml(row.name)}</strong>
-                  </button>
-                </th>
+              <div class="match-score-group summary-group">
+                <div class="matrix-cell summary-head">إجمالي الصحيح</div>
+                <div class="matrix-cell summary-head">إجمالي الخطأ</div>
+                <div class="matrix-cell summary-head">نسبة الصحيح</div>
+              </div>
+            </div>
+            ${state.standings.map(row => `
+              <div class="standings-middle-row">
                 ${settledMatches.map(match => `
-                  ${matchVoteCells(row.id, match)}
-                  <td class="round-points ${matchCellClass(row.id, match.id)}">${matchCellPoints(row.id, match.id)}</td>
+                  <div class="match-score-group">
+                    ${matchVoteCells(row.id, match)}
+                    <div class="matrix-cell round-points ${matchCellClass(row.id, match.id)}">${matchCellPoints(row.id, match.id)}</div>
+                  </div>
                 `).join("")}
-                <td class="summary-cell correct-total">${row.correct_predictions}</td>
-                <td class="summary-cell wrong-total">${row.wrong_predictions}</td>
-                <td class="summary-cell percent-total">${correctPercent(row)}</td>
-                <td class="sticky-total total-cell">${row.points}</td>
-              </tr>
+                <div class="match-score-group summary-group">
+                  <div class="matrix-cell summary-cell correct-total">${row.correct_predictions}</div>
+                  <div class="matrix-cell summary-cell wrong-total">${row.wrong_predictions}</div>
+                  <div class="matrix-cell summary-cell percent-total">${correctPercent(row)}</div>
+                </div>
+              </div>
             `).join("")}
-          </tbody>
-        </table>
+          </div>
+        </div>
+        <div class="standings-player-col">
+          <div class="matrix-player-row matrix-head-row">
+            <div class="matrix-cell rank-head">الترتيب</div>
+            <div class="matrix-cell player-head">المتسابق</div>
+          </div>
+          ${state.standings.map((row, index) => `
+            <div class="matrix-player-row">
+              <div class="matrix-cell rank-cell"><span class="rank-number">${index + 1}</span>${rankTrendView(row.id)}</div>
+              <div class="matrix-cell player-cell">
+                <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
+                  <strong>${escapeHtml(row.name)}</strong>
+                </button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
       </div>
     ` : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
   `;
@@ -520,8 +536,8 @@ function matchVoteCells(userId, match) {
   const prediction = state.allPredictions.find(item => item.user_id === userId && item.match_id === match.id);
   const stakes = state.allMatchStakes[userId]?.[match.id] || {};
   return `
-    <td class="team-vote ${prediction?.winner === match.team_a ? "picked" : ""}">${stakes.team_a ?? 0}</td>
-    <td class="team-vote ${prediction?.winner === match.team_b ? "picked" : ""}">${stakes.team_b ?? 0}</td>
+    <div class="matrix-cell team-vote ${prediction?.winner === match.team_a ? "picked" : ""}">${stakes.team_a ?? 0}</div>
+    <div class="matrix-cell team-vote ${prediction?.winner === match.team_b ? "picked" : ""}">${stakes.team_b ?? 0}</div>
   `;
 }
 

@@ -513,17 +513,17 @@ function organizerStandingsMatrixView() {
         </div>
         <div class="standings-player-col">
           <div class="matrix-player-row matrix-head-row">
-            <div class="matrix-cell rank-head">الترتيب</div>
             <div class="matrix-cell player-head">المتسابق</div>
+            <div class="matrix-cell rank-head">الترتيب</div>
           </div>
           ${state.standings.map((row, index) => `
             <div class="matrix-player-row">
-              <div class="matrix-cell rank-cell"><span class="rank-number">${index + 1}</span>${rankTrendView(row.id)}</div>
               <div class="matrix-cell player-cell">
                 <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
                   <strong>${escapeHtml(row.name)}</strong>
                 </button>
               </div>
+              <div class="matrix-cell rank-cell"><span class="rank-number">${index + 1}</span>${rankTrendView(row.id)}</div>
             </div>
           `).join("")}
         </div>

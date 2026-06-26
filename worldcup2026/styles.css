@@ -1003,10 +1003,10 @@ button {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr) 122px;
   overflow: hidden;
-  border: 1px solid #d8dee8;
+  border: 1px solid #e6ebf2;
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 8px 22px rgba(9, 27, 63, 0.1);
+  box-shadow: 0 8px 22px rgba(9, 27, 63, 0.08);
   direction: ltr;
 }
 
@@ -1041,7 +1041,7 @@ button {
 }
 
 .matrix-player-row {
-  grid-template-columns: 38px 84px;
+  grid-template-columns: 84px 38px;
 }
 
 .match-score-group {
@@ -1057,8 +1057,7 @@ button {
   align-items: center;
   justify-items: center;
   padding: 6px 5px;
-  border-bottom: 1px solid #e8edf5;
-  border-inline-start: 1px solid #e8edf5;
+  border-bottom: 1px solid #f1f4f8;
   color: #101828;
   font-size: 10px;
   font-weight: 800;
@@ -1085,7 +1084,7 @@ button {
 .rank-cell,
 .player-cell {
   color: #fff;
-  background: #0d2c5f;
+  background: #102f63;
 }
 
 .total-head,
@@ -1095,18 +1094,18 @@ button {
 }
 
 .match-team-head {
-  background: #f1f6ff;
+  background: #eef5ff;
   color: #12376f;
 }
 
 .match-round-head {
-  background: #f5f7fb;
-  color: #475467;
+  background: #f4f7fb;
+  color: #344054;
 }
 
 .summary-head {
-  background: #eef5ff;
-  color: #173e88;
+  background: #eaf2ff;
+  color: #12376f;
 }
 
 .player-cell {

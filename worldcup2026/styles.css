@@ -286,7 +286,7 @@ button {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: 30;
   padding: 14px 16px;
   color: #fff;
   background-image: var(--header-gradient);
@@ -314,7 +314,7 @@ button {
 .tabs {
   position: sticky;
   top: 70px;
-  z-index: 3;
+  z-index: 29;
   grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   padding: 10px 12px;
   border-bottom: 0;
@@ -1034,9 +1034,7 @@ button {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr) 122px;
   position: relative;
-  max-height: calc(100vh - 300px);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
   border: 1px solid #e6ebf2;
   border-radius: 12px;
   background: #fff;
@@ -1123,8 +1121,8 @@ button {
 .matrix-head,
 .matrix-head-row {
   position: sticky;
-  top: 0;
-  z-index: 3;
+  top: 128px;
+  z-index: 2;
 }
 
 .rank-head,

@@ -1129,6 +1129,36 @@ button {
   font-weight: 900;
 }
 
+.rank-cell {
+  display: table-cell;
+}
+
+.rank-number,
+.rank-trend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.rank-trend {
+  width: 12px;
+  height: 12px;
+  margin-inline-start: 2px;
+  border-radius: 50%;
+  font-size: 8px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.rank-trend.up {
+  color: #3ee58f;
+}
+
+.rank-trend.down {
+  color: #ff8a8a;
+}
+
 .team-vote {
   color: #98a2b3;
   background: #fbfcfe;

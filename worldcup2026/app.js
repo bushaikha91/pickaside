@@ -1,4 +1,5 @@
 const SESSION_KEY = "wc2026-live-session-v1";
+const RANK_SNAPSHOT_KEY = "wc2026-rank-snapshot-v1";
 let deferredInstallPrompt = null;
 
 const rounds = [
@@ -28,6 +29,7 @@ const state = {
   allPredictions: [],
   allMatchPoints: {},
   allMatchStakes: {},
+  rankMovement: {},
   participants: [],
   loading: true,
   error: "",
@@ -87,6 +89,7 @@ async function loadData(options = {}) {
     }
     state.matches = payload.matches || [];
     state.standings = payload.standings || [];
+    state.rankMovement = rankMovementFor(state.standings);
     state.predictions = payload.predictions || {};
     state.matchPoints = payload.matchPoints || {};
     state.allPredictions = payload.allPredictions || [];
@@ -490,7 +493,7 @@ function organizerStandingsMatrixView() {
           <tbody>
             ${state.standings.map((row, index) => `
               <tr>
-                <td class="sticky-rank rank-cell">${index + 1}</td>
+                <td class="sticky-rank rank-cell"><span class="rank-number">${index + 1}</span>${rankTrendView(row.id)}</td>
                 <th class="sticky-player player-cell">
                   <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
                     <strong>${escapeHtml(row.name)}</strong>
@@ -536,6 +539,12 @@ function correctPercent(row) {
   const total = (row.correct_predictions || 0) + (row.wrong_predictions || 0);
   if (!total) return "0%";
   return `${Math.round((row.correct_predictions / total) * 100)}%`;
+}
+
+function rankTrendView(userId) {
+  const movement = state.rankMovement[userId];
+  if (!movement) return "";
+  return `<span class="rank-trend ${movement > 0 ? "up" : "down"}">${movement > 0 ? "▲" : "▼"}</span>`;
 }
 
 function participantDetailModal(participantId) {
@@ -1521,6 +1530,28 @@ function readSession() {
 function writeSession(user) {
   if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   else localStorage.removeItem(SESSION_KEY);
+}
+
+function rankMovementFor(standings) {
+  if (state.currentUser?.role !== "organizer") return {};
+  let previous = {};
+  try {
+    previous = JSON.parse(localStorage.getItem(RANK_SNAPSHOT_KEY) || "{}") || {};
+  } catch {
+    previous = {};
+  }
+  const current = {};
+  const movement = {};
+  standings.forEach((row, index) => {
+    const rank = index + 1;
+    current[row.id] = rank;
+    const previousRank = previous[row.id];
+    if (previousRank && previousRank !== rank) {
+      movement[row.id] = previousRank - rank;
+    }
+  });
+  localStorage.setItem(RANK_SNAPSHOT_KEY, JSON.stringify(current));
+  return movement;
 }
 
 function statusLabel(status) {

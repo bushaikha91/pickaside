@@ -470,10 +470,6 @@ function participantStandingsListView() {
 function organizerStandingsMatrixView() {
   const settledMatches = sortMatches(state.matches.filter(match => match.winner));
   return `
-    <div class="section-title">
-      <h2>ترتيب المشاركين</h2>
-      <span class="small">اسحب منطقة المباريات يمين ويسار</span>
-    </div>
     ${state.standings.length ? `
       <div class="standings-board" role="region" aria-label="جدول ترتيب المشاركين">
         <div class="standings-total-col">

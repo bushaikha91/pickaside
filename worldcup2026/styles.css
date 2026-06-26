@@ -1106,9 +1106,6 @@ button {
 
 .matrix-head,
 .matrix-head-row .matrix-cell {
-  position: sticky;
-  top: 194px;
-  z-index: 18;
   color: #fff;
   font-size: 8.5px;
   font-weight: 900;
@@ -1169,6 +1166,19 @@ button {
   overflow: hidden;
   font-size: 10px;
   text-overflow: ellipsis;
+}
+
+.matrix-player-row.highlight-row .rank-cell,
+.matrix-player-row.highlight-row .player-cell,
+.standings-middle-row.highlight-row .matrix-cell,
+.total-cell.highlight-row {
+  color: #344054;
+  background: #f2f4f7;
+}
+
+.matrix-player-row.highlight-row .leader-name-button,
+.matrix-player-row.highlight-row .player-cell strong {
+  color: #344054;
 }
 
 .rank-cell,

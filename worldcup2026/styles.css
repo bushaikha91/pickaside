@@ -314,15 +314,26 @@ button {
   z-index: 3;
   grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(247, 249, 252, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, var(--navy), #173e88);
   backdrop-filter: blur(10px);
+  box-shadow: 0 10px 22px rgba(9, 27, 63, 0.12);
 }
 
 .tab {
   min-height: 38px;
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 13px;
   font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tabs .tab.active {
+  border-color: rgba(255, 255, 255, 0.62);
+  color: #fff;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
 }
 
 .round-tabs {

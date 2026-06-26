@@ -1107,7 +1107,7 @@ button {
 .matrix-head,
 .matrix-head-row .matrix-cell {
   position: sticky;
-  top: 128px;
+  top: 148px;
   z-index: 20;
   color: #fff;
   font-size: 8.5px;

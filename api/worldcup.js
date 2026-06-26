@@ -180,8 +180,8 @@ async function saveMatch(req, res) {
     round_id: clean(body.roundId) || "r32",
     team_a: teamA,
     team_b: teamB,
-    starts_at: new Date(body.startsAt).toISOString(),
-    vote_ends_at: new Date(body.voteEndsAt).toISOString(),
+    starts_at: parseTournamentDate(body.startsAt).toISOString(),
+    vote_ends_at: parseTournamentDate(body.voteEndsAt).toISOString(),
     updated_at: new Date().toISOString()
   };
   if ("teamAFlag" in body) payload.team_a_flag = cleanImageDataUrl(body.teamAFlag);
@@ -643,6 +643,18 @@ function setCors(res) {
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function parseTournamentDate(value) {
+  const raw = clean(value);
+  const localParts = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (localParts) {
+    const [, year, month, day, hour, minute, second = "0"] = localParts;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)) - 4 * 60 * 60000);
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) throw httpError(400, "وقت المباراة غير صحيح");
+  return date;
 }
 
 function cleanImageDataUrl(value) {

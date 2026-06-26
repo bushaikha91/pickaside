@@ -1,5 +1,7 @@
 const SESSION_KEY = "wc2026-live-session-v1";
 const RANK_SNAPSHOT_KEY = "wc2026-rank-snapshot-v1";
+const APP_TIME_ZONE = "Asia/Dubai";
+const APP_TIME_OFFSET_MINUTES = 4 * 60;
 let deferredInstallPrompt = null;
 
 const rounds = [
@@ -1650,7 +1652,7 @@ function imageFileToDataUrl(file, size = 320) {
 
 function formatDate(value) {
   if (!value) return "غير محدد";
-  return new Intl.DateTimeFormat("ar-AE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("ar-AE", { dateStyle: "medium", timeStyle: "short", timeZone: APP_TIME_ZONE }).format(new Date(value));
 }
 
 function formatAdminMatchDate(value) {
@@ -1660,7 +1662,8 @@ function formatAdminMatchDate(value) {
     day: "numeric",
     month: "long",
     hour: "numeric",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: APP_TIME_ZONE
   }).format(new Date(value));
 }
 
@@ -1668,12 +1671,17 @@ function datetimeLocalValue(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  const dubaiLocal = new Date(date.getTime() + APP_TIME_OFFSET_MINUTES * 60000);
+  return dubaiLocal.toISOString().slice(0, 16);
 }
 
 function datetimeLocalToIso(value) {
   if (!value) return "";
+  const parts = String(value).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (parts) {
+    const [, year, month, day, hour, minute] = parts;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)) - APP_TIME_OFFSET_MINUTES * 60000).toISOString();
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString();

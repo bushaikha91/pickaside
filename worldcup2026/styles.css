@@ -962,14 +962,6 @@ button {
   padding: 12px;
 }
 
-.standings-filter {
-  margin-bottom: 12px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-}
-
 .leader-row.current {
   border-color: var(--gold);
   background: #fff8df;
@@ -1005,6 +997,131 @@ button {
   color: var(--blue);
   font-size: 20px;
   font-weight: 900;
+}
+
+.standings-table-scroll {
+  overflow-x: auto;
+  border: 1px solid #d8dee8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
+  direction: rtl;
+  -webkit-overflow-scrolling: touch;
+}
+
+.standings-matrix {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #101828;
+  font-size: 11px;
+}
+
+.standings-matrix th,
+.standings-matrix td {
+  min-width: 76px;
+  height: 44px;
+  padding: 8px 7px;
+  border-bottom: 1px solid #edf0f5;
+  border-inline-start: 1px solid #edf0f5;
+  text-align: center;
+  white-space: nowrap;
+  background: #fff;
+}
+
+.standings-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  color: #344054;
+  font-weight: 900;
+  background: #f7f9fc;
+}
+
+.standings-matrix tbody tr:last-child th,
+.standings-matrix tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.standings-matrix .sticky-player {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  min-width: 116px;
+  max-width: 116px;
+  text-align: right;
+  background: #b42318;
+  color: #fff;
+  border-inline-start: 0;
+}
+
+.standings-matrix thead .sticky-player {
+  background: #8f1d14;
+}
+
+.standings-matrix .sticky-total {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  min-width: 82px;
+  background: #b42318;
+  color: #fff;
+  font-weight: 900;
+}
+
+.standings-matrix thead .sticky-total {
+  background: #8f1d14;
+}
+
+.match-points-head span,
+.match-points-head small {
+  display: block;
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-points-head small {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 10px;
+}
+
+.player-cell .leader-name-button {
+  color: #fff;
+}
+
+.player-cell strong,
+.player-cell span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-cell strong {
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+
+.player-cell span {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 10px;
+}
+
+.standings-matrix td.correct {
+  background: #fff8a6;
+  color: #101828;
+  font-weight: 900;
+}
+
+.standings-matrix td.wrong {
+  background: #e4e7ec;
+}
+
+.standings-matrix td.missed {
+  color: #667085;
+  background: #f8fafc;
 }
 
 .law-card {

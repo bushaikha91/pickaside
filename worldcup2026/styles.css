@@ -314,10 +314,10 @@ button {
   z-index: 3;
   grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(135deg, var(--navy), #173e88);
+  border-bottom: 0;
+  background: #173e88;
   backdrop-filter: blur(10px);
-  box-shadow: 0 10px 22px rgba(9, 27, 63, 0.12);
+  box-shadow: none;
 }
 
 .tab {

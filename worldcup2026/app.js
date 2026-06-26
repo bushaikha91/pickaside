@@ -474,7 +474,7 @@ function organizerStandingsMatrixView() {
       <div class="standings-board" role="region" aria-label="جدول ترتيب المشاركين">
         <div class="standings-total-col">
           <div class="matrix-cell matrix-head total-head">إجمالي النقاط</div>
-          ${state.standings.map(row => `<div class="matrix-cell total-cell">${row.points}</div>`).join("")}
+          ${state.standings.map((row, index) => `<div class="matrix-cell total-cell ${index < 3 ? "podium-cell" : ""}">${row.points}</div>`).join("")}
         </div>
         <div class="standings-middle-scroll">
           <div class="standings-scroll-table">
@@ -515,7 +515,7 @@ function organizerStandingsMatrixView() {
             <div class="matrix-cell rank-head">الترتيب</div>
           </div>
           ${state.standings.map((row, index) => `
-            <div class="matrix-player-row">
+            <div class="matrix-player-row ${index < 3 ? "podium-row" : ""}">
               <div class="matrix-cell player-cell">
                 <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
                   ${avatarTile(row, "avatar-mini")}

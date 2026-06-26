@@ -1034,21 +1034,14 @@ button {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr) 122px;
   position: relative;
-  overflow: hidden;
+  max-height: calc(100vh - 300px);
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid #e6ebf2;
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 8px 22px rgba(9, 27, 63, 0.08);
   direction: ltr;
-}
-
-.standings-board::before {
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 1;
-  height: 44px;
-  content: "";
-  background: linear-gradient(270deg, var(--navy) 0%, var(--blue) 36%, var(--green) 70%, var(--red) 112%);
 }
 
 .standings-total-col,
@@ -1121,7 +1114,10 @@ button {
   line-height: 1.08;
   white-space: normal;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
-  background: transparent;
+  word-break: keep-all;
+  background:
+    linear-gradient(270deg, var(--navy) 0%, var(--blue) 36%, var(--green) 70%, var(--red) 112%)
+    fixed center top / 100vw 44px;
 }
 
 .matrix-head,
@@ -1153,7 +1149,9 @@ button {
 .standings-board .match-round-head,
 .standings-board .summary-head {
   color: #fff;
-  background: transparent;
+  background:
+    linear-gradient(270deg, var(--navy) 0%, var(--blue) 36%, var(--green) 70%, var(--red) 112%)
+    fixed center top / 100vw 44px;
 }
 
 .player-cell {

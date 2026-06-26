@@ -659,7 +659,7 @@ function matchCard(match, prediction) {
     <article class="match-card participant-match-card ${locked ? "locked-card" : ""}">
       <div class="participant-match-top">
         <span>${formatAdminMatchDate(match.starts_at)}</span>
-        <span class="participant-countdown ${locked ? "expired" : ""}">${match.winner ? "مغلق" : locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</span>
+        <span class="participant-countdown ${locked ? "expired" : ""}" ${!match.winner && !locked ? countdownAttrs(match.vote_ends_at, "باقي للتصويت: ") : ""}>${match.winner ? "مغلق" : locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</span>
       </div>
       <div class="participant-choice-grid">
         ${participantChoiceButton(match, match.team_a, match.team_a_flag, selected, locked, isJoker)}
@@ -732,7 +732,7 @@ function managerMatchCardV2(match) {
       </div>
       <div class="admin-match-body">
         ${adminTeamView(match.team_a, match.team_a_flag)}
-        <div class="admin-match-center ${match.winner ? "has-result" : ""}">
+        <div class="admin-match-center ${match.winner ? "has-result" : ""}" ${!match.winner ? countdownAttrs(match.vote_ends_at) : ""}>
           ${match.winner ? `${scoreA} : ${scoreB}` : countdownText(match.vote_ends_at)}
         </div>
         ${adminTeamView(match.team_b, match.team_b_flag)}
@@ -875,10 +875,28 @@ function matchStatusView(match, selected, points, locked) {
 function countdownText(value) {
   const diff = Math.max(0, new Date(value).getTime() - Date.now());
   const totalSeconds = Math.floor(diff / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return String(days).padStart(2, "0") + " D: " + String(hours).padStart(2, "0") + " H: " + String(minutes).padStart(2, "0") + " M";
+  const seconds = totalSeconds % 60;
+  return String(hours).padStart(2, "0") + " H: " + String(minutes).padStart(2, "0") + " M: " + String(seconds).padStart(2, "0") + " S";
+}
+
+function countdownAttrs(value, prefix = "") {
+  return `data-countdown="${escapeHtml(value)}" data-countdown-prefix="${escapeHtml(prefix)}"`;
+}
+
+function updateCountdowns() {
+  let expired = false;
+  document.querySelectorAll("[data-countdown]").forEach(element => {
+    const deadline = element.dataset.countdown;
+    const prefix = element.dataset.countdownPrefix || "";
+    const isExpired = new Date(deadline).getTime() <= Date.now();
+    element.textContent = isExpired ? "مغلق" : `${prefix}${countdownText(deadline)}`;
+    element.classList.toggle("expired", isExpired);
+    if (isExpired && element.dataset.wasExpired !== "true") expired = true;
+    element.dataset.wasExpired = isExpired ? "true" : "false";
+  });
+  return expired;
 }
 
 function bindLogin() {
@@ -1314,7 +1332,7 @@ function bindProfileForm() {
     if (!file) return;
     try {
       errorBox?.classList.add("hidden");
-      avatarUrl = await imageFileToDataUrl(file, 320);
+      avatarUrl = await imageFileToDataUrl(file, 180);
       if (preview) preview.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="" />`;
     } catch (error) {
       if (errorBox) {
@@ -1467,17 +1485,22 @@ function showInlineError(errorBox, message) {
 
 function syncCountdownTimer() {
   const hasOpenMatch = state.currentUser && state.matches.some(match => new Date(match.vote_ends_at) > new Date() && !match.winner);
+  updateCountdowns();
   if (hasOpenMatch && !countdownTimer) {
     countdownTimer = setInterval(() => {
       if (!state.currentUser) return;
-      if (state.profileOpen || state.voterModalMatch || state.editModalMatch || state.resultModalMatch || state.detailParticipantId || state.addMatchOpen) return;
-      render();
+      const expired = updateCountdowns();
+      if (expired && !hasOpenModal()) render();
     }, 1000);
   }
   if (!hasOpenMatch && countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
   }
+}
+
+function hasOpenModal() {
+  return !!(state.profileOpen || state.voterModalMatch || state.editModalMatch || state.resultModalMatch || state.detailParticipantId || state.addMatchOpen);
 }
 
 function bindSwipeRows() {
@@ -1642,7 +1665,7 @@ function imageFileToDataUrl(file, size = 320) {
         const sx = (image.width - edge) / 2;
         const sy = (image.height - edge) / 2;
         context.drawImage(image, sx, sy, edge, edge, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
       };
       image.src = reader.result;
     };

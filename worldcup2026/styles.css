@@ -962,6 +962,14 @@ button {
   padding: 12px;
 }
 
+.standings-filter {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .leader-row.current {
   border-color: var(--gold);
   background: #fff8df;

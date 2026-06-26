@@ -41,6 +41,7 @@ const state = {
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
 let activeRound = "r32";
+let activeStandingFilter = "total";
 let countdownTimer = null;
 
 window.addEventListener("beforeinstallprompt", event => {
@@ -435,25 +436,71 @@ function matchFormView() {
 
 function standingsView() {
   const canInspect = state.currentUser.role === "organizer";
+  const settledMatches = sortMatches(state.matches.filter(match => match.winner));
+  if (activeStandingFilter !== "total" && !settledMatches.some(match => match.id === activeStandingFilter)) {
+    activeStandingFilter = "total";
+  }
+  const selectedMatch = activeStandingFilter === "total"
+    ? null
+    : settledMatches.find(match => match.id === activeStandingFilter);
+  const rows = selectedMatch ? matchStandingRows(selectedMatch) : state.standings;
   return `
     <div class="section-title">
       <h2>ترتيب المشاركين</h2>
-      <span class="small">المقبولون فقط</span>
+      <span class="small">${selectedMatch ? "نتائج مباراة واحدة" : "المقبولون فقط"}</span>
     </div>
+    ${canInspect ? standingsFilterView(settledMatches) : ""}
     <div class="leader-list">
-      ${state.standings.length ? state.standings.map((row, index) => `
+      ${rows.length ? rows.map((row, index) => `
         <div class="leader-row ${row.id === state.currentUser.id ? "current" : ""}">
           <div class="rank">${index + 1}</div>
           ${avatarTile(row, "avatar-small")}
           <div class="leader-name">
             ${canInspect ? `<button class="leader-name-button" data-participant-detail="${row.id}" type="button"><strong>${escapeHtml(row.name)}</strong></button>` : `<strong>${escapeHtml(row.name)}</strong>`}
-            <span class="small">صحيح: ${row.correct_predictions} | خطأ: ${row.wrong_predictions}</span>
+            <span class="small">${selectedMatch ? row.match_summary : `صحيح: ${row.correct_predictions} | خطأ: ${row.wrong_predictions}`}</span>
           </div>
           <div class="points">${row.points}</div>
         </div>
       `).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
     </div>
   `;
+}
+
+function standingsFilterView(settledMatches) {
+  return `
+    <label class="field standings-filter">
+      <span>عرض الترتيب</span>
+      <select id="standingsFilter">
+        <option value="total" ${activeStandingFilter === "total" ? "selected" : ""}>إجمالي النقاط</option>
+        ${settledMatches.map(match => `
+          <option value="${match.id}" ${activeStandingFilter === match.id ? "selected" : ""}>
+            ${escapeHtml(matchLabel(match))}
+          </option>
+        `).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function matchStandingRows(match) {
+  return state.standings
+    .map(row => {
+      const prediction = state.allPredictions.find(item => item.user_id === row.id && item.match_id === match.id);
+      const points = state.allMatchPoints[row.id]?.[match.id];
+      const status = points
+        ? points.correct ? "توقع صحيح" : "توقع خاطئ"
+        : match.winner ? "لم يدخل في الحسبة" : "بانتظار النتيجة";
+      return {
+        ...row,
+        points: points?.points || 0,
+        match_summary: `${prediction ? `توقع: ${prediction.winner}${prediction.is_joker ? " | جوكر" : ""}` : "لم يصوت"} | ${status}`
+      };
+    })
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, "ar"));
+}
+
+function matchLabel(match) {
+  return `${match.team_a} ضد ${match.team_b} - ${formatAdminMatchDate(match.starts_at)}`;
 }
 
 function participantDetailModal(participantId) {
@@ -935,6 +982,11 @@ function bindApp() {
       state.resultModalMatch = button.dataset.resultOpen;
       render();
     });
+  });
+
+  document.querySelector("#standingsFilter")?.addEventListener("change", event => {
+    activeStandingFilter = event.target.value || "total";
+    render();
   });
 
   document.querySelectorAll("[data-participant-detail]").forEach(button => {

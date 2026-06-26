@@ -1170,7 +1170,6 @@ button {
 
 .matrix-player-row.highlight-row .rank-cell,
 .matrix-player-row.highlight-row .player-cell,
-.standings-middle-row.highlight-row .matrix-cell,
 .total-cell.highlight-row {
   color: #344054;
   background: #f2f4f7;

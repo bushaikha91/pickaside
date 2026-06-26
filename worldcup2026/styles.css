@@ -9,6 +9,7 @@
   --blue: #1f58b8;
   --gold: #c69a2f;
   --navy: #091b3f;
+  --header-gradient: linear-gradient(135deg, var(--navy) 0%, #173e88 48%, var(--blue) 76%, var(--green) 118%);
   --shadow: 0 18px 44px rgba(9, 27, 63, 0.16);
 }
 
@@ -288,7 +289,9 @@ button {
   z-index: 4;
   padding: 14px 16px;
   color: #fff;
-  background: linear-gradient(135deg, var(--navy), #173e88);
+  background-image: var(--header-gradient);
+  background-size: 100% 132px;
+  background-position: center top;
 }
 
 .topbar .mark {
@@ -315,7 +318,9 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   padding: 10px 12px;
   border-bottom: 0;
-  background: #173e88;
+  background-image: var(--header-gradient);
+  background-size: 100% 132px;
+  background-position: center -70px;
   backdrop-filter: blur(10px);
   box-shadow: none;
 }

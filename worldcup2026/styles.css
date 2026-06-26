@@ -1088,7 +1088,8 @@ button {
 }
 
 .match-team-head,
-.match-round-head {
+.match-round-head,
+.summary-head {
   max-width: 66px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1101,6 +1102,10 @@ button {
 
 .match-round-head {
   background: #4b5f7d !important;
+}
+
+.summary-head {
+  background: #173e88 !important;
 }
 
 .player-cell .leader-name-button {
@@ -1151,6 +1156,24 @@ button {
 .standings-matrix .round-points.missed {
   color: #667085;
   background: #f2f4f7;
+}
+
+.summary-cell {
+  color: #344054;
+  background: #f8fbff;
+  font-weight: 900;
+}
+
+.summary-cell.correct-total {
+  color: #067647;
+}
+
+.summary-cell.wrong-total {
+  color: #b42318;
+}
+
+.summary-cell.percent-total {
+  color: var(--blue);
 }
 
 .law-card {

@@ -481,6 +481,9 @@ function organizerStandingsMatrixView() {
                 <th class="match-team-head">${escapeHtml(match.team_b)}</th>
                 <th class="match-round-head">نقاط الجولة</th>
               `).join("")}
+              <th class="summary-head">إجمالي الصحيح</th>
+              <th class="summary-head">إجمالي الخطأ</th>
+              <th class="summary-head">نسبة الصحيح</th>
               <th class="sticky-total">إجمالي النقاط</th>
             </tr>
           </thead>
@@ -497,6 +500,9 @@ function organizerStandingsMatrixView() {
                   ${matchVoteCells(row.id, match)}
                   <td class="round-points ${matchCellClass(row.id, match.id)}">${matchCellPoints(row.id, match.id)}</td>
                 `).join("")}
+                <td class="summary-cell correct-total">${row.correct_predictions}</td>
+                <td class="summary-cell wrong-total">${row.wrong_predictions}</td>
+                <td class="summary-cell percent-total">${correctPercent(row)}</td>
                 <td class="sticky-total total-cell">${row.points}</td>
               </tr>
             `).join("")}
@@ -524,6 +530,12 @@ function matchCellClass(userId, matchId) {
   const points = state.allMatchPoints[userId]?.[matchId];
   if (!points) return "missed";
   return points.correct ? "correct" : "wrong";
+}
+
+function correctPercent(row) {
+  const total = (row.correct_predictions || 0) + (row.wrong_predictions || 0);
+  if (!total) return "0%";
+  return `${Math.round((row.correct_predictions / total) * 100)}%`;
 }
 
 function participantDetailModal(participantId) {

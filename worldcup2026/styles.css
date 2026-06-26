@@ -635,10 +635,17 @@ button {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 8px;
   color: #fff;
   font-weight: 900;
   background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.avatar-tile {
+  border-radius: 50%;
+}
+
+.flag-tile {
+  border-radius: 8px;
 }
 
 .avatar-tile img,
@@ -651,6 +658,14 @@ button {
 .avatar-small {
   width: 42px;
   height: 42px;
+}
+
+.avatar-mini {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-color: rgba(255, 255, 255, 0.28);
+  font-size: 9px;
 }
 
 .avatar-large {
@@ -1130,11 +1145,18 @@ button {
 }
 
 .player-cell .leader-name-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  min-width: 0;
   color: #fff;
+  direction: rtl;
 }
 
 .player-cell strong {
   display: block;
+  min-width: 0;
   overflow: hidden;
   font-size: 10px;
   text-overflow: ellipsis;

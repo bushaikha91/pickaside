@@ -520,6 +520,7 @@ function organizerStandingsMatrixView() {
             <div class="matrix-player-row">
               <div class="matrix-cell player-cell">
                 <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
+                  ${avatarTile(row, "avatar-mini")}
                   <strong>${escapeHtml(row.name)}</strong>
                 </button>
               </div>

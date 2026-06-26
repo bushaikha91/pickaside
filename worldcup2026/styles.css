@@ -1033,12 +1033,22 @@ button {
 .standings-board {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr) 122px;
+  position: relative;
   overflow: hidden;
   border: 1px solid #e6ebf2;
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 8px 22px rgba(9, 27, 63, 0.08);
   direction: ltr;
+}
+
+.standings-board::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 44px;
+  content: "";
+  background: linear-gradient(270deg, var(--navy) 0%, var(--blue) 36%, var(--green) 70%, var(--red) 112%);
 }
 
 .standings-total-col,
@@ -1106,15 +1116,19 @@ button {
 .matrix-head,
 .matrix-head-row .matrix-cell {
   color: #fff;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 900;
+  line-height: 1.08;
+  white-space: normal;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  background: transparent;
 }
 
 .matrix-head,
 .matrix-head-row {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
 }
 
 .rank-head,
@@ -1139,7 +1153,7 @@ button {
 .standings-board .match-round-head,
 .standings-board .summary-head {
   color: #fff;
-  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 42%, var(--green) 74%, var(--red) 132%);
+  background: transparent;
 }
 
 .player-cell {

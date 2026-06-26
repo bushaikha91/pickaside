@@ -472,12 +472,12 @@ function organizerStandingsMatrixView() {
         <table class="standings-matrix">
           <thead>
             <tr>
+              <th class="sticky-rank">الترتيب</th>
               <th class="sticky-player">المتسابق</th>
               ${settledMatches.map(match => `
-                <th class="match-points-head">
-                  <span>${escapeHtml(match.team_a)}</span>
-                  <small>${escapeHtml(match.team_b)}</small>
-                </th>
+                <th class="match-team-head">${escapeHtml(match.team_a)}</th>
+                <th class="match-team-head">${escapeHtml(match.team_b)}</th>
+                <th class="match-round-head">نقاط الجولة</th>
               `).join("")}
               <th class="sticky-total">إجمالي النقاط</th>
             </tr>
@@ -485,14 +485,15 @@ function organizerStandingsMatrixView() {
           <tbody>
             ${state.standings.map((row, index) => `
               <tr>
+                <td class="sticky-rank rank-cell">${index + 1}</td>
                 <th class="sticky-player player-cell">
                   <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
                     <strong>${escapeHtml(row.name)}</strong>
-                    <span>#${index + 1}</span>
                   </button>
                 </th>
                 ${settledMatches.map(match => `
-                  <td class="${matchCellClass(row.id, match.id)}">${matchCellPoints(row.id, match.id)}</td>
+                  ${matchVoteCells(row.id, match)}
+                  <td class="round-points ${matchCellClass(row.id, match.id)}">${matchCellPoints(row.id, match.id)}</td>
                 `).join("")}
                 <td class="sticky-total total-cell">${row.points}</td>
               </tr>
@@ -501,6 +502,14 @@ function organizerStandingsMatrixView() {
         </table>
       </div>
     ` : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
+  `;
+}
+
+function matchVoteCells(userId, match) {
+  const prediction = state.allPredictions.find(item => item.user_id === userId && item.match_id === match.id);
+  return `
+    <td class="team-vote ${prediction?.winner === match.team_a ? "picked" : ""}">${prediction?.winner === match.team_a ? "✓" : ""}</td>
+    <td class="team-vote ${prediction?.winner === match.team_b ? "picked" : ""}">${prediction?.winner === match.team_b ? "✓" : ""}</td>
   `;
 }
 

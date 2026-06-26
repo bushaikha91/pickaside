@@ -1003,8 +1003,10 @@ button {
   overflow-x: auto;
   border: 1px solid #d8dee8;
   border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0), #fff 16px) left/24px 100% no-repeat,
+    #fff;
+  box-shadow: 0 8px 22px rgba(9, 27, 63, 0.1);
   direction: rtl;
   -webkit-overflow-scrolling: touch;
 }
@@ -1015,16 +1017,16 @@ button {
   border-collapse: separate;
   border-spacing: 0;
   color: #101828;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .standings-matrix th,
 .standings-matrix td {
-  min-width: 76px;
-  height: 44px;
-  padding: 8px 7px;
-  border-bottom: 1px solid #edf0f5;
-  border-inline-start: 1px solid #edf0f5;
+  min-width: 64px;
+  height: 42px;
+  padding: 7px 6px;
+  border-bottom: 1px solid #e8edf5;
+  border-inline-start: 1px solid #e8edf5;
   text-align: center;
   white-space: nowrap;
   background: #fff;
@@ -1034,9 +1036,9 @@ button {
   position: sticky;
   top: 0;
   z-index: 2;
-  color: #344054;
+  color: #fff;
   font-weight: 900;
-  background: #f7f9fc;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
 }
 
 .standings-matrix tbody tr:last-child th,
@@ -1044,48 +1046,60 @@ button {
   border-bottom: 0;
 }
 
+.standings-matrix .sticky-rank,
 .standings-matrix .sticky-player {
   position: sticky;
-  right: 0;
   z-index: 3;
-  min-width: 116px;
-  max-width: 116px;
-  text-align: right;
-  background: #b42318;
+  background: #0b234f;
   color: #fff;
+}
+
+.standings-matrix .sticky-rank {
+  right: 0;
+  min-width: 48px;
+  max-width: 48px;
   border-inline-start: 0;
 }
 
+.standings-matrix .sticky-player {
+  right: 48px;
+  min-width: 108px;
+  max-width: 108px;
+  text-align: right;
+}
+
+.standings-matrix thead .sticky-rank,
 .standings-matrix thead .sticky-player {
-  background: #8f1d14;
+  background: linear-gradient(135deg, var(--red), var(--navy));
 }
 
 .standings-matrix .sticky-total {
   position: sticky;
   left: 0;
   z-index: 3;
-  min-width: 82px;
-  background: #b42318;
+  min-width: 76px;
+  background: #0b7f45;
   color: #fff;
   font-weight: 900;
 }
 
 .standings-matrix thead .sticky-total {
-  background: #8f1d14;
+  background: linear-gradient(135deg, var(--green), var(--blue));
 }
 
-.match-points-head span,
-.match-points-head small {
-  display: block;
-  max-width: 76px;
+.match-team-head,
+.match-round-head {
+  max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.match-points-head small {
-  margin-top: 2px;
-  color: #667085;
-  font-size: 10px;
+.match-team-head {
+  background: linear-gradient(135deg, rgba(31, 88, 184, 0.94), rgba(0, 140, 69, 0.9)) !important;
+}
+
+.match-round-head {
+  background: linear-gradient(135deg, #344054, #667085) !important;
 }
 
 .player-cell .leader-name-button {
@@ -1100,28 +1114,42 @@ button {
 }
 
 .player-cell strong {
-  margin-bottom: 2px;
   font-size: 11px;
 }
 
-.player-cell span {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 10px;
-}
-
-.standings-matrix td.correct {
-  background: #fff8a6;
-  color: #101828;
+.rank-cell,
+.total-cell {
+  font-size: 12px;
   font-weight: 900;
 }
 
-.standings-matrix td.wrong {
-  background: #e4e7ec;
+.team-vote {
+  color: #98a2b3;
+  background: #f8fafc;
+  font-size: 14px;
+  font-weight: 900;
 }
 
-.standings-matrix td.missed {
+.team-vote.picked {
+  color: #fff;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.standings-matrix .round-points.correct {
+  background: #dcfae6;
+  color: #067647;
+  font-weight: 900;
+}
+
+.standings-matrix .round-points.wrong {
+  color: #b42318;
+  background: #fee4e2;
+  font-weight: 900;
+}
+
+.standings-matrix .round-points.missed {
   color: #667085;
-  background: #f8fafc;
+  background: #f2f4f7;
 }
 
 .law-card {

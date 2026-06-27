@@ -56,6 +56,7 @@ const state = {
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
 let activeRound = "r32";
 let countdownTimer = null;
+let predictionSaveSeq = 0;
 
 window.addEventListener("beforeinstallprompt", event => {
   event.preventDefault();
@@ -454,6 +455,36 @@ function matchFormView() {
 function standingsView() {
   if (state.currentUser.role === "organizer") return organizerStandingsMatrixView();
   return participantStandingsListView();
+}
+
+function normalizePrediction(prediction) {
+  if (!prediction) return null;
+  if (typeof prediction === "string") return { winner: prediction, is_joker: false };
+  return { ...prediction, is_joker: !!prediction.is_joker };
+}
+
+function setOptimisticPrediction(matchId, winner, isJoker) {
+  const previous = normalizePrediction(state.predictions[matchId]);
+  state.predictions = {
+    ...state.predictions,
+    [matchId]: {
+      ...(previous || {}),
+      match_id: matchId,
+      winner,
+      is_joker: !!isJoker
+    }
+  };
+  return previous;
+}
+
+function restorePrediction(matchId, previous) {
+  const next = { ...state.predictions };
+  if (previous) {
+    next[matchId] = previous;
+  } else {
+    delete next[matchId];
+  }
+  state.predictions = next;
 }
 
 function participantStandingsListView() {
@@ -1189,19 +1220,28 @@ function bindApp() {
 
   document.querySelectorAll("[data-pick]").forEach(button => {
     button.addEventListener("click", async () => {
+      const matchId = button.dataset.pick;
+      const winner = button.dataset.team;
+      const isJoker = button.dataset.jokerState === "true";
+      const requestSeq = ++predictionSaveSeq;
+      const previous = setOptimisticPrediction(matchId, winner, isJoker);
+      state.error = "";
+      render();
       try {
         await api("prediction", {
           method: "POST",
           body: JSON.stringify({
             userId: state.currentUser.id,
-            matchId: button.dataset.pick,
-            winner: button.dataset.team,
-            isJoker: button.dataset.jokerState === "true"
+            matchId,
+            winner,
+            isJoker
           })
         });
+        if (requestSeq !== predictionSaveSeq) return;
         state.notice = "تم حفظ توقعك في السيرفر.";
-        await loadData({ silent: true });
+        render();
       } catch (error) {
+        if (requestSeq === predictionSaveSeq) restorePrediction(matchId, previous);
         state.error = error.message || "تعذر حفظ التوقع";
         render();
       }
@@ -1218,6 +1258,12 @@ function bindApp() {
         render();
         return;
       }
+      const requestSeq = ++predictionSaveSeq;
+      const previous = normalizePrediction(prediction);
+      const nextJokerState = !prediction?.is_joker;
+      setOptimisticPrediction(matchId, winner, nextJokerState);
+      state.error = "";
+      render();
       try {
         await api("prediction", {
           method: "POST",
@@ -1225,12 +1271,14 @@ function bindApp() {
             userId: state.currentUser.id,
             matchId,
             winner,
-            isJoker: !prediction?.is_joker
+            isJoker: nextJokerState
           })
         });
+        if (requestSeq !== predictionSaveSeq) return;
         state.notice = prediction?.is_joker ? "تم إلغاء الجوكر." : "تم تفعيل الجوكر.";
         await loadData({ silent: true });
       } catch (error) {
+        if (requestSeq === predictionSaveSeq) restorePrediction(matchId, previous);
         state.error = error.message || "تعذر تحديث الجوكر";
         render();
       }

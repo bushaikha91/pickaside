@@ -1279,6 +1279,15 @@ button {
   line-height: 1.7;
 }
 
+.joker-law-card {
+  border-color: rgba(31, 88, 184, 0.22);
+  background: linear-gradient(135deg, #ffffff, #eef5ff);
+}
+
+.joker-law-card h3 {
+  color: var(--blue);
+}
+
 .summary-grid {
   grid-template-columns: repeat(3, 1fr);
 }

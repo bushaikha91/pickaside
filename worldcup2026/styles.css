@@ -1465,16 +1465,16 @@ button {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 80;
   display: grid;
-  align-items: end;
-  padding: 16px;
+  align-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
   background: rgba(9, 27, 63, 0.38);
 }
 
 .modal-card {
   width: min(100%, 428px);
-  max-height: 86vh;
+  max-height: calc(100dvh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   overflow: auto;
   margin: 0 auto;
   padding: 16px;

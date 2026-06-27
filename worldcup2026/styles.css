@@ -1119,9 +1119,7 @@ button {
   white-space: normal;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
   word-break: keep-all;
-  background:
-    linear-gradient(135deg, var(--blue), var(--green))
-    fixed center top / 100vw 44px;
+  background: linear-gradient(135deg, var(--blue), var(--green));
 }
 
 .rank-head,
@@ -1146,9 +1144,15 @@ button {
 .standings-board .match-round-head,
 .standings-board .summary-head {
   color: #fff;
-  background:
-    linear-gradient(135deg, var(--blue), var(--green))
-    fixed center top / 100vw 44px;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.standings-board .matrix-head-row .match-score-group {
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.standings-board .matrix-head-row .match-score-group .matrix-cell {
+  background: transparent;
 }
 
 .matrix-player-row.podium-row .rank-cell,

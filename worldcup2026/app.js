@@ -13,6 +13,15 @@ const rounds = [
   { id: "final", name: "النهائي" }
 ];
 
+const roundMatchLimits = {
+  r32: 16,
+  r16: 8,
+  r8: 4,
+  qf: 4,
+  sf: 2,
+  final: 1
+};
+
 const laws = {
   r32: "كل مباراة قيمتها 200 نقطة: 150 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. التوقع الصحيح يسترجع 150 نقطة ويحصل على نصيبه من نقاط توقعات الخاسرين، والتوقع الخطأ يسترجع 50 نقطة فقط.",
   r16: "كل مباراة قيمتها 300 نقطة: 250 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. نقاط التوقعات الخاطئة تتجمع وتتوزع بالتساوي على أصحاب التوقع الصحيح.",
@@ -394,14 +403,16 @@ function participantMatchesView() {
 
 function manageView() {
   const matches = sortMatches(state.matches.filter(match => match.round_id === activeRound));
+  const roundLimit = roundMatchLimits[activeRound] || Infinity;
+  const roundIsFull = matches.length >= roundLimit;
   return `
     <div class="section-title">
       <h2>المباريات</h2>
       <span class="small">تنعكس على كل المشاركين</span>
     </div>
     ${roundTabs()}
-    <button class="add-match-toggle" id="addMatchToggle" type="button">
-      إضافة مباراة في ${roundName(activeRound)}
+    <button class="add-match-toggle" id="addMatchToggle" type="button" ${roundIsFull ? "disabled" : ""}>
+      ${roundIsFull ? `اكتمل عدد مباريات ${roundName(activeRound)} (${roundLimit}/${roundLimit})` : `إضافة مباراة في ${roundName(activeRound)} (${matches.length}/${roundLimit})`}
     </button>
     <div class="match-list">
       ${matches.length ? matches.map(managerMatchCardV2).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}

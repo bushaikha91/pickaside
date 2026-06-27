@@ -13,6 +13,14 @@ const ROUND_RULES = {
 
 const ROUND_ORDER = ["r32", "r16", "r8", "qf", "sf", "final"];
 const JOKER_ROUNDS = new Set(["r16", "sf"]);
+const ROUND_MATCH_LIMITS = {
+  r32: 16,
+  r16: 8,
+  r8: 4,
+  qf: 4,
+  sf: 2,
+  final: 1
+};
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -187,6 +195,7 @@ async function saveMatch(req, res) {
   if ("teamAFlag" in body) payload.team_a_flag = cleanImageDataUrl(body.teamAFlag);
   if ("teamBFlag" in body) payload.team_b_flag = cleanImageDataUrl(body.teamBFlag);
   const [previousMatch] = matchId ? await supabase(`worldcup2026_matches?id=eq.${encodeURIComponent(matchId)}&limit=1`) : [];
+  await enforceRoundMatchLimit(payload.round_id, matchId);
 
   const match = matchId
     ? await supabase(`worldcup2026_matches?id=eq.${encodeURIComponent(matchId)}`, {
@@ -563,6 +572,16 @@ function matchPointRow(points, correct, isJoker) {
   };
 }
 
+async function enforceRoundMatchLimit(roundId, matchId = "") {
+  const limit = ROUND_MATCH_LIMITS[roundId];
+  if (!limit) return;
+  const matches = await supabase(`worldcup2026_matches?round_id=eq.${encodeURIComponent(roundId)}&select=id`);
+  const count = matches.filter(match => match.id !== matchId).length;
+  if (count >= limit) {
+    throw httpError(409, `لا يمكن إضافة أكثر من ${limit} مباراة في ${roundName(roundId)}`);
+  }
+}
+
 function stakeRow(match, pickedWinner, winnerStake, safetyStake) {
   return {
     team_a: roundPoints(pickedWinner === match.team_a ? winnerStake : safetyStake),
@@ -643,6 +662,17 @@ function setCors(res) {
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function roundName(id) {
+  return ({
+    r32: "دور الـ 32",
+    r16: "دور الـ 16",
+    r8: "دور الـ 8",
+    qf: "ربع النهائي",
+    sf: "نصف النهائي",
+    final: "النهائي"
+  })[id] || id;
 }
 
 function parseTournamentDate(value) {

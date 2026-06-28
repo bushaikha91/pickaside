@@ -40,6 +40,8 @@ module.exports = async function handler(req, res) {
     if (action === "participant-reapply" && req.method === "POST") return await reapplyParticipant(req, res);
     if (action === "password-reset-request" && req.method === "POST") return await requestPasswordReset(req, res);
     if (action === "password-reset-complete" && req.method === "POST") return await completePasswordReset(req, res);
+    if (action === "champion-option" && req.method === "POST") return await saveChampionOption(req, res);
+    if (action === "champion-pick" && req.method === "POST") return await saveChampionPick(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -55,10 +57,11 @@ async function sendState(req, res) {
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
   const tournament = await calculateTournament();
 
-  const [matches, predictions, participants] = await Promise.all([
+  const [matches, predictions, participants, championData] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026_matches?select=*&order=winner.asc.nullsfirst&order=starts_at.asc") : [],
     userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
-    isOrganizer ? fetchParticipants() : []
+    isOrganizer ? fetchParticipants() : [],
+    isOrganizer ? fetchChampionData() : { options: [], picks: [] }
   ]);
 
   return res.status(200).json({
@@ -70,7 +73,9 @@ async function sendState(req, res) {
     allMatchPoints: isOrganizer ? tournament.matchPoints : {},
     allMatchStakes: isOrganizer ? tournament.matchStakes : {},
     standings: tournament.standings,
-    participants
+    participants,
+    championOptions: championData.options,
+    championPicks: championData.picks
   });
 }
 
@@ -97,6 +102,19 @@ async function fetchParticipants() {
       if (!isOptionalColumnError(fallbackError)) throw fallbackError;
       return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,created_at&order=created_at.desc");
     }
+  }
+}
+
+async function fetchChampionData() {
+  try {
+    const [options, picks] = await Promise.all([
+      supabase("worldcup2026_champion_options?select=*&order=option_type.asc&order=name.asc"),
+      supabase("worldcup2026_champion_picks?select=*&order=updated_at.desc")
+    ]);
+    return { options, picks };
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return { options: [], picks: [] };
   }
 }
 
@@ -407,6 +425,51 @@ async function completePasswordReset(req, res) {
   return res.status(200).json({ user: publicUser(user) });
 }
 
+async function saveChampionOption(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const optionType = clean(body.optionType);
+  const name = clean(body.name);
+  if (!["team", "scorer"].includes(optionType)) throw httpError(400, "نوع الترشيح غير صحيح");
+  if (!name) throw httpError(400, "الاسم مطلوب");
+  try {
+    await supabase("worldcup2026_champion_options?on_conflict=option_type,name", {
+      method: "POST",
+      prefer: "resolution=merge-duplicates,return=representation",
+      body: JSON.stringify([{ option_type: optionType, name }])
+    });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    throw httpError(503, "قاعدة البيانات تحتاج تحديث. شغل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
+  }
+  return res.status(200).json({ ok: true });
+}
+
+async function saveChampionPick(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const participantId = clean(body.participantId);
+  const championTeam = clean(body.championTeam);
+  const topScorer = clean(body.topScorer);
+  if (!participantId) throw httpError(400, "المشارك مطلوب");
+  try {
+    await supabase("worldcup2026_champion_picks?on_conflict=participant_id", {
+      method: "POST",
+      prefer: "resolution=merge-duplicates,return=representation",
+      body: JSON.stringify([{
+        participant_id: participantId,
+        champion_team: championTeam || null,
+        top_scorer: topScorer || null,
+        updated_at: new Date().toISOString()
+      }])
+    });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    throw httpError(503, "قاعدة البيانات تحتاج تحديث. شغل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
+  }
+  return res.status(200).json({ ok: true });
+}
+
 async function deleteParticipantPredictions(participantId) {
   if (!participantId) return;
   await supabase(`worldcup2026_predictions?user_id=eq.${encodeURIComponent(participantId)}`, {
@@ -680,7 +743,7 @@ async function supabase(path, options = {}) {
   const payload = text ? JSON.parse(text) : [];
   if (!response.ok) {
     const message = payload.message || payload.hint || "فشل اتصال قاعدة البيانات";
-    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash|password_reset_requested_at|avatar_url|team_a_flag|team_b_flag|is_joker|score_a|score_b/i.test(message)) {
+    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash|password_reset_requested_at|avatar_url|team_a_flag|team_b_flag|is_joker|score_a|score_b|champion_options|champion_picks/i.test(message)) {
       throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث. شغل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
     }
     throw httpError(response.status, message);

@@ -51,6 +51,8 @@ const state = {
   allPredictions: [],
   allMatchPoints: {},
   allMatchStakes: {},
+  championOptions: [],
+  championPicks: [],
   rankMovement: {},
   participants: [],
   loading: true,
@@ -59,6 +61,7 @@ const state = {
   profileOpen: false,
   voterModalMatch: null,
   voteResultsModalMatch: null,
+  championListOpen: false,
   editModalMatch: null,
   resultModalMatch: null,
   detailParticipantId: null,
@@ -119,6 +122,8 @@ async function loadData(options = {}) {
     state.allPredictions = payload.allPredictions || [];
     state.allMatchPoints = payload.allMatchPoints || {};
     state.allMatchStakes = payload.allMatchStakes || {};
+    state.championOptions = payload.championOptions || [];
+    state.championPicks = payload.championPicks || [];
     state.participants = payload.participants || [];
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
@@ -226,6 +231,7 @@ function appTemplate() {
     ? `
       <button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>
       <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
+      <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ترشيحات البطل</button>
     `
     : `<button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>`;
 
@@ -252,6 +258,7 @@ function appTemplate() {
     ${state.profileOpen ? profileModal() : ""}
     ${state.voterModalMatch ? voterModal(state.voterModalMatch) : ""}
     ${state.voteResultsModalMatch ? voteResultsModal(state.voteResultsModalMatch) : ""}
+    ${state.championListOpen ? championListModal() : ""}
     ${state.editModalMatch ? matchEditModal(state.editModalMatch) : ""}
     ${state.resultModalMatch ? resultModal(state.resultModalMatch) : ""}
     ${state.detailParticipantId ? participantDetailModal(state.detailParticipantId) : ""}
@@ -266,6 +273,7 @@ function currentView() {
     return participantStatusView();
   }
   if (activeTab === "participants" && state.currentUser.role === "organizer") return participantsView();
+  if (activeTab === "champions" && state.currentUser.role === "organizer") return championPicksView();
   if (state.currentUser.role === "organizer") return manageView();
   return participantMatchesView();
 }
@@ -360,6 +368,97 @@ function requestRow(user) {
         <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">رفض</button>
       </div>
     </article>
+  `;
+}
+
+function championPicksView() {
+  const approved = state.participants.filter(user => user.participant_status === "approved");
+  const teams = championOptionsByType("team");
+  const scorers = championOptionsByType("scorer");
+  const picksByParticipant = new Map(state.championPicks.map(item => [item.participant_id, item]));
+  return `
+    <div class="section-title champion-title">
+      <div>
+        <h2>ترشيحات البطل</h2>
+        <span class="small">ترشيح بطل البطولة وهداف البطولة لكل مشارك</span>
+      </div>
+      <button class="compact-action" id="championListsBtn" type="button">إضافة الفرق والهدافين</button>
+    </div>
+    ${!teams.length && !scorers.length ? `<div class="notice">ابدأ بإضافة الفرق والهدافين من الزر أعلى الصفحة حتى تظهر الاختيارات.</div>` : ""}
+    <div class="champion-picks-list">
+      ${approved.length ? approved.map(user => championPickRow(user, picksByParticipant.get(user.id), teams, scorers)).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
+    </div>
+  `;
+}
+
+function championPickRow(user, pick, teams, scorers) {
+  return `
+    <form class="champion-pick-row" data-champion-pick="${user.id}">
+      <div class="champion-player">
+        ${avatarTile(user, "avatar-small")}
+        <strong>${escapeHtml(user.name)}</strong>
+      </div>
+      <label class="field compact-field">
+        <span>بطل البطولة</span>
+        <select name="championTeam">
+          <option value="">اختر الفريق</option>
+          ${teams.map(team => `<option value="${escapeHtml(team.name)}" ${pick?.champion_team === team.name ? "selected" : ""}>${escapeHtml(team.name)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="field compact-field">
+        <span>هداف البطولة</span>
+        <select name="topScorer">
+          <option value="">اختر الهداف</option>
+          ${scorers.map(scorer => `<option value="${escapeHtml(scorer.name)}" ${pick?.top_scorer === scorer.name ? "selected" : ""}>${escapeHtml(scorer.name)}</option>`).join("")}
+        </select>
+      </label>
+      <button class="save-chip" type="submit">حفظ</button>
+    </form>
+  `;
+}
+
+function championOptionsByType(type) {
+  return state.championOptions
+    .filter(item => item.option_type === type)
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), "ar"));
+}
+
+function championListModal() {
+  const teams = championOptionsByType("team");
+  const scorers = championOptionsByType("scorer");
+  return `
+    <div class="modal-backdrop" data-champion-list-close>
+      <section class="modal-card stack champion-list-modal">
+        <div class="section-title">
+          <h2>إدارة قوائم الترشيح</h2>
+          <button class="icon-close" type="button" data-champion-list-x>×</button>
+        </div>
+        <form class="champion-option-form" data-champion-option="team">
+          <label class="field">
+            <span>إضافة فريق</span>
+            <input name="name" autocomplete="off" placeholder="مثال: البرازيل" />
+          </label>
+          <button class="primary-btn" type="submit">إضافة الفريق</button>
+        </form>
+        <form class="champion-option-form" data-champion-option="scorer">
+          <label class="field">
+            <span>إضافة هداف</span>
+            <input name="name" autocomplete="off" placeholder="مثال: مبابي" />
+          </label>
+          <button class="primary-btn" type="submit">إضافة الهداف</button>
+        </form>
+        <div class="champion-option-columns">
+          <div>
+            <h3>الفرق</h3>
+            <div class="option-pill-list">${teams.length ? teams.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : `<em>لا توجد فرق</em>`}</div>
+          </div>
+          <div>
+            <h3>الهدافون</h3>
+            <div class="option-pill-list">${scorers.length ? scorers.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : `<em>لا يوجد هدافون</em>`}</div>
+          </div>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -1252,6 +1351,7 @@ function bindApp() {
       state.editModalMatch = null;
       state.resultModalMatch = null;
       state.detailParticipantId = null;
+      state.championListOpen = false;
       render();
     }
   }));
@@ -1321,6 +1421,16 @@ function bindApp() {
     render();
   });
 
+  document.querySelector("#championListsBtn")?.addEventListener("click", () => {
+    state.championListOpen = true;
+    render();
+  });
+
+  document.querySelector("[data-champion-list-x]")?.addEventListener("click", () => {
+    state.championListOpen = false;
+    render();
+  });
+
   document.querySelector("[data-voter-modal-close]")?.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.voterModalMatch = null;
@@ -1333,6 +1443,67 @@ function bindApp() {
       state.voteResultsModalMatch = null;
       render();
     }
+  });
+
+  document.querySelector("[data-champion-list-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.championListOpen = false;
+      render();
+    }
+  });
+
+  document.querySelectorAll("[data-champion-option]").forEach(form => {
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const button = form.querySelector("button[type='submit']");
+      button.disabled = true;
+      try {
+        await api("champion-option", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            optionType: form.dataset.championOption,
+            name: form.elements.name.value.trim()
+          })
+        });
+        state.notice = form.dataset.championOption === "team" ? "تمت إضافة الفريق." : "تمت إضافة الهداف.";
+        await loadData({ silent: true });
+        state.championListOpen = true;
+      } catch (error) {
+        state.error = error.message || "تعذر حفظ القائمة";
+        render();
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-champion-pick]").forEach(form => {
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const button = form.querySelector("button[type='submit']");
+      button.disabled = true;
+      button.textContent = "جارٍ";
+      try {
+        await api("champion-pick", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            participantId: form.dataset.championPick,
+            championTeam: form.elements.championTeam.value,
+            topScorer: form.elements.topScorer.value
+          })
+        });
+        state.notice = "تم حفظ الترشيح.";
+        await loadData({ silent: true });
+      } catch (error) {
+        state.error = error.message || "تعذر حفظ الترشيح";
+        render();
+      } finally {
+        button.disabled = false;
+        button.textContent = "حفظ";
+      }
+    });
   });
 
   bindProfileForm();

@@ -82,3 +82,21 @@ create table if not exists public.worldcup2026_predictions (
 
 alter table public.worldcup2026_predictions
   add column if not exists is_joker boolean not null default false;
+
+create table if not exists public.worldcup2026_champion_options (
+  id uuid primary key default gen_random_uuid(),
+  option_type text not null check (option_type in ('team', 'scorer')),
+  name text not null,
+  created_at timestamptz not null default now(),
+  unique (option_type, name)
+);
+
+create table if not exists public.worldcup2026_champion_picks (
+  id uuid primary key default gen_random_uuid(),
+  participant_id uuid not null references public.worldcup2026_users(id) on delete cascade,
+  champion_team text,
+  top_scorer text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (participant_id)
+);

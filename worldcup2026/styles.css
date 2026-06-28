@@ -341,6 +341,15 @@ button {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
 }
 
+.organizer-tabs {
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+}
+
+.organizer-tabs .tab {
+  padding-inline: 4px;
+  font-size: 11px;
+}
+
 .round-tabs {
   grid-template-columns: repeat(3, 1fr);
   margin-bottom: 14px;
@@ -1541,6 +1550,101 @@ button {
 .participant-list {
   display: grid;
   gap: 10px;
+}
+
+.champion-title {
+  align-items: end;
+  gap: 10px;
+}
+
+.compact-action,
+.save-chip {
+  min-height: 38px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.compact-action {
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.champion-picks-list {
+  display: grid;
+  gap: 10px;
+}
+
+.champion-pick-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(16, 24, 40, 0.06);
+}
+
+.champion-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.compact-field {
+  gap: 5px;
+}
+
+.compact-field span {
+  font-size: 11px;
+}
+
+.champion-list-modal {
+  max-height: min(680px, calc(100vh - 130px));
+  overflow: auto;
+}
+
+.champion-option-form {
+  display: grid;
+  gap: 10px;
+}
+
+.champion-option-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.champion-option-columns h3 {
+  margin: 0 0 8px;
+  color: var(--navy);
+  font-size: 14px;
+}
+
+.option-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f2f6fb;
+}
+
+.option-pill-list span,
+.option-pill-list em {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #12376f;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  background: #fff;
 }
 
 .swipe-row {

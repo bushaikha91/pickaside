@@ -189,6 +189,18 @@ function loginTemplate() {
         <input id="role" type="hidden" value="participant" />
         <input id="mode" type="hidden" value="login" />
         <button class="primary-btn" id="loginBtn" type="submit">دخول التطبيق</button>
+        <button class="forgot-link" id="forgotPasswordToggle" type="button">نسيت كلمة المرور؟</button>
+      </form>
+
+      <form class="panel password-reset-panel hidden" id="passwordResetForm">
+        <h2>إعادة ضبط كلمة المرور</h2>
+        <p class="small">ادخل رقم الهاتف المسجل، وسيظهر الطلب عند المنظم لتعيين كلمة مرور جديدة.</p>
+        <div id="passwordResetMessage" class="notice hidden"></div>
+        <label class="field">
+          <span>رقم الهاتف المتحرك</span>
+          <input id="resetPhone" required inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" />
+        </label>
+        <button class="primary-btn" id="passwordResetBtn" type="submit">إرسال طلب إعادة الضبط</button>
       </form>
 
       <section class="install-panel">
@@ -298,6 +310,7 @@ function participantsView() {
   const pending = state.participants.filter(user => user.participant_status === "pending");
   const approved = state.participants.filter(user => user.participant_status === "approved");
   const rejected = state.participants.filter(user => user.participant_status === "rejected");
+  const passwordResetRequests = state.participants.filter(user => user.password_reset_requested_at);
   return `
     <div class="section-title">
       <h2>طلبات المشاركين</h2>
@@ -305,6 +318,13 @@ function participantsView() {
     </div>
     <div class="participant-list">
       ${pending.length ? pending.map(requestRow).join("") : emptyView("لا توجد طلبات جديدة.")}
+    </div>
+    <div class="section-title" style="margin-top:18px">
+      <h2>إعادة كلمة المرور</h2>
+      <span class="small">${passwordResetRequests.length} طلب</span>
+    </div>
+    <div class="participant-list">
+      ${passwordResetRequests.length ? passwordResetRequests.map(passwordResetRow).join("") : emptyView("لا توجد طلبات إعادة كلمة مرور.")}
     </div>
     <div class="section-title" style="margin-top:18px">
       <h2>المشاركون</h2>
@@ -338,6 +358,23 @@ function requestRow(user) {
         <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">رفض</button>
       </div>
     </article>
+  `;
+}
+
+function passwordResetRow(user) {
+  return `
+    <form class="participant-row password-reset-row" data-password-reset="${user.id}">
+      ${avatarTile(user, "avatar-small")}
+      <div>
+        <strong>${escapeHtml(user.name)}</strong>
+        <span>طلب إعادة كلمة المرور</span>
+      </div>
+      <span class="status-chip pending">بانتظار التعيين</span>
+      <div class="participant-actions password-reset-actions">
+        <input name="password" required minlength="4" type="text" autocomplete="new-password" placeholder="كلمة المرور الجديدة" />
+        <button class="mini-btn approve" type="submit">حفظ كلمة المرور</button>
+      </div>
+    </form>
   `;
 }
 
@@ -961,6 +998,8 @@ function bindLogin() {
   const passwordInput = document.querySelector("#password");
   const loginBtn = document.querySelector("#loginBtn");
   const authHint = document.querySelector("#authHint");
+  const forgotToggle = document.querySelector("#forgotPasswordToggle");
+  const resetForm = document.querySelector("#passwordResetForm");
 
   function syncAuthMode() {
     const isCreate = selectedMode === "create";
@@ -970,6 +1009,8 @@ function bindLogin() {
     codeField.classList.toggle("hidden", !isCreate || selectedRole !== "organizer");
     document.querySelector("#name").required = isCreate;
     passwordInput.autocomplete = isCreate ? "new-password" : "current-password";
+    forgotToggle?.classList.toggle("hidden", isCreate);
+    resetForm?.classList.add("hidden");
     loginBtn.textContent = isCreate ? "إنشاء الحساب" : "دخول التطبيق";
     authHint.textContent = isCreate
       ? "أنشئ الحساب أول مرة بالاسم ورقم الهاتف وكلمة المرور."
@@ -994,6 +1035,35 @@ function bindLogin() {
     });
   });
   syncAuthMode();
+
+  forgotToggle?.addEventListener("click", () => {
+    resetForm?.classList.toggle("hidden");
+    document.querySelector("#resetPhone").value = document.querySelector("#phone").value.trim();
+  });
+
+  resetForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const messageBox = document.querySelector("#passwordResetMessage");
+    const resetButton = document.querySelector("#passwordResetBtn");
+    messageBox.className = "notice hidden";
+    resetButton.disabled = true;
+    resetButton.textContent = "جاري إرسال الطلب...";
+    try {
+      await api("password-reset-request", {
+        method: "POST",
+        body: JSON.stringify({ phone: document.querySelector("#resetPhone").value.trim() })
+      });
+      messageBox.textContent = "تم إرسال الطلب. راجع المنظم لتعيين كلمة مرور جديدة.";
+      messageBox.className = "notice";
+      resetForm.reset();
+    } catch (error) {
+      messageBox.textContent = error.message || "تعذر إرسال طلب إعادة الضبط";
+      messageBox.className = "notice danger-notice";
+    } finally {
+      resetButton.disabled = false;
+      resetButton.textContent = "إرسال طلب إعادة الضبط";
+    }
+  });
 
   document.querySelector("#loginForm").addEventListener("submit", async event => {
     event.preventDefault();
@@ -1182,6 +1252,30 @@ function bindApp() {
   document.querySelector("[data-add-match-close]")?.addEventListener("click", () => {
     state.addMatchOpen = false;
     render();
+  });
+
+  document.querySelectorAll("[data-password-reset]").forEach(form => {
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const button = form.querySelector("button[type='submit']");
+      button.disabled = true;
+      button.textContent = "جاري الحفظ...";
+      try {
+        await api("password-reset-complete", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            participantId: form.dataset.passwordReset,
+            password: form.elements.password.value.trim()
+          })
+        });
+        state.notice = "تم تعيين كلمة المرور الجديدة.";
+        await loadData({ silent: true });
+      } catch (error) {
+        state.error = error.message || "تعذر تعيين كلمة المرور";
+        render();
+      }
+    });
   });
 
   document.querySelectorAll("[data-participant-id]").forEach(button => {

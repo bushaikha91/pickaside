@@ -21,6 +21,9 @@ alter table public.worldcup2026_users
 alter table public.worldcup2026_users
   add column if not exists avatar_url text;
 
+alter table public.worldcup2026_users
+  add column if not exists password_reset_requested_at timestamptz;
+
 do $$
 begin
   if not exists (

@@ -38,6 +38,8 @@ module.exports = async function handler(req, res) {
     if (action === "participant-status" && req.method === "POST") return await updateParticipantStatus(req, res);
     if (action === "participant-delete" && req.method === "POST") return await deleteParticipant(req, res);
     if (action === "participant-reapply" && req.method === "POST") return await reapplyParticipant(req, res);
+    if (action === "password-reset-request" && req.method === "POST") return await requestPasswordReset(req, res);
+    if (action === "password-reset-complete" && req.method === "POST") return await completePasswordReset(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -86,7 +88,7 @@ async function fetchCurrentUser(userId) {
 
 async function fetchParticipants() {
   try {
-    return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,avatar_url,created_at&order=created_at.desc");
+    return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,avatar_url,password_reset_requested_at,created_at&order=created_at.desc");
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,created_at&order=created_at.desc");
@@ -355,6 +357,46 @@ async function reapplyParticipant(req, res) {
     method: "PATCH",
     prefer: "return=representation",
     body: JSON.stringify({ participant_status: "pending", updated_at: new Date().toISOString() })
+  });
+  if (!user) throw httpError(404, "المشارك غير موجود");
+  return res.status(200).json({ user: publicUser(user) });
+}
+
+async function requestPasswordReset(req, res) {
+  const body = await readBody(req);
+  const phone = clean(body.phone);
+  if (!phone) throw httpError(400, "رقم الهاتف مطلوب");
+  try {
+    await supabase(`worldcup2026_users?phone=eq.${encodeURIComponent(phone)}&role=eq.participant`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: JSON.stringify({
+        password_reset_requested_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    throw httpError(503, "قاعدة البيانات تحتاج تحديث. شغل ملف worldcup2026-schema.sql مرة واحدة في Supabase.");
+  }
+  return res.status(200).json({ ok: true });
+}
+
+async function completePasswordReset(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const participantId = clean(body.participantId);
+  const password = clean(body.password);
+  if (!participantId || !password) throw httpError(400, "بيانات إعادة كلمة المرور غير مكتملة");
+  if (password.length < 4) throw httpError(400, "كلمة المرور يجب أن تكون 4 خانات على الأقل");
+  const [user] = await supabase(`worldcup2026_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: JSON.stringify({
+      password_hash: hashPassword(password),
+      password_reset_requested_at: null,
+      updated_at: new Date().toISOString()
+    })
   });
   if (!user) throw httpError(404, "المشارك غير موجود");
   return res.status(200).json({ user: publicUser(user) });
@@ -633,7 +675,7 @@ async function supabase(path, options = {}) {
   const payload = text ? JSON.parse(text) : [];
   if (!response.ok) {
     const message = payload.message || payload.hint || "فشل اتصال قاعدة البيانات";
-    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash|avatar_url|team_a_flag|team_b_flag|is_joker|score_a|score_b/i.test(message)) {
+    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash|password_reset_requested_at|avatar_url|team_a_flag|team_b_flag|is_joker|score_a|score_b/i.test(message)) {
       throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث. شغل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
     }
     throw httpError(response.status, message);

@@ -839,7 +839,7 @@ button {
 .admin-match-bottom {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-areas: "left result actions";
+  grid-template-areas: "count result actions";
   align-items: center;
   gap: 8px;
   padding: 0 16px 15px;
@@ -850,6 +850,12 @@ button {
   grid-area: result;
   justify-self: center;
   font-size: 12px;
+  direction: rtl;
+}
+
+.admin-match-bottom > .vote-count-link {
+  grid-area: count;
+  justify-self: start;
   direction: rtl;
 }
 

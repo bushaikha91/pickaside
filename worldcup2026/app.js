@@ -833,8 +833,8 @@ function managerMatchCardV2(match) {
         <button class="text-link result-link" data-result-open="${match.id}" type="button">${match.winner ? "تعديل نتيجة نهاية المباراة" : "إضافة نتيجة نهاية المباراة"}</button>
         <div class="admin-match-actions">
           <button class="vote-results-link" data-vote-results="${match.id}" type="button">نتائج التصويت</button>
-          <button class="vote-count-link" data-voters="${match.id}" type="button">${match.vote_count || 0}/${match.eligible_count || 0}</button>
         </div>
+        <button class="vote-count-link" data-voters="${match.id}" type="button">${match.vote_count || 0}/${match.eligible_count || 0}</button>
       </div>
     </article>
   `;

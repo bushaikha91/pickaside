@@ -972,7 +972,12 @@ function voteResultsModal(matchId) {
         </div>
         <div class="vote-result-match">
           <strong>${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</strong>
-          <span>${formatAdminMatchDate(match.starts_at)}</span>
+          <div class="vote-result-teams">
+            ${voteResultTeamView(match.team_a, match.team_a_flag)}
+            <span class="vote-result-vs">ضد</span>
+            ${voteResultTeamView(match.team_b, match.team_b_flag)}
+          </div>
+          <span class="vote-result-date">${formatAdminMatchDate(match.starts_at)}</span>
         </div>
         <div class="vote-result-summary">
           <span>${escapeHtml(match.team_a)}: ${teamACount}</span>
@@ -988,6 +993,16 @@ function voteResultsModal(matchId) {
           ${rows.length ? rows.map(row => voteResultRow(row, match)).join("") : emptyView("لا يوجد مشاركون مقبولون.")}
         </div>
       </section>
+    </div>
+  `;
+}
+
+function voteResultTeamView(name, flagUrl) {
+  const flag = flagUrl ? `<img src="${escapeHtml(flagUrl)}" alt="${escapeHtml(name)}" />` : "";
+  return `
+    <div class="vote-result-team">
+      <span class="vote-result-flag">${flag}</span>
+      <strong>${escapeHtml(name)}</strong>
     </div>
   `;
 }

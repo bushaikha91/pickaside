@@ -868,14 +868,69 @@ button {
   background: #f2f6ff;
 }
 
-.vote-result-match strong,
+.vote-result-match > strong {
+  display: none;
+}
+
 .vote-result-match span {
   display: block;
 }
 
-.vote-result-match span {
+.vote-result-date {
   color: var(--muted);
   font-size: 12px;
+  text-align: center;
+}
+
+.vote-result-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.vote-result-team {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #d8dee8;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.vote-result-team strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: #101828;
+  font-size: 11px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vote-result-flag {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border: 1.8px solid #101828;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.vote-result-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vote-result-vs {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .vote-result-summary {

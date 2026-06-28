@@ -564,11 +564,10 @@ function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, mat
       }
       const correct = prediction.winner === match.winner;
       const baseReturn = correct ? rule.winnerStake : rule.safetyStake;
-      const lostStake = correct ? rule.safetyStake : rule.winnerStake;
       matchStakes[user.id][match.id] = stakeRow(match, prediction.winner, rule.winnerStake, rule.safetyStake);
       outcomes.set(user.id, { correct, baseReturn, isJoker: !!prediction.is_joker });
       if (correct) correctUsers.push(user.id);
-      lostPool += lostStake;
+      else lostPool += rule.winnerStake;
     }
 
     const correctShare = correctUsers.length ? lostPool / correctUsers.length : 0;
@@ -610,11 +609,10 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, 
       }
       const correct = prediction.winner === match.winner;
       const baseReturn = matchBudget * (correct ? rule.winnerPercent : rule.safetyPercent);
-      const lostStake = matchBudget * (correct ? rule.safetyPercent : rule.winnerPercent);
       matchStakes[user.id][match.id] = stakeRow(match, prediction.winner, matchBudget * rule.winnerPercent, matchBudget * rule.safetyPercent);
       outcomes.set(user.id, { correct, baseReturn, isJoker: !!prediction.is_joker });
       if (correct) correctUsers.push(user.id);
-      lostPool += lostStake;
+      else lostPool += matchBudget * rule.winnerPercent;
     }
 
     const correctShare = correctUsers.length ? lostPool / correctUsers.length : 0;

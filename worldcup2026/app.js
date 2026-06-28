@@ -924,8 +924,8 @@ function resultModal(matchId) {
 function voterModal(matchId) {
   const match = state.matches.find(item => item.id === matchId);
   if (!match) return "";
-  const voted = match.voted_users || [];
-  const missing = match.missing_users || [];
+  const voted = (match.voted_users || []).map(hydrateParticipantAvatar);
+  const missing = (match.missing_users || []).map(hydrateParticipantAvatar);
   return `
     <div class="modal-backdrop" data-voter-modal-close>
       <section class="modal-card stack">
@@ -950,7 +950,9 @@ function voterModal(matchId) {
 function voteResultsModal(matchId) {
   const match = state.matches.find(item => item.id === matchId);
   if (!match) return "";
-  const approved = state.participants.filter(user => user.participant_status === "approved");
+  const approved = state.participants
+    .filter(user => user.participant_status === "approved")
+    .map(hydrateParticipantAvatar);
   const predictions = new Map(
     state.allPredictions
       .filter(item => item.match_id === match.id)
@@ -1022,14 +1024,25 @@ function voteResultRow(row, match) {
 }
 
 function voterRow(user) {
+  const voter = hydrateParticipantAvatar(user);
   return `
     <div class="voter-row">
-      ${avatarTile(user, "avatar-small")}
+      ${avatarTile(voter, "avatar-small")}
       <div>
-        <strong>${escapeHtml(user.name)}</strong>
+        <strong>${escapeHtml(voter.name)}</strong>
       </div>
     </div>
   `;
+}
+
+function hydrateParticipantAvatar(user) {
+  if (!user?.id || user.avatar_url) return user;
+  const standingUser = state.standings.find(row => row.id === user.id);
+  const participantUser = state.participants.find(row => row.id === user.id);
+  return {
+    ...user,
+    avatar_url: standingUser?.avatar_url || participantUser?.avatar_url || ""
+  };
 }
 
 function matchStatusView(match, selected, points, locked) {

@@ -838,15 +838,19 @@ button {
 
 .admin-match-bottom {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: "left result actions";
   align-items: center;
   gap: 8px;
   padding: 0 16px 15px;
+  direction: ltr;
 }
 
 .result-link {
+  grid-area: result;
   justify-self: center;
   font-size: 12px;
+  direction: rtl;
 }
 
 .vote-result-match {
@@ -1269,10 +1273,12 @@ button {
 }
 
 .admin-match-actions {
+  grid-area: actions;
   display: inline-flex;
   align-items: center;
   gap: 10px;
   justify-self: end;
+  direction: rtl;
 }
 
 .vote-results-link {

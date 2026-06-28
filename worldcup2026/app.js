@@ -22,6 +22,9 @@ const roundMatchLimits = {
   final: 1
 };
 
+const fixedChampionTeams = ["البرازيل", "فرنسا", "اسبانيا", "الارجنتين", "البرتغال", "هولندا"];
+const fixedTopScorers = ["توريس", "ميسي", "هاري كين", "اوليسي", "جوليان", "امبابي", "رافينيا"];
+
 const laws = {
   r32: "كل مباراة قيمتها 200 نقطة: 150 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. التوقع الصحيح يسترجع 150 نقطة ويحصل على نصيبه من نقاط توقعات الخاسرين، والتوقع الخطأ يسترجع 50 نقطة فقط.",
   r16: "كل مباراة قيمتها 300 نقطة: 250 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. نقاط التوقعات الخاطئة تتجمع وتتوزع بالتساوي على أصحاب التوقع الصحيح.",
@@ -382,9 +385,7 @@ function championPicksView() {
         <h2>ترشيحات البطل</h2>
         <span class="small">ترشيح بطل البطولة وهداف البطولة لكل مشارك</span>
       </div>
-      <button class="compact-action" id="championListsBtn" type="button">إضافة الفرق والهدافين</button>
     </div>
-    ${!teams.length && !scorers.length ? `<div class="notice">ابدأ بإضافة الفرق والهدافين من الزر أعلى الصفحة حتى تظهر الاختيارات.</div>` : ""}
     <div class="champion-picks-list">
       ${approved.length ? approved.map(user => championPickRow(user, picksByParticipant.get(user.id), teams, scorers)).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
     </div>
@@ -418,9 +419,8 @@ function championPickRow(user, pick, teams, scorers) {
 }
 
 function championOptionsByType(type) {
-  return state.championOptions
-    .filter(item => item.option_type === type)
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), "ar"));
+  const options = type === "team" ? fixedChampionTeams : fixedTopScorers;
+  return options.map(name => ({ option_type: type, name }));
 }
 
 function championListModal() {

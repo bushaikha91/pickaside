@@ -91,7 +91,12 @@ async function fetchParticipants() {
     return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,avatar_url,password_reset_requested_at,created_at&order=created_at.desc");
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
-    return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,created_at&order=created_at.desc");
+    try {
+      return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,avatar_url,created_at&order=created_at.desc");
+    } catch (fallbackError) {
+      if (!isOptionalColumnError(fallbackError)) throw fallbackError;
+      return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,created_at&order=created_at.desc");
+    }
   }
 }
 

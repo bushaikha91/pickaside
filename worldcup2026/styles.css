@@ -750,7 +750,8 @@ button {
 }
 
 .text-link,
-.vote-count-link {
+.vote-count-link,
+.vote-results-link {
   width: max-content;
   min-height: auto;
   padding: 0;
@@ -846,6 +847,118 @@ button {
 .result-link {
   justify-self: center;
   font-size: 12px;
+}
+
+.vote-result-match {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  color: var(--navy);
+  background: #f2f6ff;
+}
+
+.vote-result-match strong,
+.vote-result-match span {
+  display: block;
+}
+
+.vote-result-match span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.vote-result-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.vote-result-summary span {
+  min-height: 36px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.vote-result-table {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.vote-result-head,
+.vote-result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 46px;
+  align-items: center;
+}
+
+.vote-result-head {
+  min-height: 38px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
+.vote-result-head span,
+.vote-result-row span {
+  min-width: 0;
+  padding: 8px;
+  text-align: center;
+}
+
+.vote-result-row {
+  min-height: 46px;
+  border-bottom: 1px solid #f1f4f8;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.vote-result-row:last-child {
+  border-bottom: 0;
+}
+
+.vote-result-player {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  text-align: right;
+}
+
+.vote-result-player strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vote-result-pick {
+  margin: 0 6px;
+  border-radius: 999px;
+}
+
+.vote-result-pick.team-a,
+.vote-result-pick.team-b {
+  color: #12376f;
+  background: #e8f1ff;
+}
+
+.vote-result-pick.missing {
+  color: #98a2b3;
+  background: #f2f4f7;
+}
+
+.vote-result-joker {
+  color: var(--blue);
 }
 
 .manager-tools {
@@ -1153,6 +1266,17 @@ button {
 
 .standings-board .matrix-head-row .match-score-group .matrix-cell {
   background: transparent;
+}
+
+.admin-match-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  justify-self: end;
+}
+
+.vote-results-link {
+  color: var(--blue);
 }
 
 .matrix-player-row.podium-row .rank-cell,

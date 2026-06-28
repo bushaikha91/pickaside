@@ -58,6 +58,7 @@ const state = {
   notice: "",
   profileOpen: false,
   voterModalMatch: null,
+  voteResultsModalMatch: null,
   editModalMatch: null,
   resultModalMatch: null,
   detailParticipantId: null,
@@ -250,6 +251,7 @@ function appTemplate() {
     </section>
     ${state.profileOpen ? profileModal() : ""}
     ${state.voterModalMatch ? voterModal(state.voterModalMatch) : ""}
+    ${state.voteResultsModalMatch ? voteResultsModal(state.voteResultsModalMatch) : ""}
     ${state.editModalMatch ? matchEditModal(state.editModalMatch) : ""}
     ${state.resultModalMatch ? resultModal(state.resultModalMatch) : ""}
     ${state.detailParticipantId ? participantDetailModal(state.detailParticipantId) : ""}
@@ -829,7 +831,10 @@ function managerMatchCardV2(match) {
       </div>
       <div class="admin-match-bottom">
         <button class="text-link result-link" data-result-open="${match.id}" type="button">${match.winner ? "تعديل نتيجة نهاية المباراة" : "إضافة نتيجة نهاية المباراة"}</button>
-        <button class="vote-count-link" data-voters="${match.id}" type="button">${match.vote_count || 0}/${match.eligible_count || 0}</button>
+        <div class="admin-match-actions">
+          <button class="vote-results-link" data-vote-results="${match.id}" type="button">نتائج التصويت</button>
+          <button class="vote-count-link" data-voters="${match.id}" type="button">${match.vote_count || 0}/${match.eligible_count || 0}</button>
+        </div>
       </div>
     </article>
   `;
@@ -938,6 +943,65 @@ function voterModal(matchId) {
           ${missing.length ? missing.map(voterRow).join("") : emptyView("لا يوجد لاعبون متبقون.")}
         </div>
       </section>
+    </div>
+  `;
+}
+
+function voteResultsModal(matchId) {
+  const match = state.matches.find(item => item.id === matchId);
+  if (!match) return "";
+  const approved = state.participants.filter(user => user.participant_status === "approved");
+  const predictions = new Map(
+    state.allPredictions
+      .filter(item => item.match_id === match.id)
+      .map(item => [item.user_id, item])
+  );
+  const rows = approved.map(user => {
+    const prediction = predictions.get(user.id);
+    return { user, prediction };
+  });
+  const teamACount = rows.filter(row => row.prediction?.winner === match.team_a).length;
+  const teamBCount = rows.filter(row => row.prediction?.winner === match.team_b).length;
+  const missingCount = rows.filter(row => !row.prediction).length;
+  return `
+    <div class="modal-backdrop" data-vote-results-modal-close>
+      <section class="modal-card stack">
+        <div class="section-title">
+          <h2>نتائج التصويت</h2>
+          <button class="icon-close" type="button" data-vote-results-close>×</button>
+        </div>
+        <div class="vote-result-match">
+          <strong>${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</strong>
+          <span>${formatAdminMatchDate(match.starts_at)}</span>
+        </div>
+        <div class="vote-result-summary">
+          <span>${escapeHtml(match.team_a)}: ${teamACount}</span>
+          <span>${escapeHtml(match.team_b)}: ${teamBCount}</span>
+          <span>لم يصوتوا: ${missingCount}</span>
+        </div>
+        <div class="vote-result-table">
+          <div class="vote-result-head">
+            <span>المشارك</span>
+            <span>الترشيح</span>
+            <span>جوكر</span>
+          </div>
+          ${rows.length ? rows.map(row => voteResultRow(row, match)).join("") : emptyView("لا يوجد مشاركون مقبولون.")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function voteResultRow(row, match) {
+  const picked = row.prediction?.winner || "لم يصوت";
+  const pickedClass = row.prediction
+    ? row.prediction.winner === match.team_a ? "team-a" : "team-b"
+    : "missing";
+  return `
+    <div class="vote-result-row">
+      <span class="vote-result-player">${avatarTile(row.user, "avatar-mini")}<strong>${escapeHtml(row.user.name)}</strong></span>
+      <span class="vote-result-pick ${pickedClass}">${escapeHtml(picked)}</span>
+      <span class="vote-result-joker">${row.prediction?.is_joker ? "×2" : "-"}</span>
     </div>
   `;
 }
@@ -1212,14 +1276,33 @@ function bindApp() {
     });
   });
 
+  document.querySelectorAll("[data-vote-results]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.voteResultsModalMatch = button.dataset.voteResults;
+      render();
+    });
+  });
+
   document.querySelector("[data-voters-close]")?.addEventListener("click", () => {
     state.voterModalMatch = null;
+    render();
+  });
+
+  document.querySelector("[data-vote-results-close]")?.addEventListener("click", () => {
+    state.voteResultsModalMatch = null;
     render();
   });
 
   document.querySelector("[data-voter-modal-close]")?.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.voterModalMatch = null;
+      render();
+    }
+  });
+
+  document.querySelector("[data-vote-results-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.voteResultsModalMatch = null;
       render();
     }
   });
@@ -1664,7 +1747,7 @@ function syncCountdownTimer() {
 }
 
 function hasOpenModal() {
-  return !!(state.profileOpen || state.voterModalMatch || state.editModalMatch || state.resultModalMatch || state.detailParticipantId || state.addMatchOpen);
+  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.detailParticipantId || state.addMatchOpen);
 }
 
 function bindSwipeRows() {

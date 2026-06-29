@@ -450,16 +450,26 @@ async function saveChampionPick(req, res) {
   const topScorer = clean(body.topScorer);
   if (!participantId) throw httpError(400, "المشارك مطلوب");
   try {
-    await supabase("worldcup2026_champion_picks?on_conflict=participant_id", {
-      method: "POST",
-      prefer: "resolution=merge-duplicates,return=representation",
-      body: JSON.stringify([{
-        participant_id: participantId,
-        champion_team: championTeam || null,
-        top_scorer: topScorer || null,
-        updated_at: new Date().toISOString()
-      }])
-    });
+    const payload = {
+      participant_id: participantId,
+      champion_team: championTeam || null,
+      top_scorer: topScorer || null,
+      updated_at: new Date().toISOString()
+    };
+    const [existing] = await supabase(`worldcup2026_champion_picks?participant_id=eq.${encodeURIComponent(participantId)}&select=id&limit=1`);
+    if (existing) {
+      await supabase(`worldcup2026_champion_picks?id=eq.${encodeURIComponent(existing.id)}`, {
+        method: "PATCH",
+        prefer: "return=representation",
+        body: JSON.stringify(payload)
+      });
+    } else {
+      await supabase("worldcup2026_champion_picks", {
+        method: "POST",
+        prefer: "return=representation",
+        body: JSON.stringify(payload)
+      });
+    }
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     throw httpError(503, "قاعدة البيانات تحتاج تحديث. شغل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");

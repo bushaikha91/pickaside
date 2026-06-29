@@ -22,8 +22,23 @@ const roundMatchLimits = {
   final: 1
 };
 
-const fixedChampionTeams = ["البرازيل", "فرنسا", "اسبانيا", "الارجنتين", "البرتغال", "هولندا"];
-const fixedTopScorers = ["توريس", "ميسي", "هاري كين", "اوليسي", "جوليان", "امبابي", "رافينيا"];
+const fixedChampionTeams = [
+  { name: "البرازيل", image: "https://flagcdn.com/w160/br.png" },
+  { name: "فرنسا", image: "https://flagcdn.com/w160/fr.png" },
+  { name: "اسبانيا", image: "https://flagcdn.com/w160/es.png" },
+  { name: "الارجنتين", image: "https://flagcdn.com/w160/ar.png" },
+  { name: "البرتغال", image: "https://flagcdn.com/w160/pt.png" },
+  { name: "هولندا", image: "https://flagcdn.com/w160/nl.png" }
+];
+const fixedTopScorers = [
+  { name: "توريس", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Ferran%20Torres%20Garc%C3%ADa.png" },
+  { name: "ميسي", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lionel%20Messi%20in%202018.jpg" },
+  { name: "هاري كين", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Harry%20Kane%20in%20Russia%202.jpg" },
+  { name: "اوليسي", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Michael%20Olise%20bayern%202025.jpg" },
+  { name: "جوليان", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Juli%C3%A1n%20%C3%81lvarez%20(footballer)%202023.jpg" },
+  { name: "امبابي", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kylian%20Mbapp%C3%A9.jpg" },
+  { name: "رافينيا", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Raphinha.jpg" }
+];
 
 const laws = {
   r32: "كل مباراة قيمتها 200 نقطة: 150 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. التوقع الصحيح يسترجع 150 نقطة ويحصل على نصيبه من نقاط توقعات الخاسرين، والتوقع الخطأ يسترجع 50 نقطة فقط.",
@@ -425,27 +440,43 @@ function championAddForm(participants, teams, scorers) {
 }
 
 function championPickRow(user, pick) {
+  const team = championOptionByName("team", pick?.champion_team);
+  const scorer = championOptionByName("scorer", pick?.top_scorer);
   return `
     <article class="champion-pick-row">
       <div class="champion-player">
         ${avatarTile(user, "avatar-small")}
         <strong>${escapeHtml(user.name)}</strong>
       </div>
-      <div class="champion-pick-values">
-        <span>الفريق المرشح</span>
-        <strong>${escapeHtml(pick?.champion_team || "-")}</strong>
+      <div class="champion-pick-values media">
+        ${championMediaTile(team, "flag")}
+        <div>
+          <span>الفريق المرشح</span>
+          <strong>${escapeHtml(pick?.champion_team || "-")}</strong>
+        </div>
       </div>
-      <div class="champion-pick-values">
-        <span>هداف البطولة</span>
-        <strong>${escapeHtml(pick?.top_scorer || "-")}</strong>
+      <div class="champion-pick-values media">
+        ${championMediaTile(scorer, "player")}
+        <div>
+          <span>هداف البطولة</span>
+          <strong>${escapeHtml(pick?.top_scorer || "-")}</strong>
+        </div>
       </div>
     </article>
   `;
 }
 
+function championMediaTile(option, type) {
+  if (!option?.image) return `<span class="champion-media ${type}">${type === "flag" ? "?" : "هـ"}</span>`;
+  return `<span class="champion-media ${type}"><img src="${escapeHtml(option.image)}" alt="${escapeHtml(option.name)}" loading="lazy" /></span>`;
+}
+
+function championOptionByName(type, name) {
+  return championOptionsByType(type).find(item => item.name === name);
+}
+
 function championOptionsByType(type) {
-  const options = type === "team" ? fixedChampionTeams : fixedTopScorers;
-  return options.map(name => ({ option_type: type, name }));
+  return type === "team" ? fixedChampionTeams : fixedTopScorers;
 }
 
 function championListModal() {

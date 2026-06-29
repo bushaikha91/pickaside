@@ -464,11 +464,20 @@ async function saveChampionPick(req, res) {
         body: JSON.stringify(payload)
       });
     } else {
-      await supabase("worldcup2026_champion_picks", {
-        method: "POST",
-        prefer: "return=representation",
-        body: JSON.stringify(payload)
-      });
+      try {
+        await supabase("worldcup2026_champion_picks", {
+          method: "POST",
+          prefer: "return=representation",
+          body: JSON.stringify(payload)
+        });
+      } catch (insertError) {
+        if (insertError.status !== 409) throw insertError;
+        await supabase(`worldcup2026_champion_picks?participant_id=eq.${encodeURIComponent(participantId)}`, {
+          method: "PATCH",
+          prefer: "return=representation",
+          body: JSON.stringify(payload)
+        });
+      }
     }
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
@@ -748,12 +757,16 @@ async function supabase(path, options = {}) {
   const payload = text ? JSON.parse(text) : [];
   if (!response.ok) {
     const message = payload.message || payload.hint || "فشل اتصال قاعدة البيانات";
-    if (/worldcup2026_|schema cache|could not find the table|participant_status|password_hash|password_reset_requested_at|avatar_url|team_a_flag|team_b_flag|is_joker|score_a|score_b|champion_options|champion_picks/i.test(message)) {
+    if (isSchemaSetupMessage(message)) {
       throw httpError(503, "قاعدة بيانات كأس العالم تحتاج تحديث. شغل ملف database/worldcup2026-schema.sql في Supabase مرة واحدة.");
     }
     throw httpError(response.status, message);
   }
   return payload;
+}
+
+function isSchemaSetupMessage(message) {
+  return /schema cache|could not find the table|could not find.*column|column .* does not exist|relation .* does not exist/i.test(String(message || ""));
 }
 
 async function readBody(req) {

@@ -107,11 +107,8 @@ async function fetchParticipants() {
 
 async function fetchChampionData() {
   try {
-    const [options, picks] = await Promise.all([
-      supabase("worldcup2026_champion_options?select=*&order=option_type.asc&order=name.asc"),
-      supabase("worldcup2026_champion_picks?select=*&order=updated_at.desc")
-    ]);
-    return { options, picks };
+    const picks = await supabase("worldcup2026_champion_picks?select=*&order=updated_at.desc");
+    return { options: [], picks };
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return { options: [], picks: [] };

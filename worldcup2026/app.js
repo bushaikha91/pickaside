@@ -379,42 +379,67 @@ function championPicksView() {
   const teams = championOptionsByType("team");
   const scorers = championOptionsByType("scorer");
   const picksByParticipant = new Map(state.championPicks.map(item => [item.participant_id, item]));
+  const availableParticipants = approved.filter(user => !picksByParticipant.has(user.id));
+  const pickedParticipants = approved.filter(user => picksByParticipant.has(user.id));
   return `
     <div class="section-title champion-title">
       <div>
         <h2>ترشيحات البطل</h2>
-        <span class="small">ترشيح بطل البطولة وهداف البطولة لكل مشارك</span>
+        <span class="small">أضف كل متسابق مرة واحدة فقط</span>
       </div>
     </div>
+    ${availableParticipants.length ? championAddForm(availableParticipants, teams, scorers) : `<div class="notice">تمت إضافة ترشيحات لكل المتسابقين المقبولين.</div>`}
     <div class="champion-picks-list">
-      ${approved.length ? approved.map(user => championPickRow(user, picksByParticipant.get(user.id), teams, scorers)).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
+      ${pickedParticipants.length ? pickedParticipants.map(user => championPickRow(user, picksByParticipant.get(user.id))).join("") : emptyView("لا توجد ترشيحات مضافة حتى الآن.")}
     </div>
   `;
 }
 
-function championPickRow(user, pick, teams, scorers) {
+function championAddForm(participants, teams, scorers) {
   return `
-    <form class="champion-pick-row" data-champion-pick="${user.id}">
-      <div class="champion-player">
-        ${avatarTile(user, "avatar-small")}
-        <strong>${escapeHtml(user.name)}</strong>
-      </div>
+    <form class="champion-add-card" data-champion-add-pick>
       <label class="field compact-field">
-        <span>بطل البطولة</span>
-        <select name="championTeam">
+        <span>المتسابق</span>
+        <select name="participantId" required>
+          <option value="">اختر المتسابق</option>
+          ${participants.map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="field compact-field">
+        <span>الفريق المرشح</span>
+        <select name="championTeam" required>
           <option value="">اختر الفريق</option>
-          ${teams.map(team => `<option value="${escapeHtml(team.name)}" ${pick?.champion_team === team.name ? "selected" : ""}>${escapeHtml(team.name)}</option>`).join("")}
+          ${teams.map(team => `<option value="${escapeHtml(team.name)}">${escapeHtml(team.name)}</option>`).join("")}
         </select>
       </label>
       <label class="field compact-field">
         <span>هداف البطولة</span>
-        <select name="topScorer">
+        <select name="topScorer" required>
           <option value="">اختر الهداف</option>
-          ${scorers.map(scorer => `<option value="${escapeHtml(scorer.name)}" ${pick?.top_scorer === scorer.name ? "selected" : ""}>${escapeHtml(scorer.name)}</option>`).join("")}
+          ${scorers.map(scorer => `<option value="${escapeHtml(scorer.name)}">${escapeHtml(scorer.name)}</option>`).join("")}
         </select>
       </label>
-      <button class="save-chip" type="submit">حفظ</button>
+      <button class="primary-btn" type="submit">إضافة ترشيح</button>
     </form>
+  `;
+}
+
+function championPickRow(user, pick) {
+  return `
+    <article class="champion-pick-row">
+      <div class="champion-player">
+        ${avatarTile(user, "avatar-small")}
+        <strong>${escapeHtml(user.name)}</strong>
+      </div>
+      <div class="champion-pick-values">
+        <span>الفريق المرشح</span>
+        <strong>${escapeHtml(pick?.champion_team || "-")}</strong>
+      </div>
+      <div class="champion-pick-values">
+        <span>هداف البطولة</span>
+        <strong>${escapeHtml(pick?.top_scorer || "-")}</strong>
+      </div>
+    </article>
   `;
 }
 
@@ -1478,7 +1503,7 @@ function bindApp() {
     });
   });
 
-  document.querySelectorAll("[data-champion-pick]").forEach(form => {
+  document.querySelectorAll("[data-champion-add-pick]").forEach(form => {
     form.addEventListener("submit", async event => {
       event.preventDefault();
       const button = form.querySelector("button[type='submit']");
@@ -1489,19 +1514,19 @@ function bindApp() {
           method: "POST",
           body: JSON.stringify({
             userId: state.currentUser.id,
-            participantId: form.dataset.championPick,
+            participantId: form.elements.participantId.value,
             championTeam: form.elements.championTeam.value,
             topScorer: form.elements.topScorer.value
           })
         });
-        state.notice = "تم حفظ الترشيح.";
+        state.notice = "تمت إضافة الترشيح.";
         await loadData({ silent: true });
       } catch (error) {
         state.error = error.message || "تعذر حفظ الترشيح";
         render();
       } finally {
         button.disabled = false;
-        button.textContent = "حفظ";
+        button.textContent = "إضافة ترشيح";
       }
     });
   });

@@ -74,6 +74,7 @@ const state = {
   rankMovement: {},
   participants: [],
   organizers: [],
+  serverNowOffsetMs: 0,
   loading: true,
   error: "",
   notice: "",
@@ -145,6 +146,7 @@ async function loadData(options = {}) {
     state.championPicks = payload.championPicks || [];
     state.participants = payload.participants || [];
     state.organizers = payload.organizers || [];
+    if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
   } finally {
@@ -899,7 +901,7 @@ function summaryView() {
 }
 
 function matchCard(match, prediction) {
-  const locked = !!match.winner || new Date(match.vote_ends_at) <= new Date();
+  const locked = isVoteClosed(match);
   const selected = prediction?.winner || prediction || "";
   const isJoker = !!prediction?.is_joker;
   const points = state.matchPoints[match.id];
@@ -1213,7 +1215,7 @@ function matchStatusView(match, selected, points, locked) {
 }
 
 function countdownText(value) {
-  const diff = Math.max(0, new Date(value).getTime() - Date.now());
+  const diff = Math.max(0, new Date(value).getTime() - serverNowMs());
   const totalSeconds = Math.floor(diff / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -1230,13 +1232,21 @@ function updateCountdowns() {
   document.querySelectorAll("[data-countdown]").forEach(element => {
     const deadline = element.dataset.countdown;
     const prefix = element.dataset.countdownPrefix || "";
-    const isExpired = new Date(deadline).getTime() <= Date.now();
+    const isExpired = new Date(deadline).getTime() <= serverNowMs();
     element.textContent = isExpired ? "مغلق" : `${prefix}${countdownText(deadline)}`;
     element.classList.toggle("expired", isExpired);
     if (isExpired && element.dataset.wasExpired !== "true") expired = true;
     element.dataset.wasExpired = isExpired ? "true" : "false";
   });
   return expired;
+}
+
+function serverNowMs() {
+  return Date.now() + (state.serverNowOffsetMs || 0);
+}
+
+function isVoteClosed(match) {
+  return !!match.winner || new Date(match.vote_ends_at).getTime() <= serverNowMs();
 }
 
 function bindLogin() {
@@ -1990,7 +2000,7 @@ function showInlineError(errorBox, message) {
 }
 
 function syncCountdownTimer() {
-  const hasOpenMatch = state.currentUser && state.matches.some(match => new Date(match.vote_ends_at) > new Date() && !match.winner);
+  const hasOpenMatch = state.currentUser && state.matches.some(match => !isVoteClosed(match));
   updateCountdowns();
   if (hasOpenMatch && !countdownTimer) {
     countdownTimer = setInterval(() => {

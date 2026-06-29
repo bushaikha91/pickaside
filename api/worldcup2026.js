@@ -77,7 +77,8 @@ async function sendState(req, res) {
     participants,
     organizers,
     championOptions: championData.options,
-    championPicks: championData.picks
+    championPicks: championData.picks,
+    serverNow: new Date().toISOString()
   });
 }
 
@@ -280,8 +281,9 @@ async function savePrediction(req, res) {
 
   const [match] = await supabase(`worldcup2026_matches?id=eq.${encodeURIComponent(matchId)}&limit=1`);
   if (!match) throw httpError(404, "المباراة غير موجودة");
+  const serverNow = new Date();
   if (match.winner) throw httpError(409, "تم إغلاق التصويت بعد اعتماد نتيجة المباراة");
-  if (new Date(match.vote_ends_at) <= new Date()) throw httpError(409, "انتهى وقت التصويت لهذه المباراة");
+  if (!match.vote_ends_at || new Date(match.vote_ends_at) <= serverNow) throw httpError(409, "انتهى وقت التصويت لهذه المباراة");
   if (![match.team_a, match.team_b].includes(winner)) throw httpError(400, "الفائز المختار غير صحيح");
   if (isJoker) await validateJokerPick(userId, match);
 

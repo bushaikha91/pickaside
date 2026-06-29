@@ -83,6 +83,12 @@ create table if not exists public.worldcup2026_predictions (
 alter table public.worldcup2026_predictions
   add column if not exists is_joker boolean not null default false;
 
+revoke insert, update, delete on table public.worldcup2026_predictions from anon;
+revoke insert, update, delete on table public.worldcup2026_predictions from authenticated;
+grant select on table public.worldcup2026_predictions to anon;
+grant select on table public.worldcup2026_predictions to authenticated;
+grant all on table public.worldcup2026_predictions to service_role;
+
 create table if not exists public.worldcup2026_champion_options (
   id uuid primary key default gen_random_uuid(),
   option_type text not null check (option_type in ('team', 'scorer')),

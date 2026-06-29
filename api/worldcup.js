@@ -57,10 +57,11 @@ async function sendState(req, res) {
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
   const tournament = await calculateTournament();
 
-  const [matches, predictions, participants, championData] = await Promise.all([
+  const [matches, predictions, participants, organizers, championData] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026_matches?select=*&order=winner.asc.nullsfirst&order=starts_at.asc") : [],
     userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
     isOrganizer ? fetchParticipants() : [],
+    isOrganizer ? fetchOrganizers() : [],
     isOrganizer ? fetchChampionData() : { options: [], picks: [] }
   ]);
 
@@ -74,6 +75,7 @@ async function sendState(req, res) {
     allMatchStakes: isOrganizer ? tournament.matchStakes : {},
     standings: tournament.standings,
     participants,
+    organizers,
     championOptions: championData.options,
     championPicks: championData.picks
   });
@@ -102,6 +104,15 @@ async function fetchParticipants() {
       if (!isOptionalColumnError(fallbackError)) throw fallbackError;
       return await supabase("worldcup2026_users?role=eq.participant&select=id,name,participant_status,created_at&order=created_at.desc");
     }
+  }
+}
+
+async function fetchOrganizers() {
+  try {
+    return await supabase("worldcup2026_users?role=eq.organizer&select=id,name,avatar_url,created_at&order=created_at.asc");
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return await supabase("worldcup2026_users?role=eq.organizer&select=id,name,created_at&order=created_at.asc");
   }
 }
 

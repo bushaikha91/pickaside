@@ -73,6 +73,7 @@ const state = {
   championPicks: [],
   rankMovement: {},
   participants: [],
+  organizers: [],
   loading: true,
   error: "",
   notice: "",
@@ -143,6 +144,7 @@ async function loadData(options = {}) {
     state.championOptions = payload.championOptions || [];
     state.championPicks = payload.championPicks || [];
     state.participants = payload.participants || [];
+    state.organizers = payload.organizers || [];
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
   } finally {
@@ -370,6 +372,13 @@ function participantsView() {
         ${rejected.map(rejectedRow).join("")}
       </div>
     ` : ""}
+    <div class="section-title" style="margin-top:18px">
+      <h2>المنظمون المسجلون</h2>
+      <span class="small">${state.organizers.length} منظم</span>
+    </div>
+    <div class="participant-list">
+      ${state.organizers.length ? state.organizers.map(organizerRow).join("") : emptyView("لا يوجد منظمون مسجلون.")}
+    </div>
   `;
 }
 
@@ -403,7 +412,7 @@ function championPicksView() {
         <span class="small">أضف كل متسابق مرة واحدة فقط</span>
       </div>
     </div>
-    ${availableParticipants.length ? championAddForm(availableParticipants, teams, scorers) : `<div class="notice">تمت إضافة ترشيحات لكل المتسابقين المقبولين.</div>`}
+    ${availableParticipants.length ? `<button class="primary-btn champion-open-btn" id="championListsBtn" type="button">إضافة ترشيح</button>` : `<div class="notice">تمت إضافة ترشيحات لكل المتسابقين المقبولين.</div>`}
     <div class="champion-picks-list">
       ${pickedParticipants.length ? pickedParticipants.map(user => championPickRow(user, picksByParticipant.get(user.id))).join("") : emptyView("لا توجد ترشيحات مضافة حتى الآن.")}
     </div>
@@ -480,39 +489,19 @@ function championOptionsByType(type) {
 }
 
 function championListModal() {
+  const approved = state.participants.filter(user => user.participant_status === "approved");
+  const picksByParticipant = new Map(state.championPicks.map(item => [item.participant_id, item]));
+  const participants = approved.filter(user => !picksByParticipant.has(user.id));
   const teams = championOptionsByType("team");
   const scorers = championOptionsByType("scorer");
   return `
     <div class="modal-backdrop" data-champion-list-close>
       <section class="modal-card stack champion-list-modal">
         <div class="section-title">
-          <h2>إدارة قوائم الترشيح</h2>
+          <h2>إضافة ترشيح</h2>
           <button class="icon-close" type="button" data-champion-list-x>×</button>
         </div>
-        <form class="champion-option-form" data-champion-option="team">
-          <label class="field">
-            <span>إضافة فريق</span>
-            <input name="name" autocomplete="off" placeholder="مثال: البرازيل" />
-          </label>
-          <button class="primary-btn" type="submit">إضافة الفريق</button>
-        </form>
-        <form class="champion-option-form" data-champion-option="scorer">
-          <label class="field">
-            <span>إضافة هداف</span>
-            <input name="name" autocomplete="off" placeholder="مثال: مبابي" />
-          </label>
-          <button class="primary-btn" type="submit">إضافة الهداف</button>
-        </form>
-        <div class="champion-option-columns">
-          <div>
-            <h3>الفرق</h3>
-            <div class="option-pill-list">${teams.length ? teams.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : `<em>لا توجد فرق</em>`}</div>
-          </div>
-          <div>
-            <h3>الهدافون</h3>
-            <div class="option-pill-list">${scorers.length ? scorers.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : `<em>لا يوجد هدافون</em>`}</div>
-          </div>
-        </div>
+        ${participants.length ? championAddForm(participants, teams, scorers) : `<div class="notice">تمت إضافة ترشيحات لكل المتسابقين المقبولين.</div>`}
       </section>
     </div>
   `;
@@ -558,6 +547,20 @@ function rejectedRow(user) {
         <strong>${escapeHtml(user.name)}</strong>
       </div>
       <span class="status-chip rejected">مرفوض</span>
+    </article>
+  `;
+}
+
+function organizerRow(user) {
+  const isCurrentUser = user.id === state.currentUser?.id;
+  return `
+    <article class="participant-row organizer-row">
+      ${avatarTile(user, "avatar-small")}
+      <div>
+        <strong>${escapeHtml(user.name)}</strong>
+        <span>${isCurrentUser ? "أنت" : "منظم"}</span>
+      </div>
+      <span class="status-chip approved">منظم</span>
     </article>
   `;
 }
@@ -1552,6 +1555,7 @@ function bindApp() {
         });
         state.notice = "تمت إضافة الترشيح.";
         await loadData({ silent: true });
+        state.championListOpen = false;
       } catch (error) {
         state.error = error.message || "تعذر حفظ الترشيح";
         render();

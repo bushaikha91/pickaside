@@ -1580,9 +1580,10 @@ button {
 .champion-add-card,
 .champion-pick-row {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  padding: 12px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -1598,9 +1599,24 @@ button {
 .champion-player {
   display: flex;
   align-items: center;
-  gap: 10px;
+  min-width: 0;
+  gap: 7px;
   color: var(--ink);
   font-weight: 900;
+}
+
+.champion-player strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.champion-pick-row .avatar-small {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
 }
 
 .champion-pick-values {
@@ -1614,15 +1630,17 @@ button {
 .champion-pick-values.media {
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 10px;
+  min-width: 0;
+  gap: 6px;
+  padding: 6px;
 }
 
 .champion-media {
   display: grid;
   place-items: center;
   overflow: hidden;
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
   border: 1px solid #d8dee8;
   color: #fff;
   font-size: 13px;
@@ -1650,9 +1668,18 @@ button {
   font-weight: 800;
 }
 
+.champion-pick-values.media span {
+  display: none;
+}
+
 .champion-pick-values strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--navy);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .compact-field {

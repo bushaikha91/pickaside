@@ -20,6 +20,11 @@ const roundMatchLimits = {
   final: 1
 };
 
+const jokerLimits = {
+  r16: 2,
+  sf: 1
+};
+
 const fixedChampionTeams = [
   { name: "البرازيل", image: "https://flagcdn.com/w160/br.png" },
   { name: "فرنسا", image: "https://flagcdn.com/w160/fr.png" },
@@ -903,7 +908,7 @@ function matchCard(match, prediction) {
   const selected = prediction?.winner || prediction || "";
   const isJoker = !!prediction?.is_joker;
   const points = state.matchPoints[match.id];
-  const canUseJoker = ["r16", "sf"].includes(match.round_id);
+  const canUseJoker = shouldShowJokerButton(match, isJoker);
   const status = participantMatchStatus(match, selected, points, locked);
   return `
     <article class="match-card participant-match-card ${locked ? "locked-card" : ""}">
@@ -937,6 +942,23 @@ function participantChoiceButton(match, team, flagUrl, selected, locked, isJoker
       <span class="participant-pick-circle">${flag}</span>
     </button>
   `;
+}
+
+function shouldShowJokerButton(match, isJoker) {
+  const roundId = normalizeRoundId(match.round_id);
+  const limit = jokerLimits[roundId] || 0;
+  if (!limit) return false;
+  if (isJoker) return true;
+  return usedJokersInRound(roundId) < limit;
+}
+
+function usedJokersInRound(roundId) {
+  const normalizedRoundId = normalizeRoundId(roundId);
+  const matchRounds = new Map(state.matches.map(match => [match.id, normalizeRoundId(match.round_id)]));
+  return Object.entries(state.predictions).filter(([matchId, prediction]) => {
+    const normalizedPrediction = normalizePrediction(prediction);
+    return normalizedPrediction?.is_joker && matchRounds.get(normalizedPrediction.match_id || matchId) === normalizedRoundId;
+  }).length;
 }
 
 function participantMatchStatus(match, selected, points, locked) {

@@ -7,7 +7,6 @@ let deferredInstallPrompt = null;
 const rounds = [
   { id: "r32", name: "دور الـ 32" },
   { id: "r16", name: "دور الـ 16" },
-  { id: "r8", name: "دور الـ 8" },
   { id: "qf", name: "ربع النهائي" },
   { id: "sf", name: "نصف النهائي" },
   { id: "final", name: "النهائي" }
@@ -16,7 +15,6 @@ const rounds = [
 const roundMatchLimits = {
   r32: 16,
   r16: 8,
-  r8: 4,
   qf: 4,
   sf: 2,
   final: 1
@@ -598,7 +596,7 @@ function roundTabs() {
 }
 
 function participantMatchesView() {
-  const matches = sortMatches(state.matches.filter(match => match.round_id === activeRound));
+  const matches = sortMatches(state.matches.filter(match => roundMatchesActiveTab(match, activeRound)));
   return `
     ${summaryView()}
     <div class="section-title">
@@ -613,8 +611,8 @@ function participantMatchesView() {
 }
 
 function manageView() {
-  const matches = sortMatches(state.matches.filter(match => match.round_id === activeRound));
-  const roundLimit = roundMatchLimits[activeRound] || Infinity;
+  const matches = sortMatches(state.matches.filter(match => roundMatchesActiveTab(match, activeRound)));
+  const roundLimit = roundMatchLimits[normalizeRoundId(activeRound)] || Infinity;
   const roundIsFull = matches.length >= roundLimit;
   return `
     <div class="section-title">
@@ -1811,7 +1809,7 @@ function bindApp() {
     try {
       const match = {
         userId: state.currentUser.id,
-        roundId: activeRound,
+        roundId: normalizeRoundId(activeRound),
         teamA: document.querySelector("#teamA").value.trim(),
         teamB: document.querySelector("#teamB").value.trim(),
         teamAFlag: matchFlagState.teamAFlag,
@@ -1820,7 +1818,7 @@ function bindApp() {
         voteEndsAt: datetimeLocalToIso(document.querySelector("#voteEndsAt").value)
       };
       await api("match", { method: "POST", body: JSON.stringify(match) });
-      activeRound = match.roundId;
+      activeRound = normalizeRoundId(match.roundId);
       state.addMatchOpen = false;
       state.notice = "تمت إضافة المباراة في السيرفر.";
       await loadData({ silent: true });
@@ -1972,7 +1970,7 @@ async function saveMatchEdit(form) {
       body: JSON.stringify({
         userId: state.currentUser.id,
         matchId: form.dataset.matchEdit,
-        roundId: activeRound,
+        roundId: normalizeRoundId(activeRound),
         teamA: String(formData.get("teamA") || "").trim(),
         teamB: String(formData.get("teamB") || "").trim(),
         teamAFlag: String(formData.get("teamAFlag") || ""),
@@ -2119,7 +2117,15 @@ function statusLabel(status) {
 }
 
 function roundName(id) {
-  return rounds.find(round => round.id === id)?.name || id;
+  return rounds.find(round => round.id === normalizeRoundId(id))?.name || id;
+}
+
+function normalizeRoundId(id) {
+  return id === "r8" ? "qf" : id;
+}
+
+function roundMatchesActiveTab(match, roundId) {
+  return normalizeRoundId(match.round_id) === normalizeRoundId(roundId);
 }
 
 function sortMatches(matches) {

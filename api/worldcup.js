@@ -5,19 +5,17 @@ const ORGANIZER_CODE = process.env.WORLDCUP2026_ORGANIZER_CODE || "WC2026";
 const ROUND_RULES = {
   r32: { type: "fixed", total: 200, winnerStake: 150, safetyStake: 50 },
   r16: { type: "fixed", total: 300, winnerStake: 250, safetyStake: 50 },
-  r8: { type: "bankroll", matchCount: 4, winnerPercent: 0.9, safetyPercent: 0.1 },
   qf: { type: "bankroll", matchCount: 4, winnerPercent: 0.9, safetyPercent: 0.1 },
   sf: { type: "bankroll", matchCount: 2, winnerPercent: 0.9, safetyPercent: 0.1 },
   final: { type: "final" }
 };
 
-const ROUND_ORDER = ["r32", "r16", "r8", "qf", "sf", "final"];
+const ROUND_ORDER = ["r32", "r16", "qf", "sf", "final"];
 const JOKER_ROUNDS = new Set(["r16", "sf"]);
 const JOKER_LIMITS = { r16: 2, sf: 1 };
 const ROUND_MATCH_LIMITS = {
   r32: 16,
   r16: 8,
-  r8: 4,
   qf: 4,
   sf: 2,
   final: 1
@@ -220,7 +218,7 @@ async function saveMatch(req, res) {
   if (!teamA || !teamB || !body.startsAt || !body.voteEndsAt) throw httpError(400, "بيانات المباراة غير مكتملة");
 
   const payload = {
-    round_id: clean(body.roundId) || "r32",
+    round_id: normalizeRoundId(clean(body.roundId) || "r32"),
     team_a: teamA,
     team_b: teamB,
     starts_at: parseTournamentDate(body.startsAt).toISOString(),
@@ -544,7 +542,7 @@ async function calculateTournament() {
   for (const roundId of ROUND_ORDER) {
     const rule = ROUND_RULES[roundId];
     const roundMatches = matches
-      .filter(match => match.round_id === roundId)
+      .filter(match => normalizeRoundId(match.round_id) === roundId)
       .sort((a, b) => new Date(a.starts_at || 0) - new Date(b.starts_at || 0));
     if (!rule || !roundMatches.length) continue;
 
@@ -713,12 +711,16 @@ function matchPointRow(points, correct, isJoker) {
 }
 
 async function enforceRoundMatchLimit(roundId, matchId = "") {
-  const limit = ROUND_MATCH_LIMITS[roundId];
+  const normalizedRoundId = normalizeRoundId(roundId);
+  const limit = ROUND_MATCH_LIMITS[normalizedRoundId];
   if (!limit) return;
-  const matches = await supabase(`worldcup2026_matches?round_id=eq.${encodeURIComponent(roundId)}&select=id`);
+  const query = normalizedRoundId === "qf"
+    ? "worldcup2026_matches?round_id=in.(r8,qf)&select=id"
+    : `worldcup2026_matches?round_id=eq.${encodeURIComponent(normalizedRoundId)}&select=id`;
+  const matches = await supabase(query);
   const count = matches.filter(match => match.id !== matchId).length;
   if (count >= limit) {
-    throw httpError(409, `لا يمكن إضافة أكثر من ${limit} مباراة في ${roundName(roundId)}`);
+    throw httpError(409, `لا يمكن إضافة أكثر من ${limit} مباراة في ${roundName(normalizedRoundId)}`);
   }
 }
 
@@ -812,11 +814,14 @@ function roundName(id) {
   return ({
     r32: "دور الـ 32",
     r16: "دور الـ 16",
-    r8: "دور الـ 8",
     qf: "ربع النهائي",
     sf: "نصف النهائي",
     final: "النهائي"
-  })[id] || id;
+  })[normalizeRoundId(id)] || id;
+}
+
+function normalizeRoundId(id) {
+  return id === "r8" ? "qf" : id;
 }
 
 function parseTournamentDate(value) {

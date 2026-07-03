@@ -523,6 +523,43 @@ button {
   line-height: 1.2;
 }
 
+.poster-create-btn {
+  display: block;
+  width: 100%;
+  margin: 10px 0 14px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #d21f42, #2167c9 52%, #009368);
+  box-shadow: 0 12px 28px rgba(13, 42, 97, 0.18);
+}
+
+.poster-modal {
+  width: min(100%, 430px);
+  background: #061b46;
+}
+
+.poster-modal .section-title h2 {
+  color: #fff;
+}
+
+.round-poster-canvas {
+  display: block;
+  width: min(100%, 300px);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.poster-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
 .participant-match-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;

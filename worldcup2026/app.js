@@ -87,6 +87,7 @@ const state = {
   championListOpen: false,
   editModalMatch: null,
   resultModalMatch: null,
+  posterRound: null,
   detailParticipantId: null,
   addMatchOpen: false
 };
@@ -286,6 +287,7 @@ function appTemplate() {
     ${state.championListOpen ? championListModal() : ""}
     ${state.editModalMatch ? matchEditModal(state.editModalMatch) : ""}
     ${state.resultModalMatch ? resultModal(state.resultModalMatch) : ""}
+    ${state.posterRound ? roundPosterModal(state.posterRound) : ""}
     ${state.detailParticipantId ? participantDetailModal(state.detailParticipantId) : ""}
     ${state.addMatchOpen ? matchFormModal() : ""}
   `;
@@ -619,6 +621,7 @@ function manageView() {
   const matches = sortMatches(state.matches.filter(match => roundMatchesActiveTab(match, activeRound)));
   const roundLimit = roundMatchLimits[normalizeRoundId(activeRound)] || Infinity;
   const roundIsFull = matches.length >= roundLimit;
+  const posterReady = roundPosterReady(activeRound, matches, roundLimit);
   return `
     <div class="section-title">
       <h2>المباريات</h2>
@@ -628,6 +631,7 @@ function manageView() {
     <button class="add-match-toggle" id="addMatchToggle" type="button" ${roundIsFull ? "disabled" : ""}>
       ${roundIsFull ? `اكتمل عدد مباريات ${roundName(activeRound)} (${roundLimit}/${roundLimit})` : `إضافة مباراة في ${roundName(activeRound)} (${matches.length}/${roundLimit})`}
     </button>
+    ${posterReady ? `<button class="poster-create-btn" data-round-poster type="button">${normalizeRoundId(activeRound) === "final" ? "إنشاء بوستر البطل" : "إنشاء بوستر المتصدر"}</button>` : ""}
     <div class="match-list">
       ${matches.length ? matches.map(managerMatchCardV2).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
@@ -1101,6 +1105,379 @@ function resultModal(matchId) {
   `;
 }
 
+function roundPosterReady(roundId, matches, roundLimit) {
+  return matches.length >= roundLimit && matches.every(match => match.winner);
+}
+
+function roundPosterModal(roundId) {
+  const data = roundPosterData(roundId);
+  if (!data) return "";
+  return `
+    <div class="modal-backdrop" data-poster-modal-close>
+      <section class="modal-card stack poster-modal">
+        <div class="section-title">
+          <h2>${data.isFinal ? "بوستر البطل" : "بوستر المتصدر"}</h2>
+          <button class="icon-close" type="button" data-poster-close>×</button>
+        </div>
+        <canvas id="roundPosterCanvas" class="round-poster-canvas" width="1080" height="1920"></canvas>
+        <div class="poster-actions">
+          <button class="primary-btn" id="downloadPosterBtn" type="button">تحميل الصورة</button>
+          <button class="ghost-btn" id="sharePosterBtn" type="button">مشاركة الصورة</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function roundPosterData(roundId) {
+  const normalizedRoundId = normalizeRoundId(roundId);
+  const leaderboard = roundLeaderboard(normalizedRoundId);
+  const winner = leaderboard[0];
+  if (!winner) return null;
+  const total = winner.correct + winner.wrong;
+  return {
+    ...winner,
+    roundId: normalizedRoundId,
+    roundLabel: posterRoundLabel(normalizedRoundId),
+    title: normalizedRoundId === "final" ? "بطل بطولة التوقعات" : `بطل ${posterRoundLabel(normalizedRoundId)}`,
+    subtitle: normalizedRoundId === "final" ? "بطولة توقعات العالم 2026" : `متصدر ${posterRoundLabel(normalizedRoundId)} في بطولة توقعات العالم 2026`,
+    isFinal: normalizedRoundId === "final",
+    accuracy: total ? Math.round((winner.correct / total) * 100) : 0,
+    correctLabel: `${winner.correct}/${total || 0}`,
+    palette: posterPalette(normalizedRoundId)
+  };
+}
+
+function roundLeaderboard(roundId) {
+  const order = ["r32", "r16", "qf", "sf", "final"];
+  const targetIndex = order.indexOf(normalizeRoundId(roundId));
+  if (targetIndex < 0) return [];
+  const rows = state.standings.map(user => ({
+    id: user.id,
+    name: user.name,
+    avatar_url: user.avatar_url || "",
+    points: 0,
+    correct: 0,
+    wrong: 0
+  }));
+
+  for (let index = 0; index <= targetIndex; index += 1) {
+    const currentRound = order[index];
+    const roundMatches = sortMatches(state.matches.filter(match => normalizeRoundId(match.round_id) === currentRound && match.winner));
+    if (!roundMatches.length) continue;
+    rows.forEach(row => {
+      const pointsInRound = roundMatches.reduce((sum, match) => sum + (state.allMatchPoints[row.id]?.[match.id]?.points || 0), 0);
+      if (currentRound === "r32" || currentRound === "r16") row.points += pointsInRound;
+      else row.points = pointsInRound;
+      roundMatches.forEach(match => {
+        const matchPoint = state.allMatchPoints[row.id]?.[match.id];
+        if (!matchPoint) return;
+        if (matchPoint.correct) row.correct += 1;
+        else row.wrong += 1;
+      });
+    });
+  }
+
+  return rows
+    .map(row => ({ ...row, points: roundPoints(row.points) }))
+    .sort((a, b) => b.points - a.points || b.correct - a.correct || a.wrong - b.wrong)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+function posterRoundLabel(roundId) {
+  return ({
+    r32: "دور الـ 32",
+    r16: "دور الـ 16",
+    qf: "ربع النهائي",
+    sf: "نصف النهائي",
+    final: "النهائي"
+  })[normalizeRoundId(roundId)] || roundName(roundId);
+}
+
+function posterPalette(roundId) {
+  return ({
+    r32: { a: "#08265f", b: "#009368", c: "#2f80ed", accent: "#28d17c" },
+    r16: { a: "#071b4f", b: "#c91f3a", c: "#246bfe", accent: "#ffcf5a" },
+    qf: { a: "#042f4f", b: "#008c7a", c: "#2d5bff", accent: "#6ee7b7" },
+    sf: { a: "#190b4d", b: "#0f8f7d", c: "#d7264f", accent: "#f6c85f" },
+    final: { a: "#061b46", b: "#003d77", c: "#0b1030", accent: "#d9b45f" }
+  })[normalizeRoundId(roundId)] || { a: "#061b46", b: "#003d77", c: "#0b1030", accent: "#28d17c" };
+}
+
+async function renderRoundPoster(roundId) {
+  const canvas = document.querySelector("#roundPosterCanvas");
+  if (!canvas) return;
+  const data = roundPosterData(roundId);
+  if (!data) return;
+  const context = canvas.getContext("2d");
+  await drawRoundPoster(context, canvas.width, canvas.height, data);
+
+  document.querySelector("#downloadPosterBtn")?.addEventListener("click", () => {
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = `worldcup-${data.roundId}-winner.png`;
+    link.click();
+  });
+
+  document.querySelector("#sharePosterBtn")?.addEventListener("click", async () => {
+    if (!navigator.canShare || !navigator.share) {
+      document.querySelector("#downloadPosterBtn")?.click();
+      return;
+    }
+    canvas.toBlob(async blob => {
+      if (!blob) return;
+      const file = new File([blob], `worldcup-${data.roundId}-winner.png`, { type: "image/png" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: data.title, text: `${data.title} - ${data.name}` });
+      } else {
+        document.querySelector("#downloadPosterBtn")?.click();
+      }
+    }, "image/png");
+  });
+}
+
+async function drawRoundPoster(context, width, height, data) {
+  const palette = data.palette;
+  context.clearRect(0, 0, width, height);
+  const background = context.createLinearGradient(0, 0, width, height);
+  background.addColorStop(0, palette.a);
+  background.addColorStop(0.55, palette.c);
+  background.addColorStop(1, "#02091f");
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+
+  drawConfetti(context, width, height, palette);
+  drawStadium(context, width, height, palette);
+  await drawPosterLogo(context, width);
+
+  drawCenteredText(context, "تهانينا للفائز", width / 2, 345, 62, "#fff", 900);
+  drawCenteredText(context, data.subtitle, width / 2, 410, 31, "rgba(255,255,255,.86)", 700);
+  drawLaurelFrame(context, width / 2, 720, 235, palette);
+  await drawWinnerAvatar(context, data, width / 2, 690, 220);
+
+  drawRibbon(context, width / 2, 885, data.isFinal ? "البطل" : "المتصدر", palette);
+  drawCenteredText(context, data.name, width / 2, 1025, 64, "#fff", 900);
+  drawCenteredText(context, "إجمالي النقاط", width / 2, 1090, 26, "rgba(255,255,255,.82)", 700);
+  drawCenteredText(context, posterNumber(data.points), width / 2, 1160, 70, palette.accent, 900);
+  drawStatsPanel(context, data, width, 1320, palette);
+  drawCenteredText(context, data.title, width / 2, 1615, 44, "#fff", 900);
+  drawCenteredText(context, "شكراً لمشاركتك وتوقعاتك في بطولة العالم 2026", width / 2, 1670, 29, "rgba(255,255,255,.8)", 700);
+}
+
+function drawCenteredText(context, text, x, y, size, color, weight = 700) {
+  context.save();
+  context.direction = "rtl";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = color;
+  context.font = `${weight} ${size}px Tahoma, Arial, sans-serif`;
+  context.fillText(text, x, y);
+  context.restore();
+}
+
+function drawConfetti(context, width, height, palette) {
+  const colors = ["#ffffff", palette.accent, "#d7264f", "#009368", "#2f80ed"];
+  for (let i = 0; i < 90; i += 1) {
+    const x = (i * 127) % width;
+    const y = 20 + ((i * 83) % 500);
+    context.save();
+    context.translate(x, y);
+    context.rotate((i % 9) * 0.25);
+    context.fillStyle = colors[i % colors.length];
+    context.globalAlpha = 0.35 + (i % 5) * 0.09;
+    context.fillRect(-5, -10, 10, 20);
+    context.restore();
+  }
+}
+
+function drawStadium(context, width, height, palette) {
+  const glow = context.createRadialGradient(width / 2, 1180, 40, width / 2, 1180, 750);
+  glow.addColorStop(0, "rgba(47,128,237,.35)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 600, width, 720);
+  context.strokeStyle = "rgba(255,255,255,.18)";
+  context.lineWidth = 4;
+  for (let i = 0; i < 8; i += 1) {
+    context.beginPath();
+    context.ellipse(width / 2, 1140 + i * 22, 520 + i * 25, 120 + i * 12, 0, Math.PI, Math.PI * 2);
+    context.stroke();
+  }
+  context.fillStyle = "rgba(255,255,255,.75)";
+  for (let i = 0; i < 48; i += 1) {
+    const x = 80 + (i % 24) * 40;
+    const y = 900 + Math.floor(i / 24) * 58;
+    context.beginPath();
+    context.arc(x, y, 2.8, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.strokeStyle = palette.b;
+  context.lineWidth = 26;
+  context.beginPath();
+  context.arc(-40, 1470, 430, -1.15, -0.15);
+  context.stroke();
+  context.strokeStyle = "#d7264f";
+  context.beginPath();
+  context.arc(width + 40, 1470, 430, Math.PI + 0.15, Math.PI + 1.15);
+  context.stroke();
+}
+
+async function drawPosterLogo(context, width) {
+  const logo = await loadPosterImage("assets/worldcup-logo-wide.jpg");
+  if (logo) {
+    context.drawImage(logo, width / 2 - 230, 125, 460, 142);
+  } else {
+    drawCenteredText(context, "FIFA WORLD CUP 2026", width / 2, 185, 36, "#fff", 900);
+  }
+}
+
+function drawLaurelFrame(context, x, y, radius, palette) {
+  context.save();
+  context.strokeStyle = "#d9b45f";
+  context.lineWidth = 12;
+  context.beginPath();
+  context.arc(x, y, radius, 0.15, Math.PI * 1.85);
+  context.stroke();
+  context.fillStyle = "#f6d77b";
+  for (let side of [-1, 1]) {
+    for (let i = 0; i < 15; i += 1) {
+      const angle = side === -1 ? 2.55 + i * 0.075 : 0.58 - i * 0.075;
+      const lx = x + Math.cos(angle) * (radius + 24);
+      const ly = y - Math.sin(angle) * (radius + 24);
+      context.save();
+      context.translate(lx, ly);
+      context.rotate(side * -0.75 + i * side * 0.03);
+      context.beginPath();
+      context.ellipse(0, 0, 12, 28, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
+  }
+  context.fillStyle = "#f6d77b";
+  context.beginPath();
+  context.moveTo(x - 58, y - radius - 18);
+  context.lineTo(x - 25, y - radius - 80);
+  context.lineTo(x, y - radius - 28);
+  context.lineTo(x + 25, y - radius - 80);
+  context.lineTo(x + 58, y - radius - 18);
+  context.closePath();
+  context.fill();
+  context.restore();
+}
+
+async function drawWinnerAvatar(context, data, x, y, size) {
+  context.save();
+  context.beginPath();
+  context.arc(x, y, size / 2, 0, Math.PI * 2);
+  context.clip();
+  const image = await loadPosterImage(data.avatar_url);
+  if (image) {
+    drawImageCover(context, image, x - size / 2, y - size / 2, size, size);
+  } else {
+    const gradient = context.createLinearGradient(x - size / 2, y - size / 2, x + size / 2, y + size / 2);
+    gradient.addColorStop(0, "#102a67");
+    gradient.addColorStop(1, "#03112d");
+    context.fillStyle = gradient;
+    context.fillRect(x - size / 2, y - size / 2, size, size);
+    drawCenteredText(context, initials(data.name), x, y + 8, 72, "rgba(255,255,255,.72)", 900);
+  }
+  context.restore();
+  context.strokeStyle = "#f6d77b";
+  context.lineWidth = 8;
+  context.beginPath();
+  context.arc(x, y, size / 2 + 4, 0, Math.PI * 2);
+  context.stroke();
+}
+
+function drawImageCover(context, image, x, y, width, height) {
+  const scale = Math.max(width / image.width, height / image.height);
+  const sw = width / scale;
+  const sh = height / scale;
+  const sx = (image.width - sw) / 2;
+  const sy = (image.height - sh) / 2;
+  context.drawImage(image, sx, sy, sw, sh, x, y, width, height);
+}
+
+function drawRibbon(context, x, y, text, palette) {
+  const gradient = context.createLinearGradient(x - 250, y, x + 250, y);
+  gradient.addColorStop(0, "#05173e");
+  gradient.addColorStop(0.5, palette.a);
+  gradient.addColorStop(1, "#05173e");
+  context.fillStyle = gradient;
+  roundRectPath(context, x - 260, y - 48, 520, 96, 30);
+  context.fill();
+  context.strokeStyle = "#d9b45f";
+  context.lineWidth = 3;
+  context.stroke();
+  drawCenteredText(context, text, x, y + 2, 58, "#f6d77b", 900);
+}
+
+function drawStatsPanel(context, data, width, y, palette) {
+  const x = 72;
+  const w = width - 144;
+  const h = 215;
+  context.strokeStyle = "rgba(255,255,255,.24)";
+  context.lineWidth = 2;
+  context.fillStyle = "rgba(3,13,42,.42)";
+  roundRectPath(context, x, y, w, h, 26);
+  context.fill();
+  context.stroke();
+  const stats = [
+    { icon: "◎", value: `${data.accuracy}%`, label: "دقة التوقعات" },
+    { icon: "♕", value: data.correctLabel, label: "جولات صحيحة" },
+    { icon: "↗", value: String(data.rank), label: data.isFinal ? "الترتيب النهائي" : "ترتيب الدور" }
+  ];
+  stats.forEach((item, index) => {
+    const cx = x + w - (index + 0.5) * (w / 3);
+    if (index) {
+      context.strokeStyle = "rgba(255,255,255,.15)";
+      context.beginPath();
+      context.moveTo(x + w - index * (w / 3), y + 35);
+      context.lineTo(x + w - index * (w / 3), y + h - 35);
+      context.stroke();
+    }
+    drawCenteredText(context, item.icon, cx, y + 58, 50, "#fff", 800);
+    drawCenteredText(context, item.value, cx, y + 118, 43, palette.accent, 900);
+    drawCenteredText(context, item.label, cx, y + 168, 25, "rgba(255,255,255,.78)", 700);
+  });
+}
+
+function roundRectPath(context, x, y, width, height, radius) {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.lineTo(x + width - radius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + radius);
+  context.lineTo(x + width, y + height - radius);
+  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  context.lineTo(x + radius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - radius);
+  context.lineTo(x, y + radius);
+  context.quadraticCurveTo(x, y, x + radius, y);
+  context.closePath();
+}
+
+function posterNumber(value) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value || 0);
+}
+
+function roundPoints(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function loadPosterImage(src) {
+  return new Promise(resolve => {
+    if (!src) {
+      resolve(null);
+      return;
+    }
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
 function voterModal(matchId) {
   const match = state.matches.find(item => item.id === matchId);
   if (!match) return "";
@@ -1433,12 +1810,13 @@ function bindApp() {
     render();
   });
 
-  document.querySelectorAll("[data-modal-close], [data-detail-modal-close]").forEach(backdrop => backdrop.addEventListener("click", event => {
+  document.querySelectorAll("[data-modal-close], [data-detail-modal-close], [data-poster-modal-close]").forEach(backdrop => backdrop.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.profileOpen = false;
       state.voterModalMatch = null;
       state.editModalMatch = null;
       state.resultModalMatch = null;
+      state.posterRound = null;
       state.detailParticipantId = null;
       state.championListOpen = false;
       render();
@@ -1455,6 +1833,10 @@ function bindApp() {
     card.addEventListener("touchstart", event => event.stopPropagation(), { passive: true });
   });
 
+  if (state.posterRound) {
+    requestAnimationFrame(() => renderRoundPoster(state.posterRound));
+  }
+
   document.querySelectorAll("[data-match-edit-open]").forEach(button => {
     button.addEventListener("click", () => {
       state.editModalMatch = button.dataset.matchEditOpen;
@@ -1467,6 +1849,11 @@ function bindApp() {
       state.resultModalMatch = button.dataset.resultOpen;
       render();
     });
+  });
+
+  document.querySelector("[data-round-poster]")?.addEventListener("click", () => {
+    state.posterRound = normalizeRoundId(activeRound);
+    render();
   });
 
   document.querySelectorAll("[data-participant-detail]").forEach(button => {
@@ -1483,6 +1870,11 @@ function bindApp() {
 
   document.querySelector("[data-result-close]")?.addEventListener("click", () => {
     state.resultModalMatch = null;
+    render();
+  });
+
+  document.querySelector("[data-poster-close]")?.addEventListener("click", () => {
+    state.posterRound = null;
     render();
   });
 
@@ -2036,7 +2428,7 @@ function syncCountdownTimer() {
 }
 
 function hasOpenModal() {
-  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.detailParticipantId || state.addMatchOpen);
+  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen);
 }
 
 function bindSwipeRows() {

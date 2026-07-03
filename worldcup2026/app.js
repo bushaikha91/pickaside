@@ -1121,7 +1121,7 @@ function roundPosterModal(roundId) {
         </div>
         <canvas id="roundPosterCanvas" class="round-poster-canvas" width="1080" height="1920"></canvas>
         <div class="poster-actions">
-          <button class="primary-btn" id="downloadPosterBtn" type="button">تحميل الصورة</button>
+          <button class="primary-btn" id="savePosterBtn" type="button">حفظ البوستر</button>
           <button class="ghost-btn" id="sharePosterBtn" type="button">مشاركة الصورة</button>
         </div>
       </section>
@@ -1212,28 +1212,48 @@ async function renderRoundPoster(roundId) {
   const context = canvas.getContext("2d");
   await drawRoundPoster(context, canvas.width, canvas.height, data);
 
-  document.querySelector("#downloadPosterBtn")?.addEventListener("click", () => {
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = `worldcup-${data.roundId}-winner.png`;
-    link.click();
+  document.querySelector("#savePosterBtn")?.addEventListener("click", async () => {
+    await savePosterImage(canvas, data);
   });
 
   document.querySelector("#sharePosterBtn")?.addEventListener("click", async () => {
-    if (!navigator.canShare || !navigator.share) {
-      document.querySelector("#downloadPosterBtn")?.click();
-      return;
-    }
-    canvas.toBlob(async blob => {
-      if (!blob) return;
-      const file = new File([blob], `worldcup-${data.roundId}-winner.png`, { type: "image/png" });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: data.title, text: `${data.title} - ${data.name}` });
-      } else {
-        document.querySelector("#downloadPosterBtn")?.click();
+    await sharePosterImage(canvas, data);
+  });
+}
+
+async function savePosterImage(canvas, data) {
+  const shared = await sharePosterImage(canvas, data, "احفظ الصورة من خيارات المشاركة");
+  if (!shared) downloadPosterImage(canvas, data);
+}
+
+async function sharePosterImage(canvas, data, text = "") {
+  const file = await posterCanvasFile(canvas, data);
+  if (!file || !navigator.canShare || !navigator.share || !navigator.canShare({ files: [file] })) return false;
+  await navigator.share({
+    files: [file],
+    title: data.title,
+    text: text || `${data.title} - ${data.name}`
+  });
+  return true;
+}
+
+function posterCanvasFile(canvas, data) {
+  return new Promise(resolve => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        resolve(null);
+        return;
       }
+      resolve(new File([blob], `worldcup-${data.roundId}-winner.png`, { type: "image/png" }));
     }, "image/png");
   });
+}
+
+function downloadPosterImage(canvas, data) {
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png");
+  link.download = `worldcup-${data.roundId}-winner.png`;
+  link.click();
 }
 
 async function drawRoundPoster(context, width, height, data) {

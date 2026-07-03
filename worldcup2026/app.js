@@ -1,16 +1,15 @@
-﻿const SESSION_KEY = "wc2026-live-session-v1";
+const SESSION_KEY = "wc2026-live-session-v1";
 const RANK_SNAPSHOT_KEY = "wc2026-rank-snapshot-v1";
 const APP_TIME_ZONE = "Asia/Dubai";
 const APP_TIME_OFFSET_MINUTES = 4 * 60;
-const WINNER_POSTER_TEMPLATE = "assets/winner-poster-template.jpg";
 let deferredInstallPrompt = null;
 
 const rounds = [
-  { id: "r32", name: "Ø¯ÙˆØ± Ø§Ù„Ù€ 32" },
-  { id: "r16", name: "Ø¯ÙˆØ± Ø§Ù„Ù€ 16" },
-  { id: "qf", name: "Ø±Ø¨Ø¹ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ" },
-  { id: "sf", name: "Ù†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ" },
-  { id: "final", name: "Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ" }
+  { id: "r32", name: "دور الـ 32" },
+  { id: "r16", name: "دور الـ 16" },
+  { id: "qf", name: "ربع النهائي" },
+  { id: "sf", name: "نصف النهائي" },
+  { id: "final", name: "النهائي" }
 ];
 
 const roundMatchLimits = {
@@ -27,42 +26,42 @@ const jokerLimits = {
 };
 
 const fixedChampionTeams = [
-  { name: "Ø§Ù„Ø¨Ø±Ø§Ø²ÙŠÙ„", image: "https://flagcdn.com/w160/br.png" },
-  { name: "ÙØ±Ù†Ø³Ø§", image: "https://flagcdn.com/w160/fr.png" },
-  { name: "Ø§Ø³Ø¨Ø§Ù†ÙŠØ§", image: "https://flagcdn.com/w160/es.png" },
-  { name: "Ø§Ù„Ø§Ø±Ø¬Ù†ØªÙŠÙ†", image: "https://flagcdn.com/w160/ar.png" },
-  { name: "Ø§Ù„Ø¨Ø±ØªØºØ§Ù„", image: "https://flagcdn.com/w160/pt.png" },
-  { name: "Ù‡ÙˆÙ„Ù†Ø¯Ø§", image: "https://flagcdn.com/w160/nl.png" }
+  { name: "البرازيل", image: "https://flagcdn.com/w160/br.png" },
+  { name: "فرنسا", image: "https://flagcdn.com/w160/fr.png" },
+  { name: "اسبانيا", image: "https://flagcdn.com/w160/es.png" },
+  { name: "الارجنتين", image: "https://flagcdn.com/w160/ar.png" },
+  { name: "البرتغال", image: "https://flagcdn.com/w160/pt.png" },
+  { name: "هولندا", image: "https://flagcdn.com/w160/nl.png" }
 ];
 const fixedTopScorers = [
-  { name: "ØªÙˆØ±ÙŠØ³", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Ferran%20Torres%20Garc%C3%ADa.png" },
-  { name: "Ù…ÙŠØ³ÙŠ", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lionel%20Messi%20in%202018.jpg" },
-  { name: "Ù‡Ø§Ø±ÙŠ ÙƒÙŠÙ†", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Harry%20Kane%20in%20Russia%202.jpg" },
-  { name: "Ø§ÙˆÙ„ÙŠØ³ÙŠ", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Michael%20Olise%20bayern%202025.jpg" },
-  { name: "Ø¬ÙˆÙ„ÙŠØ§Ù†", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Juli%C3%A1n%20%C3%81lvarez%20(footballer)%202023.jpg" },
-  { name: "Ø§Ù…Ø¨Ø§Ø¨ÙŠ", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kylian%20Mbapp%C3%A9.jpg" },
-  { name: "Ø±Ø§ÙÙŠÙ†ÙŠØ§", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Raphinha.jpg" }
+  { name: "توريس", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Ferran%20Torres%20Garc%C3%ADa.png" },
+  { name: "ميسي", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lionel%20Messi%20in%202018.jpg" },
+  { name: "هاري كين", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Harry%20Kane%20in%20Russia%202.jpg" },
+  { name: "اوليسي", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Michael%20Olise%20bayern%202025.jpg" },
+  { name: "جوليان", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Juli%C3%A1n%20%C3%81lvarez%20(footballer)%202023.jpg" },
+  { name: "امبابي", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kylian%20Mbapp%C3%A9.jpg" },
+  { name: "رافينيا", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Raphinha.jpg" }
 ];
 
 const laws = {
-  r32: "ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© Ù‚ÙŠÙ…ØªÙ‡Ø§ 200 Ù†Ù‚Ø·Ø©: 150 Ù†Ù‚Ø·Ø© Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„ÙØ§Ø¦Ø² Ùˆ50 Ù†Ù‚Ø·Ø© Ù„Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„Ø£Ù‚Ù„. Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­ ÙŠØ³ØªØ±Ø¬Ø¹ 150 Ù†Ù‚Ø·Ø© ÙˆÙŠØ­ØµÙ„ Ø¹Ù„Ù‰ Ù†ØµÙŠØ¨Ù‡ Ù…Ù† Ù†Ù‚Ø§Ø· ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø®Ø§Ø³Ø±ÙŠÙ†ØŒ ÙˆØ§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„Ø®Ø·Ø£ ÙŠØ³ØªØ±Ø¬Ø¹ 50 Ù†Ù‚Ø·Ø© ÙÙ‚Ø·.",
-  r16: "ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© Ù‚ÙŠÙ…ØªÙ‡Ø§ 300 Ù†Ù‚Ø·Ø©: 250 Ù†Ù‚Ø·Ø© Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„ÙØ§Ø¦Ø² Ùˆ50 Ù†Ù‚Ø·Ø© Ù„Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„Ø£Ù‚Ù„. Ù†Ù‚Ø§Ø· Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø®Ø§Ø·Ø¦Ø© ØªØªØ¬Ù…Ø¹ ÙˆØªØªÙˆØ²Ø¹ Ø¨Ø§Ù„ØªØ³Ø§ÙˆÙŠ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­.",
-  r8: "Ø±ØµÙŠØ¯ ÙƒÙ„ Ù…Ø´Ø§Ø±Ùƒ Ù‚Ø¨Ù„ Ø§Ù„Ø¯ÙˆØ± ÙŠÙ†Ù‚Ø³Ù… Ø¹Ù„Ù‰ 4 Ù…Ø¨Ø§Ø±ÙŠØ§Øª. ÙÙŠ ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© 90% Ù…Ù† Ø­ØµØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© Ù„Ù„ÙØ§Ø¦Ø² Ùˆ10% Ù„Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„Ø£Ù‚Ù„ØŒ ÙˆÙ†Ù‚Ø§Ø· Ø§Ù„Ø®Ø³Ø§Ø±Ø© ØªØªÙˆØ²Ø¹ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­.",
-  qf: "Ø±Ø¨Ø¹ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠØ¹Ù…Ù„ Ø¨Ù†ÙØ³ Ù†Ø¸Ø§Ù… Ø¯ÙˆØ± Ø§Ù„Ù€ 8: Ø§Ù„Ø±ØµÙŠØ¯ ÙŠÙ†Ù‚Ø³Ù… Ø¹Ù„Ù‰ 4 Ù…Ø¨Ø§Ø±ÙŠØ§ØªØŒ 90% Ù„Ù„ÙØ§Ø¦Ø² Ùˆ10% Ù„Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„Ø£Ù‚Ù„ØŒ Ù…Ø¹ ØªÙˆØ²ÙŠØ¹ Ø®Ø³Ø§Ø¦Ø± Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø®Ø§Ø·Ø¦Ø© Ø¹Ù„Ù‰ Ø§Ù„ÙØ§Ø¦Ø²ÙŠÙ†.",
-  sf: "Ø±ØµÙŠØ¯ ÙƒÙ„ Ù…Ø´Ø§Ø±Ùƒ Ù‚Ø¨Ù„ Ù†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠÙ†Ù‚Ø³Ù… Ø¹Ù„Ù‰ Ù…Ø¨Ø§Ø±Ø§ØªÙŠÙ†. ÙÙŠ ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© 90% Ù„Ù„ÙØ§Ø¦Ø² Ùˆ10% Ù„Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„Ø£Ù‚Ù„ØŒ ÙˆØ®Ø³Ø§Ø¦Ø± Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø®Ø§Ø·Ø¦Ø© ØªØªÙˆØ²Ø¹ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­.",
-  final: "ÙÙŠ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠØ°Ù‡Ø¨ ÙƒØ§Ù…Ù„ Ø±ØµÙŠØ¯ Ø§Ù„Ù…Ø´Ø§Ø±Ùƒ Ù„ØªØ±Ø´ÙŠØ­ Ø§Ù„ÙØ§Ø¦Ø². Ø¨Ø¹Ø¯ Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ù†ØªÙŠØ¬Ø©ØŒ Ø£Ø±ØµØ¯Ø© Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„Ø®Ø§Ø·Ø¦ ØªØªÙˆØ²Ø¹ Ø¨Ø§Ù„ØªØ³Ø§ÙˆÙŠ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­ ÙˆÙŠØ­Ø¯Ø¯ Ø§Ù„Ø¨Ø·Ù„."
+  r32: "كل مباراة قيمتها 200 نقطة: 150 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. التوقع الصحيح يسترجع 150 نقطة ويحصل على نصيبه من نقاط توقعات الخاسرين، والتوقع الخطأ يسترجع 50 نقطة فقط.",
+  r16: "كل مباراة قيمتها 300 نقطة: 250 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. نقاط التوقعات الخاطئة تتجمع وتتوزع بالتساوي على أصحاب التوقع الصحيح.",
+  r8: "رصيد كل مشارك قبل الدور ينقسم على 4 مباريات. في كل مباراة 90% من حصة المباراة للفائز و10% للترشيح الأقل، ونقاط الخسارة تتوزع على أصحاب التوقع الصحيح.",
+  qf: "ربع النهائي يعمل بنفس نظام دور الـ 8: الرصيد ينقسم على 4 مباريات، 90% للفائز و10% للترشيح الأقل، مع توزيع خسائر التوقعات الخاطئة على الفائزين.",
+  sf: "رصيد كل مشارك قبل نصف النهائي ينقسم على مباراتين. في كل مباراة 90% للفائز و10% للترشيح الأقل، وخسائر التوقعات الخاطئة تتوزع على أصحاب التوقع الصحيح.",
+  final: "في النهائي يذهب كامل رصيد المشارك لترشيح الفائز. بعد إدخال النتيجة، أرصدة أصحاب التوقع الخاطئ تتوزع بالتساوي على أصحاب التوقع الصحيح ويحدد البطل."
 };
 
 const displayLaws = {
-  r32: "ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© Ù‚ÙŠÙ…ØªÙ‡Ø§ 200 Ù†Ù‚Ø·Ø©. Ø¹Ù†Ø¯ Ø§Ø®ØªÙŠØ§Ø± Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ ÙÙˆØ²Ù‡ ÙŠØªÙ… ÙˆØ¶Ø¹ 150 Ù†Ù‚Ø·Ø© Ø¹Ù„Ù‰ Ø§Ù„ÙØ§Ø¦Ø² Ùˆ50 Ù†Ù‚Ø·Ø© Ø¹Ù„Ù‰ Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø¢Ø®Ø±. Ø¥Ø°Ø§ ÙƒØ§Ù† ØªÙˆÙ‚Ø¹Ùƒ ØµØ­ÙŠØ­Ø§Ù‹ ØªØ­ØµÙ„ Ø¹Ù„Ù‰ 150 Ù†Ù‚Ø·Ø©ØŒ ÙˆØªÙÙ„ØºÙ‰ Ø§Ù„Ù€ 50 Ù†Ù‚Ø·Ø© Ø§Ù„Ø®Ø§ØµØ© Ø¨ØªØ±Ø´ÙŠØ­ Ø§Ù„Ø®Ø³Ø§Ø±Ø© ÙˆÙ„Ø§ ØªØ¯Ø®Ù„ ÙÙŠ Ø¨ÙˆÙ„ Ø§Ù„Ø®Ø³Ø§Ø±Ø©. Ø¥Ø°Ø§ ÙƒØ§Ù† ØªÙˆÙ‚Ø¹Ùƒ Ø®Ø·Ø£ ØªØ­ØµÙ„ Ø¹Ù„Ù‰ 50 Ù†Ù‚Ø·Ø© ÙÙ‚Ø·ØŒ ÙˆØªØ°Ù‡Ø¨ Ø§Ù„Ù€ 150 Ù†Ù‚Ø·Ø© Ø¥Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹ Ù†Ù‚Ø§Ø· Ø§Ù„Ø®Ø§Ø³Ø±ÙŠÙ† Ù„ØªÙˆØ²Ø¹ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­.",
-  r16: "ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© Ù‚ÙŠÙ…ØªÙ‡Ø§ 300 Ù†Ù‚Ø·Ø©. Ø¹Ù†Ø¯ Ø§Ø®ØªÙŠØ§Ø± Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ ÙÙˆØ²Ù‡ ÙŠØªÙ… ÙˆØ¶Ø¹ 250 Ù†Ù‚Ø·Ø© Ø¹Ù„Ù‰ Ø§Ù„ÙØ§Ø¦Ø² Ùˆ50 Ù†Ù‚Ø·Ø© Ø¹Ù„Ù‰ Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø¢Ø®Ø±. Ø¥Ø°Ø§ ÙƒØ§Ù† ØªÙˆÙ‚Ø¹Ùƒ ØµØ­ÙŠØ­Ø§Ù‹ ØªØ­ØµÙ„ Ø¹Ù„Ù‰ 250 Ù†Ù‚Ø·Ø©ØŒ ÙˆØªÙÙ„ØºÙ‰ Ø§Ù„Ù€ 50 Ù†Ù‚Ø·Ø© Ø§Ù„Ø®Ø§ØµØ© Ø¨ØªØ±Ø´ÙŠØ­ Ø§Ù„Ø®Ø³Ø§Ø±Ø© ÙˆÙ„Ø§ ØªØ¯Ø®Ù„ ÙÙŠ Ø¨ÙˆÙ„ Ø§Ù„Ø®Ø³Ø§Ø±Ø©. Ø¥Ø°Ø§ ÙƒØ§Ù† ØªÙˆÙ‚Ø¹Ùƒ Ø®Ø·Ø£ ØªØ­ØµÙ„ Ø¹Ù„Ù‰ 50 Ù†Ù‚Ø·Ø© ÙÙ‚Ø·ØŒ ÙˆØªØ°Ù‡Ø¨ Ø§Ù„Ù€ 250 Ù†Ù‚Ø·Ø© Ù„ØªÙˆØ²Ø¹ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­. Ø§Ù„Ø¬ÙˆÙƒØ± Ù…ØªØ§Ø­ ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ù„Ù…Ø¨Ø§Ø±Ø§ØªÙŠÙ† ÙÙ‚Ø·.",
-  r8: "Ø±ØµÙŠØ¯ ÙƒÙ„ Ù…Ø´Ø§Ø±Ùƒ Ù‚Ø¨Ù„ Ø¨Ø¯Ø§ÙŠØ© Ø§Ù„Ø¯ÙˆØ± ÙŠÙ‚Ø³Ù… Ø¹Ù„Ù‰ 4 Ù…Ø¨Ø§Ø±ÙŠØ§Øª. ÙÙŠ ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© ÙŠØ°Ù‡Ø¨ 90% Ù…Ù† Ø­ØµØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© Ù„Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø°ÙŠ ØªØªÙˆÙ‚Ø¹ ÙÙˆØ²Ù‡ØŒ Ùˆ10% Ù„Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø¢Ø®Ø±. Ø¥Ø°Ø§ ÙƒØ§Ù† ØªÙˆÙ‚Ø¹Ùƒ ØµØ­ÙŠØ­Ø§Ù‹ ØªØ­ØµÙ„ Ø¹Ù„Ù‰ Ø­ØµØ© Ø§Ù„Ù€ 90% ÙˆØªÙÙ„ØºÙ‰ Ø­ØµØ© Ø§Ù„Ù€ 10% ÙˆÙ„Ø§ ØªØ¯Ø®Ù„ ÙÙŠ Ø¨ÙˆÙ„ Ø§Ù„Ø®Ø³Ø§Ø±Ø©. Ù†Ù‚Ø§Ø· Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø®Ø§Ø·Ø¦Ø© ÙÙ‚Ø· ØªØ¬Ù…Ø¹ ÙˆØªÙˆØ²Ø¹ Ø¨Ø§Ù„ØªØ³Ø§ÙˆÙŠ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­ ÙÙŠ Ù†ÙØ³ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©.",
-  qf: "Ø±Ø¨Ø¹ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠØ¹Ù…Ù„ Ø¨Ù†ÙØ³ Ù†Ø¸Ø§Ù… Ø¯ÙˆØ± Ø§Ù„Ù€ 8: Ø±ØµÙŠØ¯ Ø§Ù„Ù„Ø§Ø¹Ø¨ Ù‚Ø¨Ù„ Ø§Ù„Ø¯ÙˆØ± ÙŠÙ‚Ø³Ù… Ø¹Ù„Ù‰ 4 Ù…Ø¨Ø§Ø±ÙŠØ§ØªØŒ ÙˆØ¯Ø§Ø®Ù„ ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© 90% Ù„Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ ÙÙˆØ²Ù‡ Ùˆ10% Ù„Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø¢Ø®Ø±. Ø­ØµØ© Ø§Ù„Ø®Ø³Ø§Ø±Ø© Ù„Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­ ØªÙÙ„ØºÙ‰ØŒ ÙˆÙ†Ù‚Ø§Ø· Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø®Ø§Ø·Ø¦Ø© ÙÙ‚Ø· ØªÙˆØ²Ø¹ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­ Ø¨Ø¹Ø¯ Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù†ØªÙŠØ¬Ø©.",
-  sf: "Ø±ØµÙŠØ¯ ÙƒÙ„ Ù…Ø´Ø§Ø±Ùƒ Ù‚Ø¨Ù„ Ù†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠÙ‚Ø³Ù… Ø¹Ù„Ù‰ Ù…Ø¨Ø§Ø±Ø§ØªÙŠÙ†. ÙÙŠ ÙƒÙ„ Ù…Ø¨Ø§Ø±Ø§Ø© ÙŠØ°Ù‡Ø¨ 90% Ù…Ù† Ø­ØµØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© Ù„Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ ÙÙˆØ²Ù‡ Ùˆ10% Ù„Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø¢Ø®Ø±. Ø­ØµØ© Ø§Ù„Ø®Ø³Ø§Ø±Ø© Ù„Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­ ØªÙÙ„ØºÙ‰ØŒ ÙˆÙ†Ù‚Ø§Ø· Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø®Ø§Ø·Ø¦Ø© ÙÙ‚Ø· ØªÙˆØ²Ø¹ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­. Ø§Ù„Ø¬ÙˆÙƒØ± Ù…ØªØ§Ø­ ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ù„Ù…Ø¨Ø§Ø±Ø§Ø© ÙˆØ§Ø­Ø¯Ø© ÙÙ‚Ø·.",
-  final: "ÙÙŠ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠØ© ÙŠØ¶Ø¹ ÙƒÙ„ Ù…Ø´Ø§Ø±Ùƒ ÙƒØ§Ù…Ù„ Ø±ØµÙŠØ¯Ù‡ Ø¹Ù„Ù‰ Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø°ÙŠ ÙŠØªÙˆÙ‚Ø¹ ÙÙˆØ²Ù‡. Ø¨Ø¹Ø¯ Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù†ØªÙŠØ¬Ø©ØŒ Ø£Ø±ØµØ¯Ø© Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„Ø®Ø§Ø·Ø¦ ØªÙˆØ²Ø¹ Ø¨Ø§Ù„ØªØ³Ø§ÙˆÙŠ Ø¹Ù„Ù‰ Ø£ØµØ­Ø§Ø¨ Ø§Ù„ØªÙˆÙ‚Ø¹ Ø§Ù„ØµØ­ÙŠØ­ØŒ ÙˆØ¨Ù†Ø§Ø¡Ù‹ Ø¹Ù„Ù‰ Ø§Ù„Ø±ØµÙŠØ¯ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠØªØ­Ø¯Ø¯ Ø¨Ø·Ù„ Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©."
+  r32: "كل مباراة قيمتها 200 نقطة. عند اختيار الفريق المتوقع فوزه يتم وضع 150 نقطة على الفائز و50 نقطة على الفريق الآخر. إذا كان توقعك صحيحاً تحصل على 150 نقطة، وتُلغى الـ 50 نقطة الخاصة بترشيح الخسارة ولا تدخل في بول الخسارة. إذا كان توقعك خطأ تحصل على 50 نقطة فقط، وتذهب الـ 150 نقطة إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح.",
+  r16: "كل مباراة قيمتها 300 نقطة. عند اختيار الفريق المتوقع فوزه يتم وضع 250 نقطة على الفائز و50 نقطة على الفريق الآخر. إذا كان توقعك صحيحاً تحصل على 250 نقطة، وتُلغى الـ 50 نقطة الخاصة بترشيح الخسارة ولا تدخل في بول الخسارة. إذا كان توقعك خطأ تحصل على 50 نقطة فقط، وتذهب الـ 250 نقطة لتوزع على أصحاب التوقع الصحيح. الجوكر متاح في هذا الدور لمباراتين فقط.",
+  r8: "رصيد كل مشارك قبل بداية الدور يقسم على 4 مباريات. في كل مباراة يذهب 90% من حصة المباراة للفريق الذي تتوقع فوزه، و10% للفريق الآخر. إذا كان توقعك صحيحاً تحصل على حصة الـ 90% وتُلغى حصة الـ 10% ولا تدخل في بول الخسارة. نقاط التوقعات الخاطئة فقط تجمع وتوزع بالتساوي على أصحاب التوقع الصحيح في نفس المباراة.",
+  qf: "ربع النهائي يعمل بنفس نظام دور الـ 8: رصيد اللاعب قبل الدور يقسم على 4 مباريات، وداخل كل مباراة 90% للفريق المتوقع فوزه و10% للفريق الآخر. حصة الخسارة للتوقع الصحيح تُلغى، ونقاط التوقعات الخاطئة فقط توزع على أصحاب التوقع الصحيح بعد اعتماد النتيجة.",
+  sf: "رصيد كل مشارك قبل نصف النهائي يقسم على مباراتين. في كل مباراة يذهب 90% من حصة المباراة للفريق المتوقع فوزه و10% للفريق الآخر. حصة الخسارة للتوقع الصحيح تُلغى، ونقاط التوقعات الخاطئة فقط توزع على أصحاب التوقع الصحيح. الجوكر متاح في هذا الدور لمباراة واحدة فقط.",
+  final: "في المباراة النهائية يضع كل مشارك كامل رصيده على الفريق الذي يتوقع فوزه. بعد اعتماد النتيجة، أرصدة أصحاب التوقع الخاطئ توزع بالتساوي على أصحاب التوقع الصحيح، وبناءً على الرصيد النهائي يتحدد بطل البطولة."
 };
 
-const jokerLaw = "Ø§Ù„Ø¬ÙˆÙƒØ± Ù…ØªØ§Ø­ ÙÙŠ Ø¯ÙˆØ± Ø§Ù„Ù€ 16 ÙˆÙ†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙÙ‚Ø·. ÙÙŠ Ø¯ÙˆØ± Ø§Ù„Ù€ 16 ÙŠÙ…Ù„Ùƒ ÙƒÙ„ Ù…Ø´Ø§Ø±Ùƒ Ø¬ÙˆÙƒØ±ÙŠÙ† ÙŠÙ…ÙƒÙ† ØªÙØ¹ÙŠÙ„Ù‡Ù…Ø§ Ø¹Ù„Ù‰ Ù…Ø¨Ø§Ø±Ø§ØªÙŠÙ† Ù…Ø®ØªÙ„ÙØªÙŠÙ†ØŒ ÙˆÙÙŠ Ù†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙŠÙ…Ù„Ùƒ Ø¬ÙˆÙƒØ±Ø§Ù‹ ÙˆØ§Ø­Ø¯Ø§Ù‹ ÙÙ‚Ø·. ÙŠØ¬Ø¨ ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¬ÙˆÙƒØ± Ù‚Ø¨Ù„ Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„ØªØµÙˆÙŠØª Ù„Ù„Ù…Ø¨Ø§Ø±Ø§Ø©. Ø¥Ø°Ø§ ÙƒØ§Ù† ØªÙˆÙ‚Ø¹ Ø§Ù„Ø¬ÙˆÙƒØ± ØµØ­ÙŠØ­Ø§Ù‹ØŒ ÙŠØªÙ… Ù…Ø¶Ø§Ø¹ÙØ© Ù†Ù‚Ø§Ø· Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© Ã—2. Ø¥Ø°Ø§ ÙƒØ§Ù† Ø§Ù„ØªÙˆÙ‚Ø¹ Ø®Ø·Ø£ØŒ ØªØ¨Ù‚Ù‰ Ø®Ø³Ø§Ø±Ø© Ø§Ù„Ù†Ù‚Ø§Ø· Ø­Ø³Ø¨ Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„Ø¯ÙˆØ± ÙˆÙ„Ø§ ÙŠØ¹Ø·ÙŠ Ø§Ù„Ø¬ÙˆÙƒØ± Ù†Ù‚Ø§Ø·Ø§Ù‹ Ø¥Ø¶Ø§ÙÙŠØ©.";
+const jokerLaw = "الجوكر متاح في دور الـ 16 ونصف النهائي فقط. في دور الـ 16 يملك كل مشارك جوكرين يمكن تفعيلهما على مباراتين مختلفتين، وفي نصف النهائي يملك جوكراً واحداً فقط. يجب تفعيل الجوكر قبل إغلاق التصويت للمباراة. إذا كان توقع الجوكر صحيحاً، يتم مضاعفة نقاط هذه المباراة ×2. إذا كان التوقع خطأ، تبقى خسارة النقاط حسب قانون الدور ولا يعطي الجوكر نقاطاً إضافية.";
 
 const state = {
   currentUser: readSession(),
@@ -116,7 +115,7 @@ async function api(action, options = {}) {
     ...options
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "ØªØ¹Ø°Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø³ÙŠØ±ÙØ±");
+  if (!response.ok) throw new Error(payload.error || "تعذر الاتصال بالسيرفر");
   return payload;
 }
 
@@ -153,7 +152,7 @@ async function loadData(options = {}) {
     state.organizers = payload.organizers || [];
     if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
   } catch (error) {
-    state.error = error.message || "ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©";
+    state.error = error.message || "تعذر تحميل بيانات البطولة";
   } finally {
     state.loading = false;
     render();
@@ -177,76 +176,76 @@ function loginTemplate() {
   return `
     <section class="hero">
       <div class="brand-row">
-        <div class="logo-tile"><img src="assets/worldcup-icon-192.png" alt="Ø´Ø¹Ø§Ø± ÙƒØ£Ø³ Ø§Ù„Ø¹Ø§Ù„Ù… 2026" /></div>
-        <span class="pill">Ø¨Ø·ÙˆÙ„Ø© Ù…Ø¨Ø§Ø´Ø±Ø©</span>
+        <div class="logo-tile"><img src="assets/worldcup-icon-192.png" alt="شعار كأس العالم 2026" /></div>
+        <span class="pill">بطولة مباشرة</span>
       </div>
       <img class="hero-logo" src="assets/worldcup-logo-wide.jpg" alt="FIFA World Cup 2026" />
-      <h1>ÙƒØ£Ø³ Ø§Ù„Ø¹Ø§Ù„Ù… 2026</h1>
-      <p>ØªÙˆÙ‚Ø¹Ø§Øª ÙˆÙ†ØªØ§Ø¦Ø¬ ÙˆØªØ±ØªÙŠØ¨ Ù…Ø¨Ø§Ø´Ø± Ù…Ø­ÙÙˆØ¸ Ø¹Ù„Ù‰ Ø§Ù„Ø³ÙŠØ±ÙØ± Ù„ÙƒÙ„ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†.</p>
+      <h1>كأس العالم 2026</h1>
+      <p>توقعات ونتائج وترتيب مباشر محفوظ على السيرفر لكل المشاركين.</p>
     </section>
     <section class="content">
       <form class="panel" id="loginForm">
-        <h2>Ø¯Ø®ÙˆÙ„ Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©</h2>
-        <p class="small" id="authHint">Ø§Ø¯Ø®Ù„ Ø¨Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±. Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨ Ù…Ø·Ù„ÙˆØ¨ Ø£ÙˆÙ„ Ù…Ø±Ø© ÙÙ‚Ø·.</p>
+        <h2>دخول البطولة</h2>
+        <p class="small" id="authHint">ادخل برقم الهاتف وكلمة المرور. إنشاء الحساب مطلوب أول مرة فقط.</p>
         <div id="loginError" class="notice danger-notice hidden"></div>
         <div class="field">
-          <span>Ù†ÙˆØ¹ Ø§Ù„Ø¹Ù…Ù„ÙŠØ©</span>
+          <span>نوع العملية</span>
           <div class="role-grid">
-            <button class="role-option active" type="button" data-auth-mode="login">Ø¯Ø®ÙˆÙ„</button>
-            <button class="role-option" type="button" data-auth-mode="create">Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨</button>
+            <button class="role-option active" type="button" data-auth-mode="login">دخول</button>
+            <button class="role-option" type="button" data-auth-mode="create">إنشاء حساب</button>
           </div>
         </div>
         <label class="field hidden" id="nameField">
-          <span>Ø§Ù„Ø§Ø³Ù…</span>
-          <input id="name" autocomplete="name" placeholder="Ù…Ø«Ø§Ù„: Ø¹Ø¨Ø¯Ø§Ù„Ù„Ù‡" />
+          <span>الاسم</span>
+          <input id="name" autocomplete="name" placeholder="مثال: عبدالله" />
         </label>
         <label class="field">
-          <span>Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„Ù…ØªØ­Ø±Ùƒ</span>
+          <span>رقم الهاتف المتحرك</span>
           <input id="phone" required inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" />
         </label>
         <label class="field">
-          <span>ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±</span>
-          <input id="password" required type="password" autocomplete="current-password" placeholder="ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±" />
+          <span>كلمة المرور</span>
+          <input id="password" required type="password" autocomplete="current-password" placeholder="كلمة المرور" />
         </label>
         <div class="field hidden" id="roleField">
-          <span>Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ©</span>
+          <span>الصلاحية</span>
           <div class="role-grid">
-            <button class="role-option active" type="button" data-role="participant">Ù…Ø´Ø§Ø±Ùƒ</button>
-            <button class="role-option" type="button" data-role="organizer">Ù…Ù†Ø¸Ù…</button>
+            <button class="role-option active" type="button" data-role="participant">مشارك</button>
+            <button class="role-option" type="button" data-role="organizer">منظم</button>
           </div>
         </div>
         <label class="field hidden" id="organizerCodeField">
-          <span>ÙƒÙˆØ¯ Ø§Ù„Ù…Ù†Ø¸Ù…</span>
-          <input id="organizerCode" autocomplete="one-time-code" placeholder="Ø§Ø¯Ø®Ù„ ÙƒÙˆØ¯ Ø§Ù„Ù…Ù†Ø¸Ù…" />
+          <span>كود المنظم</span>
+          <input id="organizerCode" autocomplete="one-time-code" placeholder="ادخل كود المنظم" />
         </label>
         <input id="role" type="hidden" value="participant" />
         <input id="mode" type="hidden" value="login" />
-        <button class="primary-btn" id="loginBtn" type="submit">Ø¯Ø®ÙˆÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚</button>
-        <button class="forgot-link" id="forgotPasswordToggle" type="button">Ù†Ø³ÙŠØª ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±ØŸ</button>
+        <button class="primary-btn" id="loginBtn" type="submit">دخول التطبيق</button>
+        <button class="forgot-link" id="forgotPasswordToggle" type="button">نسيت كلمة المرور؟</button>
       </form>
 
       <form class="panel password-reset-panel hidden" id="passwordResetForm">
-        <h2>Ø¥Ø¹Ø§Ø¯Ø© Ø¶Ø¨Ø· ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±</h2>
-        <p class="small">Ø§Ø¯Ø®Ù„ Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„Ù…Ø³Ø¬Ù„ØŒ ÙˆØ³ÙŠØ¸Ù‡Ø± Ø§Ù„Ø·Ù„Ø¨ Ø¹Ù†Ø¯ Ø§Ù„Ù…Ù†Ø¸Ù… Ù„ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ù…Ø±ÙˆØ± Ø¬Ø¯ÙŠØ¯Ø©.</p>
+        <h2>إعادة ضبط كلمة المرور</h2>
+        <p class="small">ادخل رقم الهاتف المسجل، وسيظهر الطلب عند المنظم لتعيين كلمة مرور جديدة.</p>
         <div id="passwordResetMessage" class="notice hidden"></div>
         <label class="field">
-          <span>Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„Ù…ØªØ­Ø±Ùƒ</span>
+          <span>رقم الهاتف المتحرك</span>
           <input id="resetPhone" required inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" />
         </label>
-        <button class="primary-btn" id="passwordResetBtn" type="submit">Ø¥Ø±Ø³Ø§Ù„ Ø·Ù„Ø¨ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ø¶Ø¨Ø·</button>
+        <button class="primary-btn" id="passwordResetBtn" type="submit">إرسال طلب إعادة الضبط</button>
       </form>
 
       <section class="install-panel">
         <div>
-          <h2>ØªÙ†Ø²ÙŠÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚</h2>
-          <p>Ø«Ø¨Ù‘Øª ØµÙØ­Ø© Ø§Ù„Ø¨Ø·ÙˆÙ„Ø© Ø¹Ù„Ù‰ Ø´Ø§Ø´Ø© Ø§Ù„Ù‡Ø§ØªÙ Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù…Ù‡Ø§ ÙƒØªØ·Ø¨ÙŠÙ‚ Ù…Ø³ØªÙ‚Ù„.</p>
+          <h2>تنزيل التطبيق</h2>
+          <p>ثبّت صفحة البطولة على شاشة الهاتف لاستخدامها كتطبيق مستقل.</p>
         </div>
         <div class="install-actions">
-          <button class="install-btn android-install" id="androidInstallBtn" type="button">ØªÙ†Ø²ÙŠÙ„ Ù„Ù„Ø£Ù†Ø¯Ø±ÙˆÙŠØ¯</button>
-          <button class="install-btn ios-install" id="iosInstallBtn" type="button">ØªÙ†Ø²ÙŠÙ„ Ù„Ù„Ø¢ÙŠÙÙˆÙ†</button>
+          <button class="install-btn android-install" id="androidInstallBtn" type="button">تنزيل للأندرويد</button>
+          <button class="install-btn ios-install" id="iosInstallBtn" type="button">تنزيل للآيفون</button>
         </div>
         <div class="install-help" id="installHelp">
-          Ø¹Ù„Ù‰ Ø§Ù„Ø¢ÙŠÙÙˆÙ†: Ø§ÙØªØ­ Ø§Ù„Ø±Ø§Ø¨Ø· Ù…Ù† SafariØŒ Ø§Ø¶ØºØ· Ø²Ø± Ø§Ù„Ù…Ø´Ø§Ø±ÙƒØ©ØŒ Ø«Ù… Ø§Ø®ØªØ± Add to Home Screen.
+          على الآيفون: افتح الرابط من Safari، اضغط زر المشاركة، ثم اختر Add to Home Screen.
         </div>
       </section>
     </section>
@@ -256,11 +255,11 @@ function loginTemplate() {
 function appTemplate() {
   const roleTabs = state.currentUser.role === "organizer"
     ? `
-      <button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">Ø¥Ø¯Ø§Ø±Ø©</button>
-      <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">Ø§Ù„Ø·Ù„Ø¨Ø§Øª</button>
-      <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ØªØ±Ø´ÙŠØ­Ø§Øª Ø§Ù„Ø¨Ø·Ù„</button>
+      <button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>
+      <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
+      <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ترشيحات البطل</button>
     `
-    : `<button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">Ø§Ù„Ù…Ø¨Ø§Ø±ÙŠØ§Øª</button>`;
+    : `<button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>`;
 
   return `
     <header class="topbar">
@@ -268,15 +267,15 @@ function appTemplate() {
         ${avatarTile(state.currentUser, "top-logo")}
         <div class="user-meta">
           <strong>${escapeHtml(state.currentUser.name)}</strong>
-          <span>${state.currentUser.role === "organizer" ? "Ù…Ù†Ø¸Ù… Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©" : statusLabel(state.currentUser.participant_status)}</span>
+          <span>${state.currentUser.role === "organizer" ? "منظم البطولة" : statusLabel(state.currentUser.participant_status)}</span>
         </div>
       </button>
-      <button class="pill" id="logoutBtn">Ø®Ø±ÙˆØ¬</button>
+      <button class="pill" id="logoutBtn">خروج</button>
     </header>
     <nav class="tabs ${state.currentUser.role === "organizer" ? "organizer-tabs" : ""}">
       ${roleTabs}
-      <button class="tab ${activeTab === "standings" ? "active" : ""}" data-tab="standings">Ø§Ù„ØªØ±ØªÙŠØ¨</button>
-      <button class="tab ${activeTab === "laws" ? "active" : ""}" data-tab="laws">Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ†</button>
+      <button class="tab ${activeTab === "standings" ? "active" : ""}" data-tab="standings">الترتيب</button>
+      <button class="tab ${activeTab === "laws" ? "active" : ""}" data-tab="laws">القوانين</button>
     </nav>
     <section class="content">
       ${noticeView()}
@@ -311,22 +310,22 @@ function profileModal() {
     <div class="modal-backdrop" data-modal-close>
       <form class="modal-card stack profile-panel" id="profileForm">
         <div class="section-title">
-          <h2>Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ</h2>
-          <button class="icon-close" type="button" data-profile-close>Ã—</button>
+          <h2>الملف الشخصي</h2>
+          <button class="icon-close" type="button" data-profile-close>×</button>
         </div>
         <div class="profile-photo-row">
           ${avatarTile(state.currentUser, "avatar-large", "profileAvatarPreview")}
           <label class="field image-upload-field">
-            <span>Ø§Ø®ØªÙŠØ§Ø± ØµÙˆØ±Ø©</span>
+            <span>اختيار صورة</span>
             <input id="profileAvatar" type="file" accept="image/*" />
           </label>
         </div>
         <div id="profileError" class="notice danger-notice hidden"></div>
         <label class="field">
-          <span>Ø§Ù„Ø§Ø³Ù…</span>
+          <span>الاسم</span>
           <input id="profileName" required autocomplete="name" value="${escapeHtml(state.currentUser.name)}" />
         </label>
-        <button class="primary-btn" type="submit">Ø­ÙØ¸ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„</button>
+        <button class="primary-btn" type="submit">حفظ التعديل</button>
       </form>
     </div>
   `;
@@ -336,10 +335,10 @@ function participantStatusView() {
   const rejected = state.currentUser.participant_status === "rejected";
   return `
     <section class="panel waiting-panel">
-      <span class="status-chip ${rejected ? "rejected" : ""}">${rejected ? "ØªÙ… Ø±ÙØ¶ Ø§Ù„Ø·Ù„Ø¨" : "Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ù…ÙˆØ§ÙÙ‚Ø© Ø§Ù„Ù…Ù†Ø¸Ù…"}</span>
-      <h2>${rejected ? "Ù„Ù… ÙŠØªÙ… Ù‚Ø¨ÙˆÙ„ Ø¯Ø®ÙˆÙ„Ùƒ" : "Ø·Ù„Ø¨Ùƒ ÙˆØµÙ„ Ù„Ù„Ù…Ù†Ø¸Ù…"}</h2>
-      <p class="small">${rejected ? "ÙŠÙ…ÙƒÙ†Ùƒ ØªÙ‚Ø¯ÙŠÙ… Ø·Ù„Ø¨ Ø§Ù†Ø¶Ù…Ø§Ù… Ø¬Ø¯ÙŠØ¯ØŒ ÙˆØ³ÙŠØ¸Ù‡Ø± Ø§Ù„Ø·Ù„Ø¨ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰ Ø¹Ù†Ø¯ Ø§Ù„Ù…Ù†Ø¸Ù…." : "Ø¨Ø¹Ø¯ Ù‚Ø¨ÙˆÙ„Ùƒ Ø³ØªØ¸Ù‡Ø± Ù„Ùƒ Ø§Ù„Ù…Ø¨Ø§Ø±ÙŠØ§Øª ÙˆØ§Ù„ØªÙˆÙ‚Ø¹Ø§Øª ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø¹Ù†Ø¯ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©."}</p>
-      <button class="primary-btn" id="${rejected ? "reapplyBtn" : "retryBtn"}" type="button">${rejected ? "ØªÙ‚Ø¯ÙŠÙ… Ø·Ù„Ø¨ Ø§Ù†Ø¶Ù…Ø§Ù…" : "ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø­Ø§Ù„Ø©"}</button>
+      <span class="status-chip ${rejected ? "rejected" : ""}">${rejected ? "تم رفض الطلب" : "بانتظار موافقة المنظم"}</span>
+      <h2>${rejected ? "لم يتم قبول دخولك" : "طلبك وصل للمنظم"}</h2>
+      <p class="small">${rejected ? "يمكنك تقديم طلب انضمام جديد، وسيظهر الطلب مرة أخرى عند المنظم." : "بعد قبولك ستظهر لك المباريات والتوقعات تلقائياً عند إعادة المحاولة."}</p>
+      <button class="primary-btn" id="${rejected ? "reapplyBtn" : "retryBtn"}" type="button">${rejected ? "تقديم طلب انضمام" : "تحديث الحالة"}</button>
     </section>
   `;
 }
@@ -351,41 +350,41 @@ function participantsView() {
   const passwordResetRequests = state.participants.filter(user => user.password_reset_requested_at);
   return `
     <div class="section-title">
-      <h2>Ø·Ù„Ø¨Ø§Øª Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†</h2>
-      <span class="small">${pending.length} Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ù…ÙˆØ§ÙÙ‚Ø©</span>
+      <h2>طلبات المشاركين</h2>
+      <span class="small">${pending.length} بانتظار الموافقة</span>
     </div>
     <div class="participant-list">
-      ${pending.length ? pending.map(requestRow).join("") : emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ Ø·Ù„Ø¨Ø§Øª Ø¬Ø¯ÙŠØ¯Ø©.")}
+      ${pending.length ? pending.map(requestRow).join("") : emptyView("لا توجد طلبات جديدة.")}
     </div>
     <div class="section-title" style="margin-top:18px">
-      <h2>Ø¥Ø¹Ø§Ø¯Ø© ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±</h2>
-      <span class="small">${passwordResetRequests.length} Ø·Ù„Ø¨</span>
+      <h2>إعادة كلمة المرور</h2>
+      <span class="small">${passwordResetRequests.length} طلب</span>
     </div>
     <div class="participant-list">
-      ${passwordResetRequests.length ? passwordResetRequests.map(passwordResetRow).join("") : emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ Ø·Ù„Ø¨Ø§Øª Ø¥Ø¹Ø§Ø¯Ø© ÙƒÙ„Ù…Ø© Ù…Ø±ÙˆØ±.")}
+      ${passwordResetRequests.length ? passwordResetRequests.map(passwordResetRow).join("") : emptyView("لا توجد طلبات إعادة كلمة مرور.")}
     </div>
     <div class="section-title" style="margin-top:18px">
-      <h2>Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙˆÙ†</h2>
-      <span class="small">${approved.length} Ù…Ù‚Ø¨ÙˆÙ„</span>
+      <h2>المشاركون</h2>
+      <span class="small">${approved.length} مقبول</span>
     </div>
     <div class="participant-list">
-      ${approved.length ? approved.map(participantRow).join("") : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø´Ø§Ø±ÙƒÙˆÙ† Ù…Ù‚Ø¨ÙˆÙ„ÙˆÙ† Ø­ØªÙ‰ Ø§Ù„Ø¢Ù†.")}
+      ${approved.length ? approved.map(participantRow).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
     </div>
     ${rejected.length ? `
       <div class="section-title" style="margin-top:18px">
-        <h2>Ø§Ù„Ù…Ø±ÙÙˆØ¶ÙˆÙ†</h2>
-        <span class="small">${rejected.length} Ù…Ø±ÙÙˆØ¶</span>
+        <h2>المرفوضون</h2>
+        <span class="small">${rejected.length} مرفوض</span>
       </div>
       <div class="participant-list">
         ${rejected.map(rejectedRow).join("")}
       </div>
     ` : ""}
     <div class="section-title" style="margin-top:18px">
-      <h2>Ø§Ù„Ù…Ù†Ø¸Ù…ÙˆÙ† Ø§Ù„Ù…Ø³Ø¬Ù„ÙˆÙ†</h2>
-      <span class="small">${state.organizers.length} Ù…Ù†Ø¸Ù…</span>
+      <h2>المنظمون المسجلون</h2>
+      <span class="small">${state.organizers.length} منظم</span>
     </div>
     <div class="participant-list">
-      ${state.organizers.length ? state.organizers.map(organizerRow).join("") : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ù†Ø¸Ù…ÙˆÙ† Ù…Ø³Ø¬Ù„ÙˆÙ†.")}
+      ${state.organizers.length ? state.organizers.map(organizerRow).join("") : emptyView("لا يوجد منظمون مسجلون.")}
     </div>
   `;
 }
@@ -399,8 +398,8 @@ function requestRow(user) {
       </div>
       <span class="status-chip ${user.participant_status}">${statusLabel(user.participant_status)}</span>
       <div class="participant-actions">
-        <button class="mini-btn approve" data-participant-status="approved" data-participant-id="${user.id}">Ù‚Ø¨ÙˆÙ„</button>
-        <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">Ø±ÙØ¶</button>
+        <button class="mini-btn approve" data-participant-status="approved" data-participant-id="${user.id}">قبول</button>
+        <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">رفض</button>
       </div>
     </article>
   `;
@@ -416,13 +415,13 @@ function championPicksView() {
   return `
     <div class="section-title champion-title">
       <div>
-        <h2>ØªØ±Ø´ÙŠØ­Ø§Øª Ø§Ù„Ø¨Ø·Ù„</h2>
-        <span class="small">Ø£Ø¶Ù ÙƒÙ„ Ù…ØªØ³Ø§Ø¨Ù‚ Ù…Ø±Ø© ÙˆØ§Ø­Ø¯Ø© ÙÙ‚Ø·</span>
+        <h2>ترشيحات البطل</h2>
+        <span class="small">أضف كل متسابق مرة واحدة فقط</span>
       </div>
     </div>
-    ${availableParticipants.length ? `<button class="primary-btn champion-open-btn" id="championListsBtn" type="button">Ø¥Ø¶Ø§ÙØ© ØªØ±Ø´ÙŠØ­</button>` : `<div class="notice">ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© ØªØ±Ø´ÙŠØ­Ø§Øª Ù„ÙƒÙ„ Ø§Ù„Ù…ØªØ³Ø§Ø¨Ù‚ÙŠÙ† Ø§Ù„Ù…Ù‚Ø¨ÙˆÙ„ÙŠÙ†.</div>`}
+    ${availableParticipants.length ? `<button class="primary-btn champion-open-btn" id="championListsBtn" type="button">إضافة ترشيح</button>` : `<div class="notice">تمت إضافة ترشيحات لكل المتسابقين المقبولين.</div>`}
     <div class="champion-picks-list">
-      ${pickedParticipants.length ? pickedParticipants.map(user => championPickRow(user, picksByParticipant.get(user.id))).join("") : emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ ØªØ±Ø´ÙŠØ­Ø§Øª Ù…Ø¶Ø§ÙØ© Ø­ØªÙ‰ Ø§Ù„Ø¢Ù†.")}
+      ${pickedParticipants.length ? pickedParticipants.map(user => championPickRow(user, picksByParticipant.get(user.id))).join("") : emptyView("لا توجد ترشيحات مضافة حتى الآن.")}
     </div>
   `;
 }
@@ -431,27 +430,27 @@ function championAddForm(participants, teams, scorers) {
   return `
     <form class="champion-add-card" data-champion-add-pick>
       <label class="field compact-field">
-        <span>Ø§Ù„Ù…ØªØ³Ø§Ø¨Ù‚</span>
+        <span>المتسابق</span>
         <select name="participantId" required>
-          <option value="">Ø§Ø®ØªØ± Ø§Ù„Ù…ØªØ³Ø§Ø¨Ù‚</option>
+          <option value="">اختر المتسابق</option>
           ${participants.map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)}</option>`).join("")}
         </select>
       </label>
       <label class="field compact-field">
-        <span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ù…Ø±Ø´Ø­</span>
+        <span>الفريق المرشح</span>
         <select name="championTeam" required>
-          <option value="">Ø§Ø®ØªØ± Ø§Ù„ÙØ±ÙŠÙ‚</option>
+          <option value="">اختر الفريق</option>
           ${teams.map(team => `<option value="${escapeHtml(team.name)}">${escapeHtml(team.name)}</option>`).join("")}
         </select>
       </label>
       <label class="field compact-field">
-        <span>Ù‡Ø¯Ø§Ù Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©</span>
+        <span>هداف البطولة</span>
         <select name="topScorer" required>
-          <option value="">Ø§Ø®ØªØ± Ø§Ù„Ù‡Ø¯Ø§Ù</option>
+          <option value="">اختر الهداف</option>
           ${scorers.map(scorer => `<option value="${escapeHtml(scorer.name)}">${escapeHtml(scorer.name)}</option>`).join("")}
         </select>
       </label>
-      <button class="primary-btn" type="submit">Ø¥Ø¶Ø§ÙØ© ØªØ±Ø´ÙŠØ­</button>
+      <button class="primary-btn" type="submit">إضافة ترشيح</button>
     </form>
   `;
 }
@@ -468,14 +467,14 @@ function championPickRow(user, pick) {
       <div class="champion-pick-values media">
         ${championMediaTile(team, "flag")}
         <div>
-          <span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ù…Ø±Ø´Ø­</span>
+          <span>الفريق المرشح</span>
           <strong>${escapeHtml(pick?.champion_team || "-")}</strong>
         </div>
       </div>
       <div class="champion-pick-values media">
         ${championMediaTile(scorer, "player")}
         <div>
-          <span>Ù‡Ø¯Ø§Ù Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©</span>
+          <span>هداف البطولة</span>
           <strong>${escapeHtml(pick?.top_scorer || "-")}</strong>
         </div>
       </div>
@@ -484,7 +483,7 @@ function championPickRow(user, pick) {
 }
 
 function championMediaTile(option, type) {
-  if (!option?.image) return `<span class="champion-media ${type}">${type === "flag" ? "?" : "Ù‡Ù€"}</span>`;
+  if (!option?.image) return `<span class="champion-media ${type}">${type === "flag" ? "?" : "هـ"}</span>`;
   return `<span class="champion-media ${type}"><img src="${escapeHtml(option.image)}" alt="${escapeHtml(option.name)}" loading="lazy" /></span>`;
 }
 
@@ -506,10 +505,10 @@ function championListModal() {
     <div class="modal-backdrop" data-champion-list-close>
       <section class="modal-card stack champion-list-modal">
         <div class="section-title">
-          <h2>Ø¥Ø¶Ø§ÙØ© ØªØ±Ø´ÙŠØ­</h2>
-          <button class="icon-close" type="button" data-champion-list-x>Ã—</button>
+          <h2>إضافة ترشيح</h2>
+          <button class="icon-close" type="button" data-champion-list-x>×</button>
         </div>
-        ${participants.length ? championAddForm(participants, teams, scorers) : `<div class="notice">ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© ØªØ±Ø´ÙŠØ­Ø§Øª Ù„ÙƒÙ„ Ø§Ù„Ù…ØªØ³Ø§Ø¨Ù‚ÙŠÙ† Ø§Ù„Ù…Ù‚Ø¨ÙˆÙ„ÙŠÙ†.</div>`}
+        ${participants.length ? championAddForm(participants, teams, scorers) : `<div class="notice">تمت إضافة ترشيحات لكل المتسابقين المقبولين.</div>`}
       </section>
     </div>
   `;
@@ -521,12 +520,12 @@ function passwordResetRow(user) {
       ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        <span>Ø·Ù„Ø¨ Ø¥Ø¹Ø§Ø¯Ø© ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±</span>
+        <span>طلب إعادة كلمة المرور</span>
       </div>
-      <span class="status-chip pending">Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„ØªØ¹ÙŠÙŠÙ†</span>
+      <span class="status-chip pending">بانتظار التعيين</span>
       <div class="participant-actions password-reset-actions">
-        <input name="password" required minlength="4" type="text" autocomplete="new-password" placeholder="ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©" />
-        <button class="mini-btn approve" type="submit">Ø­ÙØ¸ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±</button>
+        <input name="password" required minlength="4" type="text" autocomplete="new-password" placeholder="كلمة المرور الجديدة" />
+        <button class="mini-btn approve" type="submit">حفظ كلمة المرور</button>
       </div>
     </form>
   `;
@@ -535,13 +534,13 @@ function passwordResetRow(user) {
 function participantRow(user) {
   return `
     <article class="swipe-row" data-swipe-row>
-      <button class="swipe-delete" data-participant-delete="${user.id}" data-participant-name="${escapeHtml(user.name)}">Ø­Ø°Ù</button>
+      <button class="swipe-delete" data-participant-delete="${user.id}" data-participant-name="${escapeHtml(user.name)}">حذف</button>
       <div class="participant-row swipe-content" data-swipe-content>
         ${avatarTile(user, "avatar-small")}
         <div>
           <strong>${escapeHtml(user.name)}</strong>
         </div>
-        <span class="status-chip approved">Ù…Ù‚Ø¨ÙˆÙ„</span>
+        <span class="status-chip approved">مقبول</span>
       </div>
     </article>
   `;
@@ -554,7 +553,7 @@ function rejectedRow(user) {
       <div>
         <strong>${escapeHtml(user.name)}</strong>
       </div>
-      <span class="status-chip rejected">Ù…Ø±ÙÙˆØ¶</span>
+      <span class="status-chip rejected">مرفوض</span>
     </article>
   `;
 }
@@ -566,9 +565,9 @@ function organizerRow(user) {
       ${avatarTile(user, "avatar-small")}
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        <span>${isCurrentUser ? "Ø£Ù†Øª" : "Ù…Ù†Ø¸Ù…"}</span>
+        <span>${isCurrentUser ? "أنت" : "منظم"}</span>
       </div>
-      <span class="status-chip approved">Ù…Ù†Ø¸Ù…</span>
+      <span class="status-chip approved">منظم</span>
     </article>
   `;
 }
@@ -581,13 +580,13 @@ function noticeView() {
 }
 
 function loadingView() {
-  return `<div class="empty">Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¨Ø·ÙˆÙ„Ø© Ù…Ù† Ø§Ù„Ø³ÙŠØ±ÙØ±...</div>`;
+  return `<div class="empty">جاري تحميل بيانات البطولة من السيرفر...</div>`;
 }
 
 function errorView(message) {
   return `
     <div class="notice danger-notice">${escapeHtml(message)}</div>
-    <button class="primary-btn" id="retryBtn" type="button">Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©</button>
+    <button class="primary-btn" id="retryBtn" type="button">إعادة المحاولة</button>
   `;
 }
 
@@ -608,12 +607,12 @@ function participantMatchesView() {
   return `
     ${summaryView()}
     <div class="section-title">
-      <h2>Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…Ø¨Ø§Ø±ÙŠØ§Øª</h2>
-      <span class="small">Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ù…Ø­ÙÙˆØ¸Ø© Ø¹Ù„Ù‰ Ø§Ù„Ø³ÙŠØ±ÙØ±</span>
+      <h2>قائمة المباريات</h2>
+      <span class="small">التوقعات محفوظة على السيرفر</span>
     </div>
     ${roundTabs()}
     <div class="match-list">
-      ${matches.length ? matches.map(match => matchCard(match, state.predictions[match.id])).join("") : emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¨Ø§Ø±ÙŠØ§Øª ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ø­Ø§Ù„ÙŠØ§Ù‹.")}
+      ${matches.length ? matches.map(match => matchCard(match, state.predictions[match.id])).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
   `;
 }
@@ -625,16 +624,16 @@ function manageView() {
   const posterReady = roundPosterReady(activeRound, matches, roundLimit);
   return `
     <div class="section-title">
-      <h2>Ø§Ù„Ù…Ø¨Ø§Ø±ÙŠØ§Øª</h2>
-      <span class="small">ØªÙ†Ø¹ÙƒØ³ Ø¹Ù„Ù‰ ÙƒÙ„ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†</span>
+      <h2>المباريات</h2>
+      <span class="small">تنعكس على كل المشاركين</span>
     </div>
     ${roundTabs()}
     <button class="add-match-toggle" id="addMatchToggle" type="button" ${roundIsFull ? "disabled" : ""}>
-      ${roundIsFull ? `Ø§ÙƒØªÙ…Ù„ Ø¹Ø¯Ø¯ Ù…Ø¨Ø§Ø±ÙŠØ§Øª ${roundName(activeRound)} (${roundLimit}/${roundLimit})` : `Ø¥Ø¶Ø§ÙØ© Ù…Ø¨Ø§Ø±Ø§Ø© ÙÙŠ ${roundName(activeRound)} (${matches.length}/${roundLimit})`}
+      ${roundIsFull ? `اكتمل عدد مباريات ${roundName(activeRound)} (${roundLimit}/${roundLimit})` : `إضافة مباراة في ${roundName(activeRound)} (${matches.length}/${roundLimit})`}
     </button>
-    ${posterReady ? `<button class="poster-create-btn" data-round-poster type="button">${normalizeRoundId(activeRound) === "final" ? "Ø¥Ù†Ø´Ø§Ø¡ Ø¨ÙˆØ³ØªØ± Ø§Ù„Ø¨Ø·Ù„" : "Ø¥Ù†Ø´Ø§Ø¡ Ø¨ÙˆØ³ØªØ± Ø§Ù„Ù…ØªØµØ¯Ø±"}</button>` : ""}
+    ${posterReady ? `<button class="poster-create-btn" data-round-poster type="button">${normalizeRoundId(activeRound) === "final" ? "إنشاء بوستر البطل" : "إنشاء بوستر المتصدر"}</button>` : ""}
     <div class="match-list">
-      ${matches.length ? matches.map(managerMatchCardV2).join("") : emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¨Ø§Ø±ÙŠØ§Øª ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ø­Ø§Ù„ÙŠØ§Ù‹.")}
+      ${matches.length ? matches.map(managerMatchCardV2).join("") : emptyView("لا توجد مباريات في هذا الدور حالياً.")}
     </div>
   `;
 }
@@ -644,8 +643,8 @@ function matchFormModal() {
     <div class="modal-backdrop">
       <section class="modal-card stack add-match-modal">
         <div class="section-title">
-          <h2>Ø¥Ø¶Ø§ÙØ© Ù…Ø¨Ø§Ø±Ø§Ø©</h2>
-          <button class="icon-close" type="button" data-add-match-close>Ã—</button>
+          <h2>إضافة مباراة</h2>
+          <button class="icon-close" type="button" data-add-match-close>×</button>
         </div>
         ${matchFormView()}
       </section>
@@ -660,12 +659,12 @@ function matchFormView() {
         <span class="small">${roundName(activeRound)}</span>
       </div>
       <div class="form-grid">
-        <label class="field"><span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø£ÙˆÙ„</span><input id="teamA" required placeholder="Ø§Ø³Ù… Ø§Ù„ÙØ±ÙŠÙ‚" /></label>
-        <label class="field"><span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø«Ø§Ù†ÙŠ</span><input id="teamB" required placeholder="Ø§Ø³Ù… Ø§Ù„ÙØ±ÙŠÙ‚" /></label>
+        <label class="field"><span>الفريق الأول</span><input id="teamA" required placeholder="اسم الفريق" /></label>
+        <label class="field"><span>الفريق الثاني</span><input id="teamB" required placeholder="اسم الفريق" /></label>
       </div>
-      <label class="field"><span>ÙˆÙ‚Øª Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</span><input id="startsAt" required type="datetime-local" /></label>
-      <label class="field"><span>ÙˆÙ‚Øª Ø§Ù†ØªÙ‡Ø§Ø¡ Ø§Ù„ØªØµÙˆÙŠØª</span><input id="voteEndsAt" required type="datetime-local" /></label>
-      <button class="primary-btn" type="submit">Ø­ÙØ¸ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</button>
+      <label class="field"><span>وقت المباراة</span><input id="startsAt" required type="datetime-local" /></label>
+      <label class="field"><span>وقت انتهاء التصويت</span><input id="voteEndsAt" required type="datetime-local" /></label>
+      <button class="primary-btn" type="submit">حفظ المباراة</button>
     </form>
   `;
 }
@@ -708,8 +707,8 @@ function restorePrediction(matchId, previous) {
 function participantStandingsListView() {
   return `
     <div class="section-title">
-      <h2>ØªØ±ØªÙŠØ¨ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†</h2>
-      <span class="small">Ø§Ù„Ù…Ù‚Ø¨ÙˆÙ„ÙˆÙ† ÙÙ‚Ø·</span>
+      <h2>ترتيب المشاركين</h2>
+      <span class="small">المقبولون فقط</span>
     </div>
     <div class="leader-list">
       ${state.standings.length ? state.standings.map((row, index) => `
@@ -718,11 +717,11 @@ function participantStandingsListView() {
           ${avatarTile(row, "avatar-small")}
           <div class="leader-name">
             <strong>${escapeHtml(row.name)}</strong>
-            <span class="small">ØµØ­ÙŠØ­: ${row.correct_predictions} | Ø®Ø·Ø£: ${row.wrong_predictions}</span>
+            <span class="small">صحيح: ${row.correct_predictions} | خطأ: ${row.wrong_predictions}</span>
           </div>
           <div class="points">${row.points}</div>
         </div>
-      `).join("") : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø´Ø§Ø±ÙƒÙˆÙ† Ù…Ù‚Ø¨ÙˆÙ„ÙˆÙ† Ø­ØªÙ‰ Ø§Ù„Ø¢Ù†.")}
+      `).join("") : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
     </div>
   `;
 }
@@ -731,9 +730,9 @@ function organizerStandingsMatrixView() {
   const settledMatches = sortMatches(state.matches.filter(match => match.winner));
   return `
     ${state.standings.length ? `
-      <div class="standings-board" role="region" aria-label="Ø¬Ø¯ÙˆÙ„ ØªØ±ØªÙŠØ¨ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†">
+      <div class="standings-board" role="region" aria-label="جدول ترتيب المشاركين">
         <div class="standings-total-col">
-          <div class="matrix-cell matrix-head total-head">Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù†Ù‚Ø§Ø·</div>
+          <div class="matrix-cell matrix-head total-head">إجمالي النقاط</div>
           ${state.standings.map((row, index) => `<div class="matrix-cell total-cell ${index < 3 ? "podium-cell" : ""}">${row.points}</div>`).join("")}
         </div>
         <div class="standings-middle-scroll">
@@ -743,13 +742,13 @@ function organizerStandingsMatrixView() {
                 <div class="match-score-group">
                   <div class="matrix-cell match-team-head">${escapeHtml(match.team_a)}</div>
                   <div class="matrix-cell match-team-head">${escapeHtml(match.team_b)}</div>
-                  <div class="matrix-cell match-round-head">Ù†Ù‚Ø§Ø· Ø§Ù„Ø¬ÙˆÙ„Ø©</div>
+                  <div class="matrix-cell match-round-head">نقاط الجولة</div>
                 </div>
               `).join("")}
               <div class="match-score-group summary-group">
-                <div class="matrix-cell summary-head">Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„ØµØ­ÙŠØ­</div>
-                <div class="matrix-cell summary-head">Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø®Ø·Ø£</div>
-                <div class="matrix-cell summary-head">Ù†Ø³Ø¨Ø© Ø§Ù„ØµØ­ÙŠØ­</div>
+                <div class="matrix-cell summary-head">إجمالي الصحيح</div>
+                <div class="matrix-cell summary-head">إجمالي الخطأ</div>
+                <div class="matrix-cell summary-head">نسبة الصحيح</div>
               </div>
             </div>
             ${state.standings.map(row => `
@@ -771,8 +770,8 @@ function organizerStandingsMatrixView() {
         </div>
         <div class="standings-player-col">
           <div class="matrix-player-row matrix-head-row">
-            <div class="matrix-cell player-head">Ø§Ù„Ù…ØªØ³Ø§Ø¨Ù‚</div>
-            <div class="matrix-cell rank-head">Ø§Ù„ØªØ±ØªÙŠØ¨</div>
+            <div class="matrix-cell player-head">المتسابق</div>
+            <div class="matrix-cell rank-head">الترتيب</div>
           </div>
           ${state.standings.map((row, index) => `
             <div class="matrix-player-row ${index < 3 ? "podium-row" : ""}">
@@ -787,7 +786,7 @@ function organizerStandingsMatrixView() {
           `).join("")}
         </div>
       </div>
-    ` : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø´Ø§Ø±ÙƒÙˆÙ† Ù…Ù‚Ø¨ÙˆÙ„ÙˆÙ† Ø­ØªÙ‰ Ø§Ù„Ø¢Ù†.")}
+    ` : emptyView("لا يوجد مشاركون مقبولون حتى الآن.")}
   `;
 }
 
@@ -819,7 +818,7 @@ function correctPercent(row) {
 function rankTrendView(userId) {
   const movement = state.rankMovement[userId];
   if (!movement) return "";
-  return `<span class="rank-trend ${movement > 0 ? "up" : "down"}">${movement > 0 ? "â–²" : "â–¼"}</span>`;
+  return `<span class="rank-trend ${movement > 0 ? "up" : "down"}">${movement > 0 ? "▲" : "▼"}</span>`;
 }
 
 function participantDetailModal(participantId) {
@@ -836,18 +835,18 @@ function participantDetailModal(participantId) {
     const prediction = participantPredictions.get(match.id);
     const points = participantPoints[match.id];
     const status = !match.winner
-      ? "Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ù†ØªÙŠØ¬Ø©"
+      ? "بانتظار النتيجة"
       : points
-        ? `${points.correct ? "ØµØ­ÙŠØ­" : "Ø®Ø·Ø£"} - ${points.points} Ù†Ù‚Ø·Ø©${points.is_joker ? " Ã—2" : ""}`
-        : "Ù„Ù… ÙŠØ¯Ø®Ù„ ÙÙŠ Ø§Ù„Ø­Ø³Ø¨Ø©";
+        ? `${points.correct ? "صحيح" : "خطأ"} - ${points.points} نقطة${points.is_joker ? " ×2" : ""}`
+        : "لم يدخل في الحسبة";
     return `
       <article class="detail-match-row">
         <div>
-          <strong>${escapeHtml(match.team_a)} Ø¶Ø¯ ${escapeHtml(match.team_b)}</strong>
+          <strong>${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</strong>
           <span>${roundName(match.round_id)} | ${formatAdminMatchDate(match.starts_at)}</span>
         </div>
         <div class="detail-pick">
-          <span>${prediction ? `ØªÙˆÙ‚Ø¹: ${escapeHtml(prediction.winner)}${prediction.is_joker ? " | Ø¬ÙˆÙƒØ±" : ""}` : "Ù„Ù… ÙŠØµÙˆØª"}</span>
+          <span>${prediction ? `توقع: ${escapeHtml(prediction.winner)}${prediction.is_joker ? " | جوكر" : ""}` : "لم يصوت"}</span>
           <em class="${points?.correct ? "ok" : match.winner ? "bad" : ""}">${status}</em>
         </div>
       </article>
@@ -858,18 +857,18 @@ function participantDetailModal(participantId) {
     <div class="modal-backdrop" data-detail-modal-close>
       <section class="modal-card stack participant-detail-modal">
         <div class="section-title">
-          <h2>ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ù…Ø´Ø§Ø±Ùƒ</h2>
-          <button class="icon-close" type="button" data-detail-close>Ã—</button>
+          <h2>تفاصيل المشارك</h2>
+          <button class="icon-close" type="button" data-detail-close>×</button>
         </div>
         <div class="participant-detail-head">
           ${avatarTile(participant, "avatar-small")}
           <div>
             <strong>${escapeHtml(participant.name)}</strong>
-            <span class="small">Ø§Ù„Ù†Ù‚Ø§Ø·: ${participant.points || 0} | ØµØ­ÙŠØ­: ${participant.correct_predictions || 0} | Ø®Ø·Ø£: ${participant.wrong_predictions || 0}</span>
+            <span class="small">النقاط: ${participant.points || 0} | صحيح: ${participant.correct_predictions || 0} | خطأ: ${participant.wrong_predictions || 0}</span>
           </div>
         </div>
         <div class="detail-match-list">
-          ${rows || emptyView("Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¨Ø§Ø±ÙŠØ§Øª Ù„Ø¹Ø±Ø¶Ù‡Ø§.")}
+          ${rows || emptyView("لا توجد مباريات لعرضها.")}
         </div>
       </section>
     </div>
@@ -879,12 +878,12 @@ function participantDetailModal(participantId) {
 function lawsView() {
   return `
     <div class="section-title">
-      <h2>Ù‚ÙˆØ§Ù†ÙŠÙ† Ø£Ø¯ÙˆØ§Ø± Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©</h2>
-      <span class="small">Ù†Ø¸Ø§Ù… Ø§Ù„Ù†Ù‚Ø§Ø· ÙˆØ§Ù„Ø¥ØºÙ„Ø§Ù‚</span>
+      <h2>قوانين أدوار البطولة</h2>
+      <span class="small">نظام النقاط والإغلاق</span>
     </div>
     <div class="law-list">
       <article class="law-card joker-law-card">
-        <h3>Ø§Ù„Ø¬ÙˆÙƒØ±</h3>
+        <h3>الجوكر</h3>
         <p>${jokerLaw}</p>
       </article>
       ${rounds.map(round => `
@@ -901,9 +900,9 @@ function summaryView() {
   const mine = state.standings.find(row => row.id === state.currentUser.id) || { points: 0, correct_predictions: 0, wrong_predictions: 0 };
   return `
     <div class="summary-grid" style="margin-bottom:16px">
-      <div class="summary-card"><span class="small">Ø§Ù„Ù†Ù‚Ø§Ø·</span><strong>${mine.points}</strong></div>
-      <div class="summary-card"><span class="small">ØµØ­ÙŠØ­</span><strong>${mine.correct_predictions}</strong></div>
-      <div class="summary-card"><span class="small">Ø®Ø·Ø£</span><strong>${mine.wrong_predictions}</strong></div>
+      <div class="summary-card"><span class="small">النقاط</span><strong>${mine.points}</strong></div>
+      <div class="summary-card"><span class="small">صحيح</span><strong>${mine.correct_predictions}</strong></div>
+      <div class="summary-card"><span class="small">خطأ</span><strong>${mine.wrong_predictions}</strong></div>
     </div>
   `;
 }
@@ -919,7 +918,7 @@ function matchCard(match, prediction) {
     <article class="match-card participant-match-card ${locked ? "locked-card" : ""}">
       <div class="participant-match-top">
         <span>${formatAdminMatchDate(match.starts_at)}</span>
-        <span class="participant-countdown ${locked ? "expired" : ""}" ${!match.winner && !locked ? countdownAttrs(match.vote_ends_at, "Ø¨Ø§Ù‚ÙŠ Ù„Ù„ØªØµÙˆÙŠØª: ") : ""}>${match.winner ? "Ù…ØºÙ„Ù‚" : locked ? "Ø§Ù†ØªÙ‡Ù‰ Ø§Ù„ØªØµÙˆÙŠØª" : `Ø¨Ø§Ù‚ÙŠ Ù„Ù„ØªØµÙˆÙŠØª: ${countdownText(match.vote_ends_at)}`}</span>
+        <span class="participant-countdown ${locked ? "expired" : ""}" ${!match.winner && !locked ? countdownAttrs(match.vote_ends_at, "باقي للتصويت: ") : ""}>${match.winner ? "مغلق" : locked ? "انتهى التصويت" : `باقي للتصويت: ${countdownText(match.vote_ends_at)}`}</span>
       </div>
       <div class="participant-choice-grid">
         ${participantChoiceButton(match, match.team_a, match.team_a_flag, selected, locked, isJoker)}
@@ -927,12 +926,12 @@ function matchCard(match, prediction) {
       </div>
       ${canUseJoker ? `
         <button class="joker-toggle participant-joker ${isJoker ? "active" : ""}" ${locked ? "disabled" : ""} data-joker="${match.id}" type="button">
-          ${isJoker ? "Ø§Ù„Ø¬ÙˆÙƒØ± Ù…ÙØ¹Ù„ Ã—2" : "ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¬ÙˆÙƒØ± Ã—2"}
+          ${isJoker ? "الجوكر مفعل ×2" : "تفعيل الجوكر ×2"}
         </button>
       ` : ""}
       <div class="participant-match-footer">
         ${status}
-        <span class="saved-pick">${selected ? `ØªÙ… Ø­ÙØ¸ ØªÙˆÙ‚Ø¹Ùƒ: ${escapeHtml(selected)}` : "Ø§Ø®ØªØ± Ø§Ù„ÙØ§Ø¦Ø² Ù„Ø­ÙØ¸ ØªÙˆÙ‚Ø¹Ùƒ"}</span>
+        <span class="saved-pick">${selected ? `تم حفظ توقعك: ${escapeHtml(selected)}` : "اختر الفائز لحفظ توقعك"}</span>
       </div>
     </article>
   `;
@@ -968,32 +967,32 @@ function usedJokersInRound(roundId) {
 
 function participantMatchStatus(match, selected, points, locked) {
   if (match.winner && points) {
-    return `<span class="participant-status ${points.correct ? "correct" : "wrong"}"><span></span>${points.correct ? "ØªÙˆÙ‚Ø¹ ØµØ­ÙŠØ­" : "ØªÙˆÙ‚Ø¹ Ø®Ø§Ø·Ø¦"}: ${points.points} Ù†Ù‚Ø·Ø©${points.is_joker ? " Ã—2" : ""}</span>`;
+    return `<span class="participant-status ${points.correct ? "correct" : "wrong"}"><span></span>${points.correct ? "توقع صحيح" : "توقع خاطئ"}: ${points.points} نقطة${points.is_joker ? " ×2" : ""}</span>`;
   }
-  if (locked) return `<span class="participant-status pending"><span></span>Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù†ØªØ§Ø¦Ø¬</span>`;
-  if (selected) return `<span class="participant-status saved"><span></span>ØªÙ… Ø­ÙØ¸ Ø§Ù„ØªÙˆÙ‚Ø¹</span>`;
-  return `<span class="participant-status open"><span></span>Ù„Ù… ÙŠØªÙ… Ø§Ù„ØªØµÙˆÙŠØª</span>`;
+  if (locked) return `<span class="participant-status pending"><span></span>بانتظار اعتماد النتائج</span>`;
+  if (selected) return `<span class="participant-status saved"><span></span>تم حفظ التوقع</span>`;
+  return `<span class="participant-status open"><span></span>لم يتم التصويت</span>`;
 }
 
 function managerMatchCard(match) {
-  const teamsView = `<div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">Ø¶Ø¯</span>${teamBadge(match.team_b, match.team_b_flag)}</div>`;
+  const teamsView = `<div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>`;
   return `
     <article class="match-card">
       <div class="match-head">
         <span class="round-badge">${roundName(match.round_id)}</span>
-        <span class="status-chip ${match.winner ? "done" : ""}">${match.winner ? "ØªÙ… Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ù†ØªÙŠØ¬Ø©" : "Ø¨Ø¯ÙˆÙ† Ù†ØªÙŠØ¬Ø©"}</span>
+        <span class="status-chip ${match.winner ? "done" : ""}">${match.winner ? "تم إدخال النتيجة" : "بدون نتيجة"}</span>
       </div>
-      <div class="teams">${escapeHtml(match.team_a)} Ø¶Ø¯ ${escapeHtml(match.team_b)}</div>
-      <div class="deadline">ÙˆÙ‚Øª Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©: ${formatDate(match.starts_at)}<br>Ù†Ù‡Ø§ÙŠØ© Ø§Ù„ØªØµÙˆÙŠØª: ${formatDate(match.vote_ends_at)}</div>
+      <div class="teams">${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</div>
+      <div class="deadline">وقت المباراة: ${formatDate(match.starts_at)}<br>نهاية التصويت: ${formatDate(match.vote_ends_at)}</div>
       ${teamsView}
       <button class="vote-count-btn" data-voters="${match.id}" type="button">
-        Ø§Ù„ØªØµÙˆÙŠØª: ${match.vote_count || 0} Ù…Ù† ${match.eligible_count || 0}
+        التصويت: ${match.vote_count || 0} من ${match.eligible_count || 0}
       </button>
       <div class="result-row">
         <button class="choice ${match.winner === match.team_a ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_a)}">${escapeHtml(match.team_a)}</button>
         <button class="choice ${match.winner === match.team_b ? "active" : ""}" data-result="${match.id}" data-team="${escapeHtml(match.team_b)}">${escapeHtml(match.team_b)}</button>
       </div>
-      <button class="ghost-btn" style="margin-top:8px" data-clear="${match.id}">Ù…Ø³Ø­ Ø§Ù„Ù†ØªÙŠØ¬Ø©</button>
+      <button class="ghost-btn" style="margin-top:8px" data-clear="${match.id}">مسح النتيجة</button>
     </article>
   `;
 }
@@ -1004,7 +1003,7 @@ function managerMatchCardV2(match) {
   return `
     <article class="admin-match-card">
       <div class="admin-match-top">
-        <button class="text-link" data-match-edit-open="${match.id}" type="button">ØªØ¹Ø¯ÙŠÙ„</button>
+        <button class="text-link" data-match-edit-open="${match.id}" type="button">تعديل</button>
         <span>${formatAdminMatchDate(match.starts_at)}</span>
       </div>
       <div class="admin-match-body">
@@ -1015,9 +1014,9 @@ function managerMatchCardV2(match) {
         ${adminTeamView(match.team_b, match.team_b_flag)}
       </div>
       <div class="admin-match-bottom">
-        <button class="text-link result-link" data-result-open="${match.id}" type="button">${match.winner ? "ØªØ¹Ø¯ÙŠÙ„ Ù†ØªÙŠØ¬Ø© Ù†Ù‡Ø§ÙŠØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©" : "Ø¥Ø¶Ø§ÙØ© Ù†ØªÙŠØ¬Ø© Ù†Ù‡Ø§ÙŠØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©"}</button>
+        <button class="text-link result-link" data-result-open="${match.id}" type="button">${match.winner ? "تعديل نتيجة نهاية المباراة" : "إضافة نتيجة نهاية المباراة"}</button>
         <div class="admin-match-actions">
-          <button class="vote-results-link" data-vote-results="${match.id}" type="button">Ù†ØªØ§Ø¦Ø¬ Ø§Ù„ØªØµÙˆÙŠØª</button>
+          <button class="vote-results-link" data-vote-results="${match.id}" type="button">نتائج التصويت</button>
         </div>
         <button class="vote-count-link" data-voters="${match.id}" type="button">${match.vote_count || 0}/${match.eligible_count || 0}</button>
       </div>
@@ -1042,18 +1041,18 @@ function matchEditModal(matchId) {
     <div class="modal-backdrop" data-edit-modal-close>
       <section class="modal-card stack">
         <div class="section-title">
-          <h2>ØªØ¹Ø¯ÙŠÙ„ Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</h2>
-          <button class="icon-close" type="button" data-edit-close>Ã—</button>
+          <h2>تعديل بطاقة المباراة</h2>
+          <button class="icon-close" type="button" data-edit-close>×</button>
         </div>
         <div id="editError" class="notice danger-notice hidden"></div>
         <form class="stack manager-match-form" data-match-edit="${match.id}">
           <div class="form-grid">
-            <label class="field"><span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø£ÙˆÙ„</span><input name="teamA" required value="${escapeHtml(match.team_a)}" /></label>
-            <label class="field"><span>Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø«Ø§Ù†ÙŠ</span><input name="teamB" required value="${escapeHtml(match.team_b)}" /></label>
+            <label class="field"><span>الفريق الأول</span><input name="teamA" required value="${escapeHtml(match.team_a)}" /></label>
+            <label class="field"><span>الفريق الثاني</span><input name="teamB" required value="${escapeHtml(match.team_b)}" /></label>
           </div>
           <div class="form-grid">
             <label class="field image-field">
-              <span>Ø¹Ù„Ù… Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø£ÙˆÙ„</span>
+              <span>علم الفريق الأول</span>
               <div class="image-input-row">
                 <span class="flag-tile preview-tile" data-flag-preview="teamA-${match.id}">${match.team_a_flag ? `<img src="${escapeHtml(match.team_a_flag)}" alt="" />` : "A"}</span>
                 <input name="teamAFlagFile" data-edit-flag="teamA-${match.id}" type="file" accept="image/*" />
@@ -1061,7 +1060,7 @@ function matchEditModal(matchId) {
               </div>
             </label>
             <label class="field image-field">
-              <span>Ø¹Ù„Ù… Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø«Ø§Ù†ÙŠ</span>
+              <span>علم الفريق الثاني</span>
               <div class="image-input-row">
                 <span class="flag-tile preview-tile" data-flag-preview="teamB-${match.id}">${match.team_b_flag ? `<img src="${escapeHtml(match.team_b_flag)}" alt="" />` : "B"}</span>
                 <input name="teamBFlagFile" data-edit-flag="teamB-${match.id}" type="file" accept="image/*" />
@@ -1069,11 +1068,11 @@ function matchEditModal(matchId) {
               </div>
             </label>
           </div>
-          <label class="field"><span>ÙˆÙ‚Øª Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</span><input name="startsAt" required type="datetime-local" value="${datetimeLocalValue(match.starts_at)}" /></label>
-          <label class="field"><span>ÙˆÙ‚Øª Ø§Ù†ØªÙ‡Ø§Ø¡ Ø§Ù„ØªØµÙˆÙŠØª</span><input name="voteEndsAt" required type="datetime-local" value="${datetimeLocalValue(match.vote_ends_at)}" /></label>
-          <button class="primary-btn" type="submit">Ø­ÙØ¸ ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</button>
+          <label class="field"><span>وقت المباراة</span><input name="startsAt" required type="datetime-local" value="${datetimeLocalValue(match.starts_at)}" /></label>
+          <label class="field"><span>وقت انتهاء التصويت</span><input name="voteEndsAt" required type="datetime-local" value="${datetimeLocalValue(match.vote_ends_at)}" /></label>
+          <button class="primary-btn" type="submit">حفظ تعديل المباراة</button>
         </form>
-        <button class="danger-btn" data-match-delete="${match.id}" data-match-name="${escapeHtml(`${match.team_a} Ø¶Ø¯ ${match.team_b}`)}" type="button">Ø­Ø°Ù Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©</button>
+        <button class="danger-btn" data-match-delete="${match.id}" data-match-name="${escapeHtml(`${match.team_a} ضد ${match.team_b}`)}" type="button">حذف المباراة</button>
       </section>
     </div>
   `;
@@ -1088,19 +1087,19 @@ function resultModal(matchId) {
     <div class="modal-backdrop" data-result-modal-close>
       <section class="modal-card stack">
         <div class="section-title">
-          <h2>${match.winner ? "ØªØ¹Ø¯ÙŠÙ„ Ù†ØªÙŠØ¬Ø© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©" : "Ø¥Ø¶Ø§ÙØ© Ù†ØªÙŠØ¬Ø© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©"}</h2>
-          <button class="icon-close" type="button" data-result-close>Ã—</button>
+          <h2>${match.winner ? "تعديل نتيجة المباراة" : "إضافة نتيجة المباراة"}</h2>
+          <button class="icon-close" type="button" data-result-close>×</button>
         </div>
-        <div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">Ø¶Ø¯</span>${teamBadge(match.team_b, match.team_b_flag)}</div>
+        <div class="teams team-row">${teamBadge(match.team_a, match.team_a_flag)}<span class="versus">ضد</span>${teamBadge(match.team_b, match.team_b_flag)}</div>
         <div id="resultError" class="notice danger-notice hidden"></div>
         <form class="manager-result-form" data-result-form="${match.id}">
           <div class="score-grid">
-            <label class="field"><span>Ø£Ù‡Ø¯Ø§Ù ${escapeHtml(match.team_a)}</span><input name="scoreA" required min="0" step="1" type="number" value="${scoreA}" /></label>
-            <label class="field"><span>Ø£Ù‡Ø¯Ø§Ù ${escapeHtml(match.team_b)}</span><input name="scoreB" required min="0" step="1" type="number" value="${scoreB}" /></label>
+            <label class="field"><span>أهداف ${escapeHtml(match.team_a)}</span><input name="scoreA" required min="0" step="1" type="number" value="${scoreA}" /></label>
+            <label class="field"><span>أهداف ${escapeHtml(match.team_b)}</span><input name="scoreB" required min="0" step="1" type="number" value="${scoreB}" /></label>
           </div>
-          <button class="primary-btn" type="submit">${match.winner ? "Ø­ÙØ¸ ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù†ØªÙŠØ¬Ø©" : "Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù†ØªÙŠØ¬Ø©"}</button>
+          <button class="primary-btn" type="submit">${match.winner ? "حفظ تعديل النتيجة" : "اعتماد النتيجة"}</button>
         </form>
-        ${match.winner ? `<button class="ghost-btn" data-clear="${match.id}" type="button">Ù…Ø³Ø­ Ø§Ù„Ù†ØªÙŠØ¬Ø©</button>` : ""}
+        ${match.winner ? `<button class="ghost-btn" data-clear="${match.id}" type="button">مسح النتيجة</button>` : ""}
       </section>
     </div>
   `;
@@ -1117,13 +1116,13 @@ function roundPosterModal(roundId) {
     <div class="modal-backdrop" data-poster-modal-close>
       <section class="modal-card stack poster-modal">
         <div class="section-title">
-          <h2>${data.isFinal ? "Ø¨ÙˆØ³ØªØ± Ø§Ù„Ø¨Ø·Ù„" : "Ø¨ÙˆØ³ØªØ± Ø§Ù„Ù…ØªØµØ¯Ø±"}</h2>
-          <button class="icon-close" type="button" data-poster-close>Ã—</button>
+          <h2>${data.isFinal ? "بوستر البطل" : "بوستر المتصدر"}</h2>
+          <button class="icon-close" type="button" data-poster-close>×</button>
         </div>
         <canvas id="roundPosterCanvas" class="round-poster-canvas" width="1080" height="1920"></canvas>
         <div class="poster-actions">
-          <button class="primary-btn" id="savePosterBtn" type="button">Ø­ÙØ¸ Ø§Ù„Ø¨ÙˆØ³ØªØ±</button>
-          <button class="ghost-btn" id="sharePosterBtn" type="button">Ù…Ø´Ø§Ø±ÙƒØ© Ø§Ù„ØµÙˆØ±Ø©</button>
+          <button class="primary-btn" id="savePosterBtn" type="button">حفظ البوستر</button>
+          <button class="ghost-btn" id="sharePosterBtn" type="button">مشاركة الصورة</button>
         </div>
       </section>
     </div>
@@ -1140,8 +1139,8 @@ function roundPosterData(roundId) {
     ...winner,
     roundId: normalizedRoundId,
     roundLabel: posterRoundLabel(normalizedRoundId),
-    title: normalizedRoundId === "final" ? "Ø¨Ø·Ù„ Ø¨Ø·ÙˆÙ„Ø© Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª" : `Ø¨Ø·Ù„ ${posterRoundLabel(normalizedRoundId)}`,
-    subtitle: normalizedRoundId === "final" ? "Ø¨Ø·ÙˆÙ„Ø© ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø¹Ø§Ù„Ù… 2026" : `Ù…ØªØµØ¯Ø± ${posterRoundLabel(normalizedRoundId)} ÙÙŠ Ø¨Ø·ÙˆÙ„Ø© ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ø¹Ø§Ù„Ù… 2026`,
+    title: normalizedRoundId === "final" ? "بطل بطولة التوقعات" : `بطل ${posterRoundLabel(normalizedRoundId)}`,
+    subtitle: normalizedRoundId === "final" ? "بطولة توقعات العالم 2026" : `متصدر ${posterRoundLabel(normalizedRoundId)} في بطولة توقعات العالم 2026`,
     isFinal: normalizedRoundId === "final",
     accuracy: total ? Math.round((winner.correct / total) * 100) : 0,
     correctLabel: `${winner.correct}/${total || 0}`,
@@ -1187,11 +1186,11 @@ function roundLeaderboard(roundId) {
 
 function posterRoundLabel(roundId) {
   return ({
-    r32: "Ø¯ÙˆØ± Ø§Ù„Ù€ 32",
-    r16: "Ø¯ÙˆØ± Ø§Ù„Ù€ 16",
-    qf: "Ø±Ø¨Ø¹ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ",
-    sf: "Ù†ØµÙ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ",
-    final: "Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ"
+    r32: "دور الـ 32",
+    r16: "دور الـ 16",
+    qf: "ربع النهائي",
+    sf: "نصف النهائي",
+    final: "النهائي"
   })[normalizeRoundId(roundId)] || roundName(roundId);
 }
 
@@ -1223,7 +1222,7 @@ async function renderRoundPoster(roundId) {
 }
 
 async function savePosterImage(canvas, data) {
-  const shared = await sharePosterImage(canvas, data, "Ø§Ø­ÙØ¸ Ø§Ù„ØµÙˆØ±Ø© Ù…Ù† Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„Ù…Ø´Ø§Ø±ÙƒØ©");
+  const shared = await sharePosterImage(canvas, data, "احفظ الصورة من خيارات المشاركة");
   if (!shared) downloadPosterImage(canvas, data);
 }
 
@@ -1260,37 +1259,29 @@ function downloadPosterImage(canvas, data) {
 async function drawRoundPoster(context, width, height, data) {
   const palette = data.palette;
   context.clearRect(0, 0, width, height);
-  const template = await loadPosterImage(WINNER_POSTER_TEMPLATE);
-  if (template) {
-    drawImageCover(context, template, 0, 0, width, height);
-  } else {
-    const background = context.createLinearGradient(0, 0, width, height);
-    background.addColorStop(0, palette.a);
-    background.addColorStop(0.55, palette.c);
-    background.addColorStop(1, "#02091f");
-    context.fillStyle = background;
-    context.fillRect(0, 0, width, height);
-  }
+  const background = context.createLinearGradient(0, 0, width, height);
+  background.addColorStop(0, palette.a);
+  background.addColorStop(0.55, palette.c);
+  background.addColorStop(1, "#02091f");
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+
+  drawConfetti(context, width, height, palette);
+  drawStadium(context, width, height, palette);
   await drawPosterLogo(context, width);
 
-  drawCenteredText(context, "ØªÙ‡Ø§Ù†ÙŠÙ†Ø§ Ù„Ù„ÙØ§Ø¦Ø²", width / 2, 345, 62, "#fff", 900);
+  drawCenteredText(context, "تهانينا للفائز", width / 2, 345, 62, "#fff", 900);
   drawCenteredText(context, data.subtitle, width / 2, 410, 31, "rgba(255,255,255,.86)", 700);
   drawLaurelFrame(context, width / 2, 720, 235, palette);
   await drawWinnerAvatar(context, data, width / 2, 690, 220);
 
-  drawRibbon(context, width / 2, 885, data.isFinal ? "Ø§Ù„Ø¨Ø·Ù„" : "Ø§Ù„Ù…ØªØµØ¯Ø±", palette);
+  drawRibbon(context, width / 2, 885, data.isFinal ? "البطل" : "المتصدر", palette);
   drawCenteredText(context, data.name, width / 2, 1025, 64, "#fff", 900);
-  drawCenteredText(context, posterNumber(data.points), width / 2, 1180, 70, "#28d17c", 900);
-  drawPosterStatValues(context, data, width);
-  drawCenteredText(context, data.title, width / 2, 1660, 44, "#fff", 900);
-  drawCenteredText(context, "Ø´ÙƒØ±Ø§Ù‹ Ù„Ù…Ø´Ø§Ø±ÙƒØªÙƒ ÙˆØªÙˆÙ‚Ø¹Ø§ØªÙƒ ÙÙŠ Ø¨Ø·ÙˆÙ„Ø© Ø§Ù„Ø¹Ø§Ù„Ù… 2026", width / 2, 1670, 29, "rgba(255,255,255,.8)", 700);
-}
-
-function drawPosterStatValues(context, data, width) {
-  const y = 1498;
-  drawCenteredText(context, `${data.accuracy}%`, width * 0.2, y, 43, "#28d17c", 900);
-  drawCenteredText(context, data.correctLabel, width * 0.5, y, 43, "#28d17c", 900);
-  drawCenteredText(context, String(data.rank), width * 0.8, y, 43, "#28d17c", 900);
+  drawCenteredText(context, "إجمالي النقاط", width / 2, 1090, 26, "rgba(255,255,255,.82)", 700);
+  drawCenteredText(context, posterNumber(data.points), width / 2, 1160, 70, palette.accent, 900);
+  drawStatsPanel(context, data, width, 1320, palette);
+  drawCenteredText(context, data.title, width / 2, 1615, 44, "#fff", 900);
+  drawCenteredText(context, "شكراً لمشاركتك وتوقعاتك في بطولة العالم 2026", width / 2, 1670, 29, "rgba(255,255,255,.8)", 700);
 }
 
 function drawCenteredText(context, text, x, y, size, color, weight = 700) {
@@ -1452,9 +1443,9 @@ function drawStatsPanel(context, data, width, y, palette) {
   context.fill();
   context.stroke();
   const stats = [
-    { icon: "â—Ž", value: `${data.accuracy}%`, label: "Ø¯Ù‚Ø© Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª" },
-    { icon: "â™•", value: data.correctLabel, label: "Ø¬ÙˆÙ„Ø§Øª ØµØ­ÙŠØ­Ø©" },
-    { icon: "â†—", value: String(data.rank), label: data.isFinal ? "Ø§Ù„ØªØ±ØªÙŠØ¨ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ" : "ØªØ±ØªÙŠØ¨ Ø§Ù„Ø¯ÙˆØ±" }
+    { icon: "◎", value: `${data.accuracy}%`, label: "دقة التوقعات" },
+    { icon: "♕", value: data.correctLabel, label: "جولات صحيحة" },
+    { icon: "↗", value: String(data.rank), label: data.isFinal ? "الترتيب النهائي" : "ترتيب الدور" }
   ];
   stats.forEach((item, index) => {
     const cx = x + w - (index + 0.5) * (w / 3);
@@ -1516,17 +1507,17 @@ function voterModal(matchId) {
     <div class="modal-backdrop" data-voter-modal-close>
       <section class="modal-card stack">
         <div class="section-title">
-          <h2>Ø­Ø§Ù„Ø© Ø§Ù„ØªØµÙˆÙŠØª</h2>
-          <button class="icon-close" type="button" data-voters-close>Ã—</button>
+          <h2>حالة التصويت</h2>
+          <button class="icon-close" type="button" data-voters-close>×</button>
         </div>
-        <div class="vote-summary">Ø§ÙƒØªÙ…Ù„ ${match.vote_count || 0} Ù…Ù† ${match.eligible_count || 0}</div>
-        <h3 class="modal-subtitle">Ø§Ù†ØªÙ‡ÙˆØ§ Ù…Ù† Ø§Ù„ØªØµÙˆÙŠØª</h3>
+        <div class="vote-summary">اكتمل ${match.vote_count || 0} من ${match.eligible_count || 0}</div>
+        <h3 class="modal-subtitle">انتهوا من التصويت</h3>
         <div class="voter-list">
-          ${voted.length ? voted.map(voterRow).join("") : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…ØµÙˆØªÙˆÙ† Ø­ØªÙ‰ Ø§Ù„Ø¢Ù†.")}
+          ${voted.length ? voted.map(voterRow).join("") : emptyView("لا يوجد مصوتون حتى الآن.")}
         </div>
-        <h3 class="modal-subtitle">Ù„Ù… ÙŠÙ†ØªÙ‡ÙˆØ§ Ù…Ù† Ø§Ù„ØªØµÙˆÙŠØª</h3>
+        <h3 class="modal-subtitle">لم ينتهوا من التصويت</h3>
         <div class="voter-list">
-          ${missing.length ? missing.map(voterRow).join("") : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù„Ø§Ø¹Ø¨ÙˆÙ† Ù…ØªØ¨Ù‚ÙˆÙ†.")}
+          ${missing.length ? missing.map(voterRow).join("") : emptyView("لا يوجد لاعبون متبقون.")}
         </div>
       </section>
     </div>
@@ -1555,14 +1546,14 @@ function voteResultsModal(matchId) {
     <div class="modal-backdrop" data-vote-results-modal-close>
       <section class="modal-card stack">
         <div class="section-title">
-          <h2>Ù†ØªØ§Ø¦Ø¬ Ø§Ù„ØªØµÙˆÙŠØª</h2>
-          <button class="icon-close" type="button" data-vote-results-close>Ã—</button>
+          <h2>نتائج التصويت</h2>
+          <button class="icon-close" type="button" data-vote-results-close>×</button>
         </div>
         <div class="vote-result-match">
-          <strong>${escapeHtml(match.team_a)} Ø¶Ø¯ ${escapeHtml(match.team_b)}</strong>
+          <strong>${escapeHtml(match.team_a)} ضد ${escapeHtml(match.team_b)}</strong>
           <div class="vote-result-teams">
             ${voteResultTeamView(match.team_a, match.team_a_flag)}
-            <span class="vote-result-vs">Ø¶Ø¯</span>
+            <span class="vote-result-vs">ضد</span>
             ${voteResultTeamView(match.team_b, match.team_b_flag)}
           </div>
           <span class="vote-result-date">${formatAdminMatchDate(match.starts_at)}</span>
@@ -1570,15 +1561,15 @@ function voteResultsModal(matchId) {
         <div class="vote-result-summary">
           <span>${escapeHtml(match.team_a)}: ${teamACount}</span>
           <span>${escapeHtml(match.team_b)}: ${teamBCount}</span>
-          <span>Ù„Ù… ÙŠØµÙˆØªÙˆØ§: ${missingCount}</span>
+          <span>لم يصوتوا: ${missingCount}</span>
         </div>
         <div class="vote-result-table">
           <div class="vote-result-head">
-            <span>Ø§Ù„Ù…Ø´Ø§Ø±Ùƒ</span>
-            <span>Ø§Ù„ØªØ±Ø´ÙŠØ­</span>
-            <span>Ø¬ÙˆÙƒØ±</span>
+            <span>المشارك</span>
+            <span>الترشيح</span>
+            <span>جوكر</span>
           </div>
-          ${rows.length ? rows.map(row => voteResultRow(row, match)).join("") : emptyView("Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø´Ø§Ø±ÙƒÙˆÙ† Ù…Ù‚Ø¨ÙˆÙ„ÙˆÙ†.")}
+          ${rows.length ? rows.map(row => voteResultRow(row, match)).join("") : emptyView("لا يوجد مشاركون مقبولون.")}
         </div>
       </section>
     </div>
@@ -1596,7 +1587,7 @@ function voteResultTeamView(name, flagUrl) {
 }
 
 function voteResultRow(row, match) {
-  const picked = row.prediction?.winner || "Ù„Ù… ÙŠØµÙˆØª";
+  const picked = row.prediction?.winner || "لم يصوت";
   const pickedClass = row.prediction
     ? row.prediction.winner === match.team_a ? "team-a" : "team-b"
     : "missing";
@@ -1604,7 +1595,7 @@ function voteResultRow(row, match) {
     <div class="vote-result-row">
       <span class="vote-result-player">${avatarTile(row.user, "vote-avatar")}<strong>${escapeHtml(row.user.name)}</strong></span>
       <span class="vote-result-pick ${pickedClass}">${escapeHtml(picked)}</span>
-      <span class="vote-result-joker">${row.prediction?.is_joker ? "Ã—2" : "-"}</span>
+      <span class="vote-result-joker">${row.prediction?.is_joker ? "×2" : "-"}</span>
     </div>
   `;
 }
@@ -1633,11 +1624,11 @@ function hydrateParticipantAvatar(user) {
 
 function matchStatusView(match, selected, points, locked) {
   if (match.winner && points) {
-    return `<span class="status-chip ${points.correct ? "done" : "wrong"}">${points.correct ? "ØªÙˆÙ‚Ø¹ ØµØ­ÙŠØ­" : "ØªÙˆÙ‚Ø¹ Ø®Ø§Ø·Ø¦"}: ${points.points} Ù†Ù‚Ø·Ø©${points.is_joker ? " Ã—2" : ""}</span>`;
+    return `<span class="status-chip ${points.correct ? "done" : "wrong"}">${points.correct ? "توقع صحيح" : "توقع خاطئ"}: ${points.points} نقطة${points.is_joker ? " ×2" : ""}</span>`;
   }
-  if (locked) return `<span class="status-chip pending">Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù†ØªØ§Ø¦Ø¬</span>`;
-  if (selected) return `<span class="status-chip done">ØªÙ… Ø§Ù„ØªØµÙˆÙŠØª</span>`;
-  return `<span class="status-chip">Ù…ÙØªÙˆØ­ Ù„Ù„ØªØµÙˆÙŠØª</span>`;
+  if (locked) return `<span class="status-chip pending">بانتظار اعتماد النتائج</span>`;
+  if (selected) return `<span class="status-chip done">تم التصويت</span>`;
+  return `<span class="status-chip">مفتوح للتصويت</span>`;
 }
 
 function countdownText(value) {
@@ -1659,7 +1650,7 @@ function updateCountdowns() {
     const deadline = element.dataset.countdown;
     const prefix = element.dataset.countdownPrefix || "";
     const isExpired = new Date(deadline).getTime() <= serverNowMs();
-    element.textContent = isExpired ? "Ù…ØºÙ„Ù‚" : `${prefix}${countdownText(deadline)}`;
+    element.textContent = isExpired ? "مغلق" : `${prefix}${countdownText(deadline)}`;
     element.classList.toggle("expired", isExpired);
     if (isExpired && element.dataset.wasExpired !== "true") expired = true;
     element.dataset.wasExpired = isExpired ? "true" : "false";
@@ -1697,10 +1688,10 @@ function bindLogin() {
     passwordInput.autocomplete = isCreate ? "new-password" : "current-password";
     forgotToggle?.classList.toggle("hidden", isCreate);
     resetForm?.classList.add("hidden");
-    loginBtn.textContent = isCreate ? "Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨" : "Ø¯Ø®ÙˆÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚";
+    loginBtn.textContent = isCreate ? "إنشاء الحساب" : "دخول التطبيق";
     authHint.textContent = isCreate
-      ? "Ø£Ù†Ø´Ø¦ Ø§Ù„Ø­Ø³Ø§Ø¨ Ø£ÙˆÙ„ Ù…Ø±Ø© Ø¨Ø§Ù„Ø§Ø³Ù… ÙˆØ±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±."
-      : "Ø§Ø¯Ø®Ù„ Ø¨Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ÙÙ‚Ø·.";
+      ? "أنشئ الحساب أول مرة بالاسم ورقم الهاتف وكلمة المرور."
+      : "ادخل برقم الهاتف وكلمة المرور فقط.";
   }
 
   document.querySelectorAll("[data-auth-mode]").forEach(button => {
@@ -1733,21 +1724,21 @@ function bindLogin() {
     const resetButton = document.querySelector("#passwordResetBtn");
     messageBox.className = "notice hidden";
     resetButton.disabled = true;
-    resetButton.textContent = "Ø¬Ø§Ø±ÙŠ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø·Ù„Ø¨...";
+    resetButton.textContent = "جاري إرسال الطلب...";
     try {
       await api("password-reset-request", {
         method: "POST",
         body: JSON.stringify({ phone: document.querySelector("#resetPhone").value.trim() })
       });
-      messageBox.textContent = "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø·Ù„Ø¨. Ø±Ø§Ø¬Ø¹ Ø§Ù„Ù…Ù†Ø¸Ù… Ù„ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ù…Ø±ÙˆØ± Ø¬Ø¯ÙŠØ¯Ø©.";
+      messageBox.textContent = "تم إرسال الطلب. راجع المنظم لتعيين كلمة مرور جديدة.";
       messageBox.className = "notice";
       resetForm.reset();
     } catch (error) {
-      messageBox.textContent = error.message || "ØªØ¹Ø°Ø± Ø¥Ø±Ø³Ø§Ù„ Ø·Ù„Ø¨ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ø¶Ø¨Ø·";
+      messageBox.textContent = error.message || "تعذر إرسال طلب إعادة الضبط";
       messageBox.className = "notice danger-notice";
     } finally {
       resetButton.disabled = false;
-      resetButton.textContent = "Ø¥Ø±Ø³Ø§Ù„ Ø·Ù„Ø¨ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ø¶Ø¨Ø·";
+      resetButton.textContent = "إرسال طلب إعادة الضبط";
     }
   });
 
@@ -1756,7 +1747,7 @@ function bindLogin() {
     const errorBox = document.querySelector("#loginError");
     errorBox.classList.add("hidden");
     loginBtn.disabled = true;
-    loginBtn.textContent = selectedMode === "create" ? "Ø¬Ø§Ø±ÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨..." : "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¯Ø®ÙˆÙ„...";
+    loginBtn.textContent = selectedMode === "create" ? "جاري إنشاء الحساب..." : "جاري الدخول...";
 
     try {
       const payload = await api("login", {
@@ -1775,11 +1766,11 @@ function bindLogin() {
       activeTab = payload.user.role === "organizer" ? "participants" : "matches";
       await loadData();
     } catch (error) {
-      errorBox.textContent = error.message || "ØªØ¹Ø°Ø± Ø§Ù„Ø¯Ø®ÙˆÙ„";
+      errorBox.textContent = error.message || "تعذر الدخول";
       errorBox.classList.remove("hidden");
     } finally {
       loginBtn.disabled = false;
-      loginBtn.textContent = selectedMode === "create" ? "Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨" : "Ø¯Ø®ÙˆÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚";
+      loginBtn.textContent = selectedMode === "create" ? "إنشاء الحساب" : "دخول التطبيق";
     }
   });
 }
@@ -1793,13 +1784,13 @@ function bindInstallControls() {
       deferredInstallPrompt = null;
       return;
     }
-    help.textContent = "Ø¥Ø°Ø§ Ù„Ù… ØªØ¸Ù‡Ø± Ù†Ø§ÙØ°Ø© Ø§Ù„ØªØ«Ø¨ÙŠØªØŒ Ø§ÙØªØ­ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© ÙÙŠ Chrome ÙˆØ§Ø®ØªØ± Install app Ø£Ùˆ Add to Home screen.";
+    help.textContent = "إذا لم تظهر نافذة التثبيت، افتح القائمة في Chrome واختر Install app أو Add to Home screen.";
     help.classList.add("show");
   });
 
   document.querySelector("#iosInstallBtn")?.addEventListener("click", () => {
     const help = document.querySelector("#installHelp");
-    help.textContent = "Ø¹Ù„Ù‰ Ø§Ù„Ø¢ÙŠÙÙˆÙ†: Ø§ÙØªØ­ Ø§Ù„Ø±Ø§Ø¨Ø· Ù…Ù† SafariØŒ Ø§Ø¶ØºØ· Ø²Ø± Ø§Ù„Ù…Ø´Ø§Ø±ÙƒØ©ØŒ Ø«Ù… Ø§Ø®ØªØ± Add to Home Screen.";
+    help.textContent = "على الآيفون: افتح الرابط من Safari، اضغط زر المشاركة، ثم اختر Add to Home Screen.";
     help.classList.add("show");
   });
 }
@@ -1821,10 +1812,10 @@ function bindApp() {
       });
       state.currentUser = { ...state.currentUser, ...payload.user };
       writeSession(state.currentUser);
-      state.notice = "ØªÙ… ØªÙ‚Ø¯ÙŠÙ… Ø·Ù„Ø¨ Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ù…Ù† Ø¬Ø¯ÙŠØ¯.";
+      state.notice = "تم تقديم طلب الانضمام من جديد.";
       await loadData({ silent: true });
     } catch (error) {
-      state.error = error.message || "ØªØ¹Ø°Ø± ØªÙ‚Ø¯ÙŠÙ… Ø·Ù„Ø¨ Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù…";
+      state.error = error.message || "تعذر تقديم طلب الانضمام";
       render();
     }
   });
@@ -1976,11 +1967,11 @@ function bindApp() {
             name: form.elements.name.value.trim()
           })
         });
-        state.notice = form.dataset.championOption === "team" ? "ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© Ø§Ù„ÙØ±ÙŠÙ‚." : "ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù‡Ø¯Ø§Ù.";
+        state.notice = form.dataset.championOption === "team" ? "تمت إضافة الفريق." : "تمت إضافة الهداف.";
         await loadData({ silent: true });
         state.championListOpen = true;
       } catch (error) {
-        state.error = error.message || "ØªØ¹Ø°Ø± Ø­ÙØ¸ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø©";
+        state.error = error.message || "تعذر حفظ القائمة";
         render();
       } finally {
         button.disabled = false;
@@ -1993,7 +1984,7 @@ function bindApp() {
       event.preventDefault();
       const button = form.querySelector("button[type='submit']");
       button.disabled = true;
-      button.textContent = "Ø¬Ø§Ø±Ù";
+      button.textContent = "جارٍ";
       try {
         await api("champion-pick", {
           method: "POST",
@@ -2004,15 +1995,15 @@ function bindApp() {
             topScorer: form.elements.topScorer.value
           })
         });
-        state.notice = "ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© Ø§Ù„ØªØ±Ø´ÙŠØ­.";
+        state.notice = "تمت إضافة الترشيح.";
         await loadData({ silent: true });
         state.championListOpen = false;
       } catch (error) {
-        state.error = error.message || "ØªØ¹Ø°Ø± Ø­ÙØ¸ Ø§Ù„ØªØ±Ø´ÙŠØ­";
+        state.error = error.message || "تعذر حفظ الترشيح";
         render();
       } finally {
         button.disabled = false;
-        button.textContent = "Ø¥Ø¶Ø§ÙØ© ØªØ±Ø´ÙŠØ­";
+        button.textContent = "إضافة ترشيح";
       }
     });
   });
@@ -2052,7 +2043,7 @@ function bindApp() {
       event.preventDefault();
       const button = form.querySelector("button[type='submit']");
       button.disabled = true;
-      button.textContent = "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø­ÙØ¸...";
+      button.textContent = "جاري الحفظ...";
       try {
         await api("password-reset-complete", {
           method: "POST",
@@ -2062,10 +2053,10 @@ function bindApp() {
             password: form.elements.password.value.trim()
           })
         });
-        state.notice = "ØªÙ… ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©.";
+        state.notice = "تم تعيين كلمة المرور الجديدة.";
         await loadData({ silent: true });
       } catch (error) {
-        state.error = error.message || "ØªØ¹Ø°Ø± ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±";
+        state.error = error.message || "تعذر تعيين كلمة المرور";
         render();
       }
     });
@@ -2082,10 +2073,10 @@ function bindApp() {
             status: button.dataset.participantStatus
           })
         });
-        state.notice = button.dataset.participantStatus === "approved" ? "ØªÙ… Ù‚Ø¨ÙˆÙ„ Ø§Ù„Ù…Ø´Ø§Ø±Ùƒ." : "ØªÙ… Ø±ÙØ¶ Ø§Ù„Ù…Ø´Ø§Ø±Ùƒ.";
+        state.notice = button.dataset.participantStatus === "approved" ? "تم قبول المشارك." : "تم رفض المشارك.";
         await loadData({ silent: true });
       } catch (error) {
-        state.error = error.message || "ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ« Ø·Ù„Ø¨ Ø§Ù„Ù…Ø´Ø§Ø±Ùƒ";
+        state.error = error.message || "تعذر تحديث طلب المشارك";
         render();
       }
     });
@@ -2095,8 +2086,8 @@ function bindApp() {
 
   document.querySelectorAll("[data-participant-delete]").forEach(button => {
     button.addEventListener("click", async () => {
-      const participantName = button.dataset.participantName || "Ù‡Ø°Ø§ Ø§Ù„Ù„Ø§Ø¹Ø¨";
-      const confirmed = confirm(`Ø³ÙŠØªÙ… Ø­Ø°Ù ${participantName} Ù…Ù† Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©ØŒ ÙˆØ­Ø°Ù ØªÙˆÙ‚Ø¹Ø§ØªÙ‡ ÙˆØ³Ø­Ø¨ Ù†Ù‚Ø§Ø·Ù‡ Ù…Ù† ÙƒÙ„ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ† Ø«Ù… Ø¥Ø¹Ø§Ø¯Ø© ØªÙˆØ²ÙŠØ¹ Ø§Ù„Ù†Ù‚Ø§Ø· ÙƒØ£Ù†Ù‡ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯. Ù‡Ù„ ØªØ±ÙŠØ¯ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø©ØŸ`);
+      const participantName = button.dataset.participantName || "هذا اللاعب";
+      const confirmed = confirm(`سيتم حذف ${participantName} من البطولة، وحذف توقعاته وسحب نقاطه من كل المشاركين ثم إعادة توزيع النقاط كأنه غير موجود. هل تريد المتابعة؟`);
       if (!confirmed) {
         closeSwipeRows();
         return;
@@ -2109,12 +2100,12 @@ function bindApp() {
             participantId: button.dataset.participantDelete
           })
         });
-        state.notice = "ØªÙ… Ø­Ø°Ù Ø§Ù„Ù„Ø§Ø¹Ø¨ Ù…Ù† Ø§Ù„Ø¨Ø·ÙˆÙ„Ø©.";
+        state.notice = "تم حذف اللاعب من البطولة.";
         closeSwipeRows();
         await loadData({ silent: true });
       } catch (error) {
         closeSwipeRows();
-        state.error = error.message || "ØªØ¹Ø°Ø± Ø­Ø°Ù Ø§Ù„Ù„Ø§Ø¹Ø¨";
+        state.error = error.message || "تعذر حذف اللاعب";
         render();
       }
     });
@@ -2140,11 +2131,11 @@ function bindApp() {
           })
         });
         if (requestSeq !== predictionSaveSeq) return;
-        state.notice = "ØªÙ… Ø­ÙØ¸ ØªÙˆÙ‚Ø¹Ùƒ ÙÙŠ Ø§Ù„Ø³ÙŠØ±ÙØ±.";
+        state.notice = "تم حفظ توقعك في السيرفر.";
         render();
       } catch (error) {
         if (requestSeq === predictionSaveSeq) restorePrediction(matchId, previous);
-        state.error = error.message || "ØªØ¹Ø°Ø± Ø­ÙØ¸ Ø§Ù„ØªÙˆÙ‚Ø¹";
+        state.error = error.message || "تعذر حفظ التوقع";
         render();
       }
     });
@@ -2156,7 +2147,7 @@ function bindApp() {
       const prediction = state.predictions[matchId];
       const winner = prediction?.winner || prediction;
       if (!winner) {
-        state.notice = "Ø§Ø®ØªØ± Ø§Ù„ÙØ§Ø¦Ø² Ø£ÙˆÙ„Ø§Ù‹ Ø«Ù… ÙØ¹Ù‘Ù„ Ø§Ù„Ø¬ÙˆÙƒØ±.";
+        state.notice = "اختر الفائز أولاً ثم فعّل الجوكر.";
         render();
         return;
       }
@@ -2177,11 +2168,11 @@ function bindApp() {
           })
         });
         if (requestSeq !== predictionSaveSeq) return;
-        state.notice = prediction?.is_joker ? "ØªÙ… Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø¬ÙˆÙƒØ±." : "ØªÙ… ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¬ÙˆÙƒØ±.";
+        state.notice = prediction?.is_joker ? "تم إلغاء الجوكر." : "تم تفعيل الجوكر.";
         await loadData({ silent: true });
       } catch (error) {
         if (requestSeq === predictionSaveSeq) restorePrediction(matchId, previous);
-        state.error = error.message || "ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¬ÙˆÙƒØ±";
+        state.error = error.message || "تعذر تحديث الجوكر";
         render();
       }
     });
@@ -2208,11 +2199,11 @@ function bindApp() {
       const errorBox = document.querySelector("#resultError");
       errorBox?.classList.add("hidden");
       if (!match || !Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) {
-        showInlineError(errorBox, "Ø£Ø¯Ø®Ù„ Ø£Ù‡Ø¯Ø§Ù Ø§Ù„ÙØ±ÙŠÙ‚ÙŠÙ† Ø¨Ø´ÙƒÙ„ ØµØ­ÙŠØ­");
+        showInlineError(errorBox, "أدخل أهداف الفريقين بشكل صحيح");
         return;
       }
       if (scoreA === scoreB) {
-        showInlineError(errorBox, "Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ø¹ØªÙ…Ø§Ø¯ ØªØ¹Ø§Ø¯Ù„ ÙÙŠ Ø£Ø¯ÙˆØ§Ø± Ø®Ø±ÙˆØ¬ Ø§Ù„Ù…ØºÙ„ÙˆØ¨. Ø¹Ø¯Ù„ Ø§Ù„Ø£Ù‡Ø¯Ø§Ù Ø­Ø³Ø¨ Ø§Ù„Ù†ØªÙŠØ¬Ø© Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠØ©.");
+        showInlineError(errorBox, "لا يمكن اعتماد تعادل في أدوار خروج المغلوب. عدل الأهداف حسب النتيجة النهائية.");
         return;
       }
       await saveResult(match.id, scoreA > scoreB ? match.team_a : match.team_b, scoreA, scoreB);
@@ -2228,20 +2219,20 @@ function bindApp() {
 
   document.querySelectorAll("[data-match-delete]").forEach(button => {
     button.addEventListener("click", async () => {
-      const matchName = button.dataset.matchName || "Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©";
-      const confirmed = confirm(`Ø³ÙŠØªÙ… Ø­Ø°Ù ${matchName} Ù…Ø¹ Ù†ØªÙŠØ¬ØªÙ‡Ø§ ÙˆÙƒÙ„ ØªÙˆÙ‚Ø¹Ø§ØªÙ‡Ø§ØŒ ÙˆØ³ÙŠØ¹Ø§Ø¯ ØªØ±ØªÙŠØ¨ Ø§Ù„Ù†Ù‚Ø§Ø· ÙƒØ£Ù† Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©. Ù‡Ù„ ØªØ±ÙŠØ¯ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø©ØŸ`);
+      const matchName = button.dataset.matchName || "هذه المباراة";
+      const confirmed = confirm(`سيتم حذف ${matchName} مع نتيجتها وكل توقعاتها، وسيعاد ترتيب النقاط كأن المباراة غير موجودة. هل تريد المتابعة؟`);
       if (!confirmed) return;
       try {
         await api("match-delete", {
           method: "POST",
           body: JSON.stringify({ userId: state.currentUser.id, matchId: button.dataset.matchDelete })
         });
-        state.notice = "ØªÙ… Ø­Ø°Ù Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© ÙˆØªØ­Ø¯ÙŠØ« Ø§Ù„ØªØ±ØªÙŠØ¨.";
+        state.notice = "تم حذف المباراة وتحديث الترتيب.";
         state.editModalMatch = null;
         state.resultModalMatch = null;
         await loadData({ silent: true });
       } catch (error) {
-        state.error = error.message || "ØªØ¹Ø°Ø± Ø­Ø°Ù Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©";
+        state.error = error.message || "تعذر حذف المباراة";
         render();
       }
     });
@@ -2263,10 +2254,10 @@ function bindApp() {
       await api("match", { method: "POST", body: JSON.stringify(match) });
       activeRound = normalizeRoundId(match.roundId);
       state.addMatchOpen = false;
-      state.notice = "ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø© ÙÙŠ Ø§Ù„Ø³ÙŠØ±ÙØ±.";
+      state.notice = "تمت إضافة المباراة في السيرفر.";
       await loadData({ silent: true });
     } catch (error) {
-      state.error = error.message || "ØªØ¹Ø°Ø± Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©";
+      state.error = error.message || "تعذر إضافة المباراة";
       render();
     }
   });
@@ -2293,7 +2284,7 @@ function bindProfileForm() {
       if (preview) preview.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="" />`;
     } catch (error) {
       if (errorBox) {
-        errorBox.textContent = error.message || "ØªØ¹Ø°Ø± ØªØ¬Ù‡ÙŠØ² Ø§Ù„ØµÙˆØ±Ø©";
+        errorBox.textContent = error.message || "تعذر تجهيز الصورة";
         errorBox.classList.remove("hidden");
       }
     }
@@ -2306,7 +2297,7 @@ function bindProfileForm() {
     if (errorBox) errorBox.classList.add("hidden");
     if (saveButton) {
       saveButton.disabled = true;
-      saveButton.textContent = "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø­ÙØ¸...";
+      saveButton.textContent = "جاري الحفظ...";
     }
     try {
       const payload = await api("profile", {
@@ -2320,17 +2311,17 @@ function bindProfileForm() {
       state.currentUser = { ...state.currentUser, ...payload.user };
       writeSession(state.currentUser);
       state.profileOpen = false;
-      state.notice = "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ.";
+      state.notice = "تم تحديث الملف الشخصي.";
       await loadData({ silent: true });
     } catch (error) {
       if (errorBox) {
-        errorBox.textContent = error.message || "ØªØ¹Ø°Ø± Ø­ÙØ¸ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ";
+        errorBox.textContent = error.message || "تعذر حفظ الملف الشخصي";
         errorBox.classList.remove("hidden");
       }
     } finally {
       if (saveButton) {
         saveButton.disabled = false;
-        saveButton.textContent = "Ø­ÙØ¸ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„";
+        saveButton.textContent = "حفظ التعديل";
       }
     }
   });
@@ -2344,14 +2335,14 @@ function bindMatchFlagFields() {
   const teamBField = document.querySelector("#teamB")?.closest(".field");
   teamBField?.insertAdjacentHTML("afterend", `
     <label class="field image-field">
-      <span>Ø¹Ù„Ù… Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø£ÙˆÙ„</span>
+      <span>علم الفريق الأول</span>
       <div class="image-input-row">
         <span class="flag-tile preview-tile" id="teamAFlagPreview">A</span>
         <input id="teamAFlag" type="file" accept="image/*" />
       </div>
     </label>
     <label class="field image-field">
-      <span>Ø¹Ù„Ù… Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ø«Ø§Ù†ÙŠ</span>
+      <span>علم الفريق الثاني</span>
       <div class="image-input-row">
         <span class="flag-tile preview-tile" id="teamBFlagPreview">B</span>
         <input id="teamBFlag" type="file" accept="image/*" />
@@ -2377,7 +2368,7 @@ function bindFlagInput(inputSelector, previewSelector, onChange) {
         preview.innerHTML = `<img src="${escapeHtml(value)}" alt="" />`;
       }
     } catch (error) {
-      state.error = error.message || "ØªØ¹Ø°Ø± ØªØ¬Ù‡ÙŠØ² Ø§Ù„Ø¹Ù„Ù…";
+      state.error = error.message || "تعذر تجهيز العلم";
       render();
     }
   });
@@ -2396,7 +2387,7 @@ function bindInlineFlagInputs() {
         if (hidden) hidden.value = value;
         if (preview) preview.innerHTML = `<img src="${escapeHtml(value)}" alt="" />`;
       } catch (error) {
-        state.error = error.message || "ØªØ¹Ø°Ø± ØªØ¬Ù‡ÙŠØ² Ø§Ù„Ø¹Ù„Ù…";
+        state.error = error.message || "تعذر تجهيز العلم";
         render();
       }
     });
@@ -2422,11 +2413,11 @@ async function saveMatchEdit(form) {
         voteEndsAt: datetimeLocalToIso(String(formData.get("voteEndsAt") || ""))
       })
     });
-    state.notice = "ØªÙ… ØªØ¹Ø¯ÙŠÙ„ Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©.";
+    state.notice = "تم تعديل بطاقة المباراة.";
     state.editModalMatch = null;
     await loadData({ silent: true });
   } catch (error) {
-    showInlineError(errorBox, error.message || "ØªØ¹Ø°Ø± ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ø¨Ø§Ø±Ø§Ø©");
+    showInlineError(errorBox, error.message || "تعذر تعديل المباراة");
   }
 }
 
@@ -2509,11 +2500,11 @@ async function saveResult(matchId, winner, scoreA = null, scoreB = null) {
       method: "POST",
       body: JSON.stringify({ userId: state.currentUser.id, matchId, winner, scoreA, scoreB })
     });
-    state.notice = winner ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù†ØªÙŠØ¬Ø© ÙˆØ§Ù„ØªØ±ØªÙŠØ¨." : "ØªÙ… Ù…Ø³Ø­ Ø§Ù„Ù†ØªÙŠØ¬Ø©.";
+    state.notice = winner ? "تم تحديث النتيجة والترتيب." : "تم مسح النتيجة.";
     state.resultModalMatch = null;
     await loadData({ silent: true });
   } catch (error) {
-    state.error = error.message || "ØªØ¹Ø°Ø± ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù†ØªÙŠØ¬Ø©";
+    state.error = error.message || "تعذر تحديث النتيجة";
     render();
   }
 }
@@ -2554,9 +2545,9 @@ function rankMovementFor(standings) {
 }
 
 function statusLabel(status) {
-  if (status === "approved") return "Ù…Ù‚Ø¨ÙˆÙ„";
-  if (status === "rejected") return "Ù…Ø±ÙÙˆØ¶";
-  return "Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ù…ÙˆØ§ÙÙ‚Ø©";
+  if (status === "approved") return "مقبول";
+  if (status === "rejected") return "مرفوض";
+  return "بانتظار الموافقة";
 }
 
 function roundName(id) {
@@ -2606,21 +2597,21 @@ function teamBadge(name, flagUrl) {
 
 function initials(value) {
   const words = String(value || "").trim().split(/\s+/).filter(Boolean);
-  return (words[0]?.[0] || "ØŸ") + (words[1]?.[0] || "");
+  return (words[0]?.[0] || "؟") + (words[1]?.[0] || "");
 }
 
 function imageFileToDataUrl(file, size = 320) {
   return new Promise((resolve, reject) => {
     if (file.type && !file.type.startsWith("image/")) {
-      reject(new Error("Ø§Ø®ØªØ± Ù…Ù„Ù ØµÙˆØ±Ø© ÙÙ‚Ø·"));
+      reject(new Error("اختر ملف صورة فقط"));
       return;
     }
 
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("ØªØ¹Ø°Ø± Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„ØµÙˆØ±Ø©"));
+    reader.onerror = () => reject(new Error("تعذر قراءة الصورة"));
     reader.onload = () => {
       const image = new Image();
-      image.onerror = () => reject(new Error("ØªØ¹Ø°Ø± ÙØªØ­ Ø§Ù„ØµÙˆØ±Ø©"));
+      image.onerror = () => reject(new Error("تعذر فتح الصورة"));
       image.onload = () => {
         const canvas = document.createElement("canvas");
         canvas.width = size;
@@ -2639,12 +2630,12 @@ function imageFileToDataUrl(file, size = 320) {
 }
 
 function formatDate(value) {
-  if (!value) return "ØºÙŠØ± Ù…Ø­Ø¯Ø¯";
+  if (!value) return "غير محدد";
   return new Intl.DateTimeFormat("ar-AE", { dateStyle: "medium", timeStyle: "short", timeZone: APP_TIME_ZONE }).format(new Date(value));
 }
 
 function formatAdminMatchDate(value) {
-  if (!value) return "ØºÙŠØ± Ù…Ø­Ø¯Ø¯";
+  if (!value) return "غير محدد";
   return new Intl.DateTimeFormat("ar-AE", {
     weekday: "long",
     day: "numeric",

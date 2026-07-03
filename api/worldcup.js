@@ -13,6 +13,7 @@ const ROUND_RULES = {
 
 const ROUND_ORDER = ["r32", "r16", "r8", "qf", "sf", "final"];
 const JOKER_ROUNDS = new Set(["r16", "sf"]);
+const JOKER_LIMITS = { r16: 2, sf: 1 };
 const ROUND_MATCH_LIMITS = {
   r32: 16,
   r16: 8,
@@ -304,7 +305,9 @@ async function validateJokerPick(userId, match) {
   if (!jokerMatchIds.length) return;
   const roundMatches = await supabase(`worldcup2026_matches?round_id=eq.${encodeURIComponent(match.round_id)}&select=id`);
   const sameRoundIds = new Set(roundMatches.map(item => item.id));
-  if (jokerMatchIds.some(id => sameRoundIds.has(id))) throw httpError(409, "استخدمت الجوكر مسبقاً في هذا الدور");
+  const usedInRound = jokerMatchIds.filter(id => sameRoundIds.has(id)).length;
+  const limit = JOKER_LIMITS[match.round_id] || 1;
+  if (usedInRound >= limit) throw httpError(409, `استخدمت الحد المسموح للجوكر في هذا الدور (${limit})`);
 }
 
 async function updateProfile(req, res) {

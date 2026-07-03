@@ -106,3 +106,27 @@ create table if not exists public.worldcup2026friends_champion_picks (
   updated_at timestamptz not null default now(),
   unique (participant_id)
 );
+
+alter table public.worldcup2026friends_users disable row level security;
+alter table public.worldcup2026friends_matches disable row level security;
+alter table public.worldcup2026friends_predictions disable row level security;
+alter table public.worldcup2026friends_champion_options disable row level security;
+alter table public.worldcup2026friends_champion_picks disable row level security;
+
+grant all on table public.worldcup2026friends_users to anon;
+grant all on table public.worldcup2026friends_matches to anon;
+grant all on table public.worldcup2026friends_predictions to anon;
+grant all on table public.worldcup2026friends_champion_options to anon;
+grant all on table public.worldcup2026friends_champion_picks to anon;
+
+grant all on table public.worldcup2026friends_users to authenticated;
+grant all on table public.worldcup2026friends_matches to authenticated;
+grant all on table public.worldcup2026friends_predictions to authenticated;
+grant all on table public.worldcup2026friends_champion_options to authenticated;
+grant all on table public.worldcup2026friends_champion_picks to authenticated;
+
+grant all on table public.worldcup2026friends_users to service_role;
+grant all on table public.worldcup2026friends_matches to service_role;
+grant all on table public.worldcup2026friends_predictions to service_role;
+grant all on table public.worldcup2026friends_champion_options to service_role;
+grant all on table public.worldcup2026friends_champion_picks to service_role;

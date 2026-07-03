@@ -1,8 +1,13 @@
 const worldCupHandler = require("./worldcup.js");
+const worldCupFriendsHandler = require("./worldCup2026Friends.js");
 
 module.exports = async function handler(req, res) {
   if (String(req.query?.worldcup || "") === "1") {
     return await worldCupHandler(req, res);
+  }
+
+  if (String(req.query?.worldcupFriends || "") === "1") {
+    return await worldCupFriendsHandler(req, res);
   }
 
   res.setHeader("Access-Control-Allow-Origin", "*");

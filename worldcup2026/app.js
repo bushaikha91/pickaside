@@ -1106,7 +1106,7 @@ function resultModal(matchId) {
 }
 
 function roundPosterReady(roundId, matches, roundLimit) {
-  return matches.length >= roundLimit && matches.every(match => match.winner);
+  return state.standings.length > 0;
 }
 
 function roundPosterModal(roundId) {

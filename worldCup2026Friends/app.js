@@ -1419,11 +1419,15 @@ async function expireTriviaAssignment(assignmentId) {
 
 function summaryView() {
   const mine = state.standings.find(row => row.id === state.currentUser.id) || { points: 0, correct_predictions: 0, wrong_predictions: 0 };
+  const correctPredictions = Number(mine.correct_predictions) || 0;
+  const wrongPredictions = Number(mine.wrong_predictions) || 0;
+  const totalPredictions = correctPredictions + wrongPredictions;
+  const voteAccuracy = totalPredictions ? Math.round((correctPredictions / totalPredictions) * 100) : 0;
   return `
     <div class="summary-grid" style="margin-bottom:16px">
       <div class="summary-card"><span class="small">النقاط</span><strong>${mine.points}</strong></div>
-      <div class="summary-card"><span class="small">صحيح</span><strong>${mine.correct_predictions}</strong></div>
-      <div class="summary-card"><span class="small">خطأ</span><strong>${mine.wrong_predictions}</strong></div>
+      <div class="summary-card"><span class="small">صحيح</span><strong>${correctPredictions}/${totalPredictions}</strong></div>
+      <div class="summary-card"><span class="small">دقة التصويت</span><strong>${voteAccuracy}%</strong></div>
     </div>
   `;
 }

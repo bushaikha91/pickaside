@@ -91,7 +91,8 @@ const state = {
   resultModalMatch: null,
   posterRound: null,
   detailParticipantId: null,
-  addMatchOpen: false
+  addMatchOpen: false,
+  addTriviaOpen: false
 };
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
@@ -300,6 +301,7 @@ function appTemplate() {
     ${state.posterRound ? roundPosterModal(state.posterRound) : ""}
     ${state.detailParticipantId ? participantDetailModal(state.detailParticipantId) : ""}
     ${state.addMatchOpen ? matchFormModal() : ""}
+    ${state.addTriviaOpen ? triviaQuestionModal() : ""}
   `;
 }
 
@@ -975,7 +977,33 @@ function organizerTriviaView() {
         <span class="small">أضف بنك أسئلة لكل دور، وسيظهر لكل متسابق 3 أسئلة عشوائية.</span>
       </div>
     </div>
-    <form class="panel stack trivia-form" id="triviaQuestionForm">
+    <button class="add-match-toggle" id="addTriviaToggle" type="button">إضافة سؤال</button>
+    <div class="trivia-question-list">
+      ${visibleRounds().map(round => {
+        const questions = state.triviaQuestions.filter(item => normalizeRoundId(item.round_id) === round.id);
+        return `
+          <section class="panel stack">
+            <div class="section-title">
+              <h2>${round.name}</h2>
+              <span class="small">${questions.length} سؤال</span>
+            </div>
+            ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا الدور.")}
+          </section>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function triviaQuestionModal() {
+  return `
+    <div class="modal-backdrop" data-trivia-modal-close>
+      <section class="modal-card stack add-match-modal">
+        <div class="section-title">
+          <h2>إضافة سؤال</h2>
+          <button class="icon-close" type="button" data-trivia-close>×</button>
+        </div>
+        <form class="stack trivia-form" id="triviaQuestionForm">
       <label class="field">
         <span>الدور</span>
         <select name="roundId" required>
@@ -1002,20 +1030,8 @@ function organizerTriviaView() {
         <label class="field"><span>النقاط</span><input name="points" type="number" min="1" max="1000" value="10" /></label>
       </div>
       <button class="primary-btn" type="submit">إضافة السؤال</button>
-    </form>
-    <div class="trivia-question-list">
-      ${visibleRounds().map(round => {
-        const questions = state.triviaQuestions.filter(item => normalizeRoundId(item.round_id) === round.id);
-        return `
-          <section class="panel stack">
-            <div class="section-title">
-              <h2>${round.name}</h2>
-              <span class="small">${questions.length} سؤال</span>
-            </div>
-            ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا الدور.")}
-          </section>
-        `;
-      }).join("")}
+        </form>
+      </section>
     </div>
   `;
 }
@@ -2143,6 +2159,23 @@ function bindApp() {
     }
   });
 
+  document.querySelector("#addTriviaToggle")?.addEventListener("click", () => {
+    state.addTriviaOpen = true;
+    render();
+  });
+
+  document.querySelector("[data-trivia-close]")?.addEventListener("click", () => {
+    state.addTriviaOpen = false;
+    render();
+  });
+
+  document.querySelector("[data-trivia-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.addTriviaOpen = false;
+      render();
+    }
+  });
+
   document.querySelector("#triviaQuestionForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -2164,6 +2197,7 @@ function bindApp() {
         })
       });
       state.notice = "تمت إضافة السؤال.";
+      state.addTriviaOpen = false;
       form.reset();
       await loadData({ silent: true });
     } catch (error) {
@@ -2756,7 +2790,7 @@ function syncCountdownTimer() {
 }
 
 function hasOpenModal() {
-  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen);
+  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen);
 }
 
 function bindSwipeRows() {

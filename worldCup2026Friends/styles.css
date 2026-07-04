@@ -1422,6 +1422,58 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.trivia-answer-review {
+  display: grid;
+  gap: 10px;
+}
+
+.trivia-answer-review > strong {
+  font-size: 15px;
+}
+
+.trivia-answer-review-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.trivia-answer-review-item.correct {
+  border-color: rgba(6, 118, 71, 0.28);
+}
+
+.trivia-answer-review-item.wrong {
+  border-color: rgba(180, 35, 24, 0.24);
+}
+
+.trivia-answer-review-head,
+.trivia-answer-lines {
+  display: grid;
+  gap: 5px;
+}
+
+.trivia-answer-review-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.trivia-answer-review-head strong {
+  color: var(--green);
+}
+
+.trivia-answer-review-item.wrong .trivia-answer-review-head strong {
+  color: #b42318;
+}
+
+.trivia-answer-review-item p,
+.trivia-answer-lines span {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
 .trivia-options .choice {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);

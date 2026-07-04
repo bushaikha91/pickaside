@@ -666,7 +666,8 @@ async function ensureAssignmentsForParticipant(userId) {
 
 async function fetchTriviaAssignments(userId) {
   try {
-    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,question_round,difficulty,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points,time_limit_seconds,difficulty)&order=question_round.asc&order=difficulty.asc&order=created_at.asc`);
+    const assignments = await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,question_round,difficulty,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,correct_option,points,time_limit_seconds,difficulty)&order=question_round.asc&order=difficulty.asc&order=created_at.asc`);
+    return assignments.map(maskTriviaAssignmentAnswer);
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -794,7 +795,11 @@ async function answerTriviaQuestion(req, res) {
     body: JSON.stringify({ answered_at: new Date().toISOString(), selected_option: selected, is_correct: isCorrect, points_awarded: awardedPoints }),
     prefer: "return=representation"
   });
-  return res.status(200).json({ assignment: updated, expired, isCorrect });
+  return res.status(200).json({
+    assignment: { ...updated, question: revealTriviaQuestionAnswer(question) },
+    expired,
+    isCorrect
+  });
 }
 
 async function expireTriviaQuestion(req, res) {
@@ -815,7 +820,11 @@ async function expireTriviaQuestion(req, res) {
     body: JSON.stringify({ answered_at: new Date().toISOString(), selected_option: null, is_correct: false, points_awarded: 0 }),
     prefer: "return=representation"
   });
-  return res.status(200).json({ assignment: updated, expired: true, serverNow: new Date().toISOString() });
+  return res.status(200).json({
+    assignment: { ...updated, question: revealTriviaQuestionAnswer(question) },
+    expired: true,
+    serverNow: new Date().toISOString()
+  });
 }
 
 function triviaQuestionPayload(body) {
@@ -889,6 +898,17 @@ function normalizeTriviaQuestionRow(row) {
     difficulty: normalizeDifficulty(row.difficulty),
     time_limit_seconds: Math.max(5, Number(row.time_limit_seconds || 20))
   };
+}
+
+function maskTriviaAssignmentAnswer(assignment) {
+  if (!assignment?.question || assignment.answered_at) return assignment;
+  const { correct_option, ...question } = assignment.question;
+  return { ...assignment, question };
+}
+
+function revealTriviaQuestionAnswer(question) {
+  if (!question) return question;
+  return normalizeTriviaQuestionRow(question);
 }
 
 function clampTriviaPoints(value, fallback) {

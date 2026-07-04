@@ -1297,7 +1297,7 @@ function triviaRoundCard(roundNumber, assignments, displayRoundId = activeRound)
         <span>متوسط: ${triviaSettingPoints(setting, "medium")} نقطة</span>
         <span>صعب: ${triviaSettingPoints(setting, "hard")} نقطة</span>
       </div>
-      ${allDone ? triviaRoundResult(correct, points) : !started ? triviaRoundIntro(assignments[0]) : triviaAssignmentCard(active, assignments)}
+      ${allDone ? triviaRoundResult(correct, points, assignments) : !started ? triviaRoundIntro(assignments[0]) : triviaAssignmentCard(active, assignments)}
     </article>
   `;
 }
@@ -1309,13 +1309,46 @@ function triviaRoundIntro(firstAssignment) {
   `;
 }
 
-function triviaRoundResult(correct, points) {
+function triviaRoundResult(correct, points, assignments = []) {
   return `
     <div class="summary-grid trivia-round-result">
       <div class="summary-card"><span class="small">الإجابات الصحيحة</span><strong>${correct}/3</strong></div>
       <div class="summary-card"><span class="small">نقاط الجولة</span><strong>${points}</strong></div>
     </div>
+    <div class="trivia-answer-review">
+      <strong>مراجعة الإجابات</strong>
+      ${assignments.map((assignment, index) => triviaAnswerReviewItem(assignment, index)).join("")}
+    </div>
   `;
+}
+
+function triviaAnswerReviewItem(assignment, index) {
+  const question = assignment.question || {};
+  const selected = String(assignment.selected_option || "").toLowerCase();
+  const correct = String(question.correct_option || "").toLowerCase();
+  const selectedText = selected ? triviaOptionText(question, selected) : "لم تتم الإجابة";
+  const correctText = correct ? triviaOptionText(question, correct) : "غير متاحة";
+  return `
+    <article class="trivia-answer-review-item ${assignment.is_correct ? "correct" : "wrong"}">
+      <div class="trivia-answer-review-head">
+        <span>السؤال ${index + 1}</span>
+        <strong>${assignment.is_correct ? "صحيح" : "خطأ"}</strong>
+      </div>
+      <p>${escapeHtml(question.question_text || "السؤال غير متاح")}</p>
+      <div class="trivia-answer-lines">
+        <span>اختيارك: <b>${escapeHtml(selectedText)}</b></span>
+        <span>الإجابة الصحيحة: <b>${escapeHtml(correctText)}</b></span>
+        <span>النقاط: <b>${Number(assignment.points_awarded) || 0}</b></span>
+      </div>
+    </article>
+  `;
+}
+
+function triviaOptionText(question, option) {
+  const key = `option_${String(option || "").toLowerCase()}`;
+  const label = String(option || "").toUpperCase();
+  const value = question?.[key] || "";
+  return value ? `${label} - ${value}` : label || "-";
 }
 
 function triviaAssignmentComplete(assignment) {

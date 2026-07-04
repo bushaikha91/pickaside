@@ -1,4 +1,4 @@
-const CACHE_NAME = "worldcup2026friends-app-v1";
+const CACHE_NAME = "worldcup2026friends-app-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -29,6 +29,23 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const requestUrl = new URL(event.request.url);
   if (requestUrl.pathname.includes("/api/")) return;
+
+  const isFreshAsset =
+    event.request.mode === "navigate" ||
+    requestUrl.pathname.endsWith("/app.js") ||
+    requestUrl.pathname.endsWith("/styles.css") ||
+    requestUrl.pathname.endsWith("/index.html");
+
+  if (isFreshAsset) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then(cached => {

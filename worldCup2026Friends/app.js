@@ -1087,11 +1087,12 @@ function triviaAssignmentCard(assignment) {
   return `
     <article class="panel stack trivia-card ${answered ? assignment.is_correct ? "correct" : "wrong" : expired ? "expired" : ""}">
       <div class="section-title">
-        <h2>${escapeHtml(question.question_text || "سؤال")}</h2>
+        <h2>${started ? escapeHtml(question.question_text || "سؤال") : "سؤال جاهز"}</h2>
         <span class="status-chip ${answered ? assignment.is_correct ? "approved" : "wrong" : expired ? "rejected" : "pending"}">
           ${answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${question.points || 0} نقطة`}
         </span>
       </div>
+      ${!started ? `<span class="small">اضغط ابدأ السؤال لعرض السؤال وتشغيل العداد.</span>` : ""}
       ${started && !answered && !expired ? `<span class="countdown" ${countdownAttrs(deadline, "الوقت: ")}>${countdownText(deadline)}</span>` : ""}
       ${!started ? `<button class="primary-btn" data-trivia-start="${assignment.id}" type="button">ابدأ السؤال</button>` : `
         <div class="trivia-options">

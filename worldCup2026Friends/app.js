@@ -94,8 +94,10 @@ const state = {
   detailParticipantId: null,
   addMatchOpen: false,
   addTriviaOpen: false,
+  addTriviaRoundOpen: false,
   editTriviaQuestionId: null,
   triviaModalError: "",
+  triviaRoundModalError: "",
   organizerTriviaTab: "questions",
   triviaQuestionDifficulty: "easy"
 };
@@ -308,6 +310,7 @@ function appTemplate() {
     ${state.detailParticipantId ? participantDetailModal(state.detailParticipantId) : ""}
     ${state.addMatchOpen ? matchFormModal() : ""}
     ${state.addTriviaOpen ? triviaQuestionModal() : ""}
+    ${state.addTriviaRoundOpen ? triviaRoundModal() : ""}
   `;
 }
 
@@ -992,22 +995,13 @@ function organizerTriviaView() {
     <div class="trivia-question-list">
       ${triviaTab === "rounds" ? `<section class="panel stack">
         <div class="section-title">
-          <h2>إعدادات الجولات والنقاط</h2>
-          <span class="small">حدد عدد الجولات ونقاط كل مستوى لكل دور.</span>
+          <div>
+            <h2>الجولات</h2>
+            <span class="small">أضف عنوان الجولة، الدور الذي تظهر فيه، ونقاط كل مستوى.</span>
+          </div>
+          <button class="mini-btn" id="addTriviaRoundToggle" type="button">إضافة جولة</button>
         </div>
-        ${visibleRounds().map(round => {
-          const setting = triviaRoundSetting(round.id);
-          return `
-            <form class="trivia-settings-form form-grid" data-trivia-settings="${round.id}">
-              <strong>${round.name}</strong>
-              <label class="field"><span>عدد الجولات</span><input name="roundCount" type="number" min="1" max="20" value="${triviaRoundCount(round.id)}" /></label>
-              <label class="field"><span>نقاط السهل</span><input name="easyPoints" type="number" min="1" max="1000" value="${triviaSettingPoints(setting, "easy")}" /></label>
-              <label class="field"><span>نقاط المتوسط</span><input name="mediumPoints" type="number" min="1" max="1000" value="${triviaSettingPoints(setting, "medium")}" /></label>
-              <label class="field"><span>نقاط الصعب</span><input name="hardPoints" type="number" min="1" max="1000" value="${triviaSettingPoints(setting, "hard")}" /></label>
-              <button class="mini-btn" type="submit">حفظ</button>
-            </form>
-          `;
-        }).join("")}
+        ${state.triviaSettings.length ? visibleRounds().map(round => triviaRoundList(round.id)).join("") : emptyView("لا توجد جولات. أضف جولة لبدء عرض الأسئلة للمتسابقين.")}
       </section>` : `<section class="panel stack">
         <div class="section-title">
           <div>
@@ -1025,6 +1019,57 @@ function organizerTriviaView() {
         </div>
         ${triviaDifficultyQuestionList(activeDifficulty)}
       </section>`}
+    </div>
+  `;
+}
+
+function triviaRoundList(roundId) {
+  const items = triviaRoundsFor(roundId);
+  if (!items.length) return "";
+  return `
+    <section class="stack trivia-round-group">
+      <div class="section-title">
+        <h2>${roundName(roundId)}</h2>
+        <span class="small">${items.length} جولة</span>
+      </div>
+      ${items.map(item => `
+        <article class="trivia-admin-row">
+          <div>
+            <strong>${escapeHtml(item.title || `جولة ${item.sort_order || 1}`)}</strong>
+            <span class="small">سهل ${triviaSettingPoints(item, "easy")} | متوسط ${triviaSettingPoints(item, "medium")} | صعب ${triviaSettingPoints(item, "hard")}</span>
+          </div>
+          <button class="mini-btn reject" data-trivia-round-delete="${item.id}" type="button">حذف</button>
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
+function triviaRoundModal() {
+  return `
+    <div class="modal-backdrop" data-trivia-round-modal-close>
+      <section class="modal-card stack add-match-modal">
+        <div class="section-title">
+          <h2>إضافة جولة</h2>
+          <button class="icon-close" type="button" data-trivia-round-close>×</button>
+        </div>
+        <form class="stack trivia-form" id="triviaRoundForm">
+          ${state.triviaRoundModalError ? `<div class="inline-error">${escapeHtml(state.triviaRoundModalError)}</div>` : ""}
+          <label class="field"><span>عنوان الجولة</span><input name="title" required placeholder="مثال: جولة معلومات الملاعب" /></label>
+          <label class="field">
+            <span>تظهر في دور</span>
+            <select name="roundId" required>
+              ${visibleRounds().map(round => `<option value="${round.id}">${round.name}</option>`).join("")}
+            </select>
+          </label>
+          <div class="form-grid">
+            <label class="field"><span>نقاط السهل</span><input name="easyPoints" type="number" min="1" max="1000" value="10" /></label>
+            <label class="field"><span>نقاط المتوسط</span><input name="mediumPoints" type="number" min="1" max="1000" value="20" /></label>
+            <label class="field"><span>نقاط الصعب</span><input name="hardPoints" type="number" min="1" max="1000" value="30" /></label>
+          </div>
+          <button class="primary-btn" type="submit">إضافة الجولة</button>
+        </form>
+      </section>
     </div>
   `;
 }
@@ -1100,13 +1145,15 @@ function triviaQuestionRow(question) {
   `;
 }
 
-function triviaRoundSetting(roundId) {
-  return state.triviaSettings.find(item => normalizeRoundId(item.round_id) === normalizeRoundId(roundId)) || {};
+function triviaRoundsFor(roundId) {
+  return state.triviaSettings
+    .filter(item => normalizeRoundId(item.round_id) === normalizeRoundId(roundId))
+    .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0));
 }
 
-function triviaRoundCount(roundId) {
-  const setting = triviaRoundSetting(roundId);
-  return Math.max(1, Number(setting?.round_count || 1));
+function triviaRoundSetting(roundId, questionRound = 1) {
+  const rounds = triviaRoundsFor(roundId);
+  return rounds.find(item => Math.max(1, Number(item.sort_order || 1)) === Math.max(1, Number(questionRound || 1))) || rounds[0] || {};
 }
 
 function triviaSettingPoints(setting, difficulty) {
@@ -1164,7 +1211,7 @@ function participantTriviaView() {
       ${assignments.length ? triviaRoundGroups(assignments).map(([roundNumber, roundAssignments]) => `
         <section class="stack trivia-round-group">
           <div class="section-title">
-            <h2>جولة ${roundNumber}</h2>
+            <h2>${escapeHtml(triviaRoundSetting(activeRound, roundNumber).title || `جولة ${roundNumber}`)}</h2>
             <span class="small">${roundAssignments.filter(item => item.answered_at && item.is_correct).length}/3 صحيح</span>
           </div>
           ${roundAssignments.map(triviaAssignmentCard).join("")}
@@ -1192,7 +1239,7 @@ function triviaRoundGroups(assignments) {
 
 function triviaAssignmentCard(assignment) {
   const question = assignment.question || {};
-  const availablePoints = triviaDifficultyPoints(assignment.round_id, assignment.difficulty || question.difficulty);
+  const availablePoints = triviaSettingPoints(triviaRoundSetting(assignment.round_id, assignment.question_round), assignment.difficulty || question.difficulty);
   const started = !!assignment.started_at;
   const answered = !!assignment.answered_at;
   const deadline = assignment.started_at ? new Date(new Date(assignment.started_at).getTime() + triviaTimeLimitSeconds(assignment) * 1000).toISOString() : "";
@@ -2291,6 +2338,26 @@ function bindApp() {
     render();
   });
 
+  document.querySelector("#addTriviaRoundToggle")?.addEventListener("click", () => {
+    state.addTriviaRoundOpen = true;
+    state.triviaRoundModalError = "";
+    render();
+  });
+
+  document.querySelector("[data-trivia-round-close]")?.addEventListener("click", () => {
+    state.addTriviaRoundOpen = false;
+    state.triviaRoundModalError = "";
+    render();
+  });
+
+  document.querySelector("[data-trivia-round-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.addTriviaRoundOpen = false;
+      state.triviaRoundModalError = "";
+      render();
+    }
+  });
+
   document.querySelector("[data-trivia-close]")?.addEventListener("click", () => {
     state.addTriviaOpen = false;
     state.editTriviaQuestionId = null;
@@ -2366,30 +2433,52 @@ function bindApp() {
     }
   });
 
-  document.querySelectorAll("[data-trivia-settings]").forEach(form => {
-    form.addEventListener("submit", async event => {
-      event.preventDefault();
-      const button = form.querySelector("button[type='submit']");
-      if (button) button.disabled = true;
+  document.querySelector("#triviaRoundForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    if (button) button.disabled = true;
+    try {
+      const payload = await api("trivia-round", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: state.currentUser.id,
+          title: form.elements.title.value.trim(),
+          roundId: form.elements.roundId.value,
+          easyPoints: form.elements.easyPoints.value,
+          mediumPoints: form.elements.mediumPoints.value,
+          hardPoints: form.elements.hardPoints.value
+        })
+      });
+      if (payload.round?.id) state.triviaSettings = [...state.triviaSettings, payload.round];
+      state.notice = "تمت إضافة الجولة.";
+      state.addTriviaRoundOpen = false;
+      state.triviaRoundModalError = "";
+      render();
+      loadData({ silent: true }).catch(() => {});
+    } catch (error) {
+      state.triviaRoundModalError = error.message || "تعذر حفظ الجولة";
+      render();
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("[data-trivia-round-delete]").forEach(button => {
+    button.addEventListener("click", async () => {
+      if (!confirm("حذف الجولة؟")) return;
       try {
-        await api("trivia-settings", {
+        await api("trivia-round-delete", {
           method: "POST",
-          body: JSON.stringify({
-            userId: state.currentUser.id,
-            roundId: form.dataset.triviaSettings,
-            roundCount: form.elements.roundCount.value,
-            easyPoints: form.elements.easyPoints.value,
-            mediumPoints: form.elements.mediumPoints.value,
-            hardPoints: form.elements.hardPoints.value
-          })
+          body: JSON.stringify({ userId: state.currentUser.id, roundId: button.dataset.triviaRoundDelete })
         });
-        state.notice = "تم حفظ إعدادات الجولات والنقاط.";
-        await loadData({ silent: true });
-      } catch (error) {
-        state.error = error.message || "تعذر حفظ إعدادات الجولات";
+        state.triviaSettings = state.triviaSettings.filter(item => item.id !== button.dataset.triviaRoundDelete);
+        state.notice = "تم حذف الجولة.";
         render();
-      } finally {
-        if (button) button.disabled = false;
+        loadData({ silent: true }).catch(() => {});
+      } catch (error) {
+        state.error = error.message || "تعذر حذف الجولة";
+        render();
       }
     });
   });

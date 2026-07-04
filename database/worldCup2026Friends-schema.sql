@@ -176,6 +176,37 @@ alter table public.worldcup2026friends_trivia_settings
 alter table public.worldcup2026friends_trivia_settings
   add column if not exists hard_points integer not null default 30;
 
+create table if not exists public.worldcup2026friends_trivia_rounds (
+  id uuid primary key default gen_random_uuid(),
+  round_id text not null,
+  title text not null,
+  sort_order integer not null default 1,
+  easy_points integer not null default 10,
+  medium_points integer not null default 20,
+  hard_points integer not null default 30,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.worldcup2026friends_trivia_rounds
+  add column if not exists title text not null default 'جولة';
+
+alter table public.worldcup2026friends_trivia_rounds
+  add column if not exists sort_order integer not null default 1;
+
+alter table public.worldcup2026friends_trivia_rounds
+  add column if not exists easy_points integer not null default 10;
+
+alter table public.worldcup2026friends_trivia_rounds
+  add column if not exists medium_points integer not null default 20;
+
+alter table public.worldcup2026friends_trivia_rounds
+  add column if not exists hard_points integer not null default 30;
+
+alter table public.worldcup2026friends_trivia_rounds
+  add column if not exists is_active boolean not null default true;
+
 create table if not exists public.worldcup2026friends_trivia_assignments (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.worldcup2026friends_users(id) on delete cascade,
@@ -201,13 +232,17 @@ alter table public.worldcup2026friends_trivia_assignments
 alter table public.worldcup2026friends_trivia_questions disable row level security;
 alter table public.worldcup2026friends_trivia_assignments disable row level security;
 alter table public.worldcup2026friends_trivia_settings disable row level security;
+alter table public.worldcup2026friends_trivia_rounds disable row level security;
 
 grant all on table public.worldcup2026friends_trivia_questions to anon;
 grant all on table public.worldcup2026friends_trivia_assignments to anon;
 grant all on table public.worldcup2026friends_trivia_settings to anon;
+grant all on table public.worldcup2026friends_trivia_rounds to anon;
 grant all on table public.worldcup2026friends_trivia_questions to authenticated;
 grant all on table public.worldcup2026friends_trivia_assignments to authenticated;
 grant all on table public.worldcup2026friends_trivia_settings to authenticated;
+grant all on table public.worldcup2026friends_trivia_rounds to authenticated;
 grant all on table public.worldcup2026friends_trivia_questions to service_role;
 grant all on table public.worldcup2026friends_trivia_assignments to service_role;
 grant all on table public.worldcup2026friends_trivia_settings to service_role;
+grant all on table public.worldcup2026friends_trivia_rounds to service_role;

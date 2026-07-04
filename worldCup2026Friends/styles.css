@@ -1385,6 +1385,33 @@ button {
   gap: 8px;
 }
 
+.trivia-round-card {
+  gap: 14px;
+}
+
+.trivia-round-points,
+.trivia-round-result {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.trivia-round-points span {
+  min-height: 38px;
+  padding: 9px 8px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  background: #fff;
+}
+
+.trivia-round-result {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .trivia-options .choice {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);

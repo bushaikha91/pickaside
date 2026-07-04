@@ -1209,13 +1209,7 @@ function participantTriviaView() {
     ${roundTabs()}
     <div class="trivia-question-list">
       ${assignments.length ? triviaRoundGroups(assignments).map(([roundNumber, roundAssignments]) => `
-        <section class="stack trivia-round-group">
-          <div class="section-title">
-            <h2>${escapeHtml(triviaRoundSetting(activeRound, roundNumber).title || `جولة ${roundNumber}`)}</h2>
-            <span class="small">${roundAssignments.filter(item => item.answered_at && item.is_correct).length}/3 صحيح</span>
-          </div>
-          ${roundAssignments.map(triviaAssignmentCard).join("")}
-        </section>
+        ${triviaRoundCard(roundNumber, roundAssignments)}
       `).join("") : emptyView("لا توجد أسئلة متاحة لهذا الدور حالياً.")}
     </div>
   `;
@@ -1237,21 +1231,78 @@ function triviaRoundGroups(assignments) {
     ]);
 }
 
-function triviaAssignmentCard(assignment) {
+function triviaRoundCard(roundNumber, assignments) {
+  const setting = triviaRoundSetting(activeRound, roundNumber);
+  const title = setting.title || `جولة ${roundNumber}`;
+  const completed = assignments.filter(triviaAssignmentComplete);
+  const correct = completed.filter(item => item.is_correct).length;
+  const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
+  const active = assignments.find(item => !triviaAssignmentComplete(item));
+  const started = assignments.some(item => item.started_at || item.answered_at);
+  const allDone = assignments.length > 0 && completed.length === assignments.length;
+  return `
+    <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
+      <div class="section-title">
+        <div>
+          <h2>${escapeHtml(title)}</h2>
+          <span class="small">3 أسئلة بثلاث مستويات: سهل، متوسط، صعب</span>
+        </div>
+        <span class="status-chip ${allDone ? "approved" : started ? "pending" : ""}">${allDone ? "مكتمل" : started ? `${completed.length}/3` : "جاهزة"}</span>
+      </div>
+      <div class="trivia-round-points">
+        <span>سهل: ${triviaSettingPoints(setting, "easy")} نقطة</span>
+        <span>متوسط: ${triviaSettingPoints(setting, "medium")} نقطة</span>
+        <span>صعب: ${triviaSettingPoints(setting, "hard")} نقطة</span>
+      </div>
+      ${allDone ? triviaRoundResult(correct, points) : !started ? triviaRoundIntro(assignments[0]) : triviaAssignmentCard(active, assignments)}
+    </article>
+  `;
+}
+
+function triviaRoundIntro(firstAssignment) {
+  return `
+    <p class="small">عند بدء الجولة ستظهر لك الأسئلة واحداً بعد الآخر. بعد اختيار الإجابة أو انتهاء الوقت ينتقل التطبيق تلقائياً للسؤال التالي، وبعد السؤال الثالث تظهر النتيجة.</p>
+    <button class="primary-btn" data-trivia-start="${firstAssignment?.id || ""}" type="button" ${firstAssignment ? "" : "disabled"}>ابدأ الجولة</button>
+  `;
+}
+
+function triviaRoundResult(correct, points) {
+  return `
+    <div class="summary-grid trivia-round-result">
+      <div class="summary-card"><span class="small">الإجابات الصحيحة</span><strong>${correct}/3</strong></div>
+      <div class="summary-card"><span class="small">نقاط الجولة</span><strong>${points}</strong></div>
+    </div>
+  `;
+}
+
+function triviaAssignmentComplete(assignment) {
+  return !!assignment?.answered_at || triviaAssignmentExpired(assignment);
+}
+
+function triviaAssignmentExpired(assignment) {
+  if (!assignment?.started_at || assignment.answered_at) return false;
+  return new Date(assignment.started_at).getTime() + triviaTimeLimitSeconds(assignment) * 1000 <= serverNowMs();
+}
+
+function triviaAssignmentCard(assignment, roundAssignments = []) {
+  if (!assignment) {
+    return `<span class="small">جاري تجهيز السؤال التالي...</span>`;
+  }
   const question = assignment.question || {};
   const availablePoints = triviaSettingPoints(triviaRoundSetting(assignment.round_id, assignment.question_round), assignment.difficulty || question.difficulty);
   const started = !!assignment.started_at;
   const answered = !!assignment.answered_at;
   const deadline = assignment.started_at ? new Date(new Date(assignment.started_at).getTime() + triviaTimeLimitSeconds(assignment) * 1000).toISOString() : "";
-  const expired = started && !answered && new Date(deadline).getTime() <= serverNowMs();
+  const expired = triviaAssignmentExpired(assignment);
   const options = [
     ["a", question.option_a],
     ["b", question.option_b],
     ["c", question.option_c],
     ["d", question.option_d]
   ];
+  const autoStart = started && expired ? nextTriviaAssignment(roundAssignments, assignment) : null;
   return `
-    <article class="panel stack trivia-card ${answered ? assignment.is_correct ? "correct" : "wrong" : expired ? "expired" : ""}">
+    <div class="stack ${answered ? assignment.is_correct ? "correct" : "wrong" : expired ? "expired" : ""}">
       <div class="section-title">
         <h2>${started ? escapeHtml(question.question_text || "سؤال") : "سؤال جاهز"}</h2>
         <span class="status-chip ${answered ? assignment.is_correct ? "approved" : "wrong" : expired ? "rejected" : "pending"}">
@@ -1259,7 +1310,9 @@ function triviaAssignmentCard(assignment) {
         </span>
       </div>
       ${!started ? `<span class="small">اضغط ابدأ السؤال لعرض السؤال وتشغيل العداد.</span>` : ""}
-      ${started && !answered && !expired ? `<span class="countdown" ${countdownAttrs(deadline, "الوقت: ")}>${countdownText(deadline)}</span>` : ""}
+      ${started && !answered && !expired ? `<span class="countdown" ${countdownAttrs(deadline, "الوقت: ")} data-trivia-expire="${assignment.id}">${countdownText(deadline)}</span>` : ""}
+      ${expired && autoStart ? `<span class="small" data-trivia-autostart="${autoStart.id}" data-trivia-expire-first="${assignment.id}">انتهى الوقت. جاري فتح السؤال التالي...</span>` : ""}
+      ${expired && !autoStart ? `<span class="small" data-trivia-expire-only="${assignment.id}">انتهى الوقت. جاري عرض النتيجة...</span>` : ""}
       ${!started ? `<button class="primary-btn" data-trivia-start="${assignment.id}" type="button">ابدأ السؤال</button>` : `
         <div class="trivia-options">
           ${options.map(([key, value]) => `
@@ -1270,8 +1323,65 @@ function triviaAssignmentCard(assignment) {
           `).join("")}
         </div>
       `}
-    </article>
+    </div>
   `;
+}
+
+function nextTriviaAssignment(assignments, current) {
+  const index = assignments.findIndex(item => item.id === current?.id);
+  return assignments.slice(index + 1).find(item => !triviaAssignmentComplete(item));
+}
+
+function triviaRoundAssignmentsFor(assignment) {
+  if (!assignment) return [];
+  return triviaRoundGroups(state.triviaAssignments.filter(item => normalizeRoundId(item.round_id) === normalizeRoundId(assignment.round_id)))
+    .find(([roundNumber]) => roundNumber === Math.max(1, Number(assignment.question_round || 1)))?.[1] || [];
+}
+
+const pendingTriviaStarts = new Set();
+const pendingTriviaExpires = new Set();
+
+async function startTriviaAssignment(assignmentId) {
+  if (!assignmentId || pendingTriviaStarts.has(assignmentId)) return;
+  pendingTriviaStarts.add(assignmentId);
+  const previous = state.triviaAssignments.find(item => item.id === assignmentId);
+  try {
+    updateTriviaAssignment(assignmentId, { started_at: new Date(serverNowMs()).toISOString() });
+    render();
+    const payload = await api("trivia-start", {
+      method: "POST",
+      body: JSON.stringify({ userId: state.currentUser.id, assignmentId })
+    });
+    if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
+    updateTriviaAssignment(assignmentId, payload.assignment || {});
+    render();
+  } catch (error) {
+    if (previous) updateTriviaAssignment(assignmentId, previous);
+    state.error = error.message || "تعذر بدء السؤال";
+    render();
+  } finally {
+    pendingTriviaStarts.delete(assignmentId);
+  }
+}
+
+async function expireTriviaAssignment(assignmentId) {
+  if (!assignmentId || pendingTriviaExpires.has(assignmentId)) return;
+  const current = state.triviaAssignments.find(item => item.id === assignmentId);
+  if (!current || current.answered_at) return;
+  pendingTriviaExpires.add(assignmentId);
+  try {
+    const payload = await api("trivia-expire", {
+      method: "POST",
+      body: JSON.stringify({ userId: state.currentUser.id, assignmentId })
+    });
+    if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
+    if (payload.assignment) updateTriviaAssignment(assignmentId, payload.assignment);
+    render();
+  } catch {
+    render();
+  } finally {
+    pendingTriviaExpires.delete(assignmentId);
+  }
 }
 
 function summaryView() {
@@ -2517,25 +2627,24 @@ function bindApp() {
 
   document.querySelectorAll("[data-trivia-start]").forEach(button => {
     button.addEventListener("click", async () => {
-      const assignmentId = button.dataset.triviaStart;
-      const previous = state.triviaAssignments.find(item => item.id === assignmentId);
-      try {
-        button.disabled = true;
-        updateTriviaAssignment(assignmentId, { started_at: new Date(serverNowMs()).toISOString() });
-        render();
-        const payload = await api("trivia-start", {
-          method: "POST",
-          body: JSON.stringify({ userId: state.currentUser.id, assignmentId })
-        });
-        if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
-        updateTriviaAssignment(assignmentId, payload.assignment || {});
-        render();
-      } catch (error) {
-        if (previous) updateTriviaAssignment(assignmentId, previous);
-        state.error = error.message || "تعذر بدء السؤال";
-        render();
-      }
+      button.disabled = true;
+      await startTriviaAssignment(button.dataset.triviaStart);
     });
+  });
+
+  document.querySelectorAll("[data-trivia-autostart]").forEach(element => {
+    const nextId = element.dataset.triviaAutostart;
+    const expiredId = element.dataset.triviaExpireFirst;
+    setTimeout(async () => {
+      await expireTriviaAssignment(expiredId);
+      await startTriviaAssignment(nextId);
+    }, 350);
+  });
+
+  document.querySelectorAll("[data-trivia-expire-only]").forEach(element => {
+    setTimeout(async () => {
+      await expireTriviaAssignment(element.dataset.triviaExpireOnly);
+    }, 350);
   });
 
   document.querySelectorAll("[data-trivia-answer]").forEach(button => {
@@ -2557,7 +2666,9 @@ function bindApp() {
         state.notice = payload.isCorrect ? "إجابة صحيحة. تمت إضافة النقاط." : "إجابة غير صحيحة.";
         updateTriviaAssignment(assignmentId, { ...(payload.assignment || {}), _pendingAnswer: false });
         render();
-        setTimeout(() => loadData({ silent: true }), 500);
+        const next = nextTriviaAssignment(triviaRoundAssignmentsFor(previous), payload.assignment || previous);
+        if (next) setTimeout(() => startTriviaAssignment(next.id), 350);
+        else setTimeout(() => loadData({ silent: true }), 500);
       } catch (error) {
         if (previous) updateTriviaAssignment(assignmentId, previous);
         state.error = error.message || "تعذر حفظ الإجابة";
@@ -3085,6 +3196,7 @@ function syncCountdownTimer() {
     countdownTimer = setInterval(() => {
       if (!state.currentUser) return;
       const expired = updateCountdowns();
+      if (expired) handleExpiredTriviaQuestions();
       if (expired && !hasOpenModal()) render();
     }, 1000);
   }
@@ -3092,6 +3204,17 @@ function syncCountdownTimer() {
     clearInterval(countdownTimer);
     countdownTimer = null;
   }
+}
+
+function handleExpiredTriviaQuestions() {
+  state.triviaAssignments
+    .filter(item => triviaAssignmentExpired(item))
+    .forEach(item => {
+      const next = nextTriviaAssignment(triviaRoundAssignmentsFor(item), item);
+      expireTriviaAssignment(item.id).then(() => {
+        if (next) startTriviaAssignment(next.id);
+      });
+    });
 }
 
 function hasOpenModal() {

@@ -49,6 +49,7 @@ module.exports = async function handler(req, res) {
     if (action === "trivia-question-delete" && req.method === "POST") return await deleteTriviaQuestion(req, res);
     if (action === "trivia-start" && req.method === "POST") return await startTriviaQuestion(req, res);
     if (action === "trivia-answer" && req.method === "POST") return await answerTriviaQuestion(req, res);
+    if (action === "trivia-expire" && req.method === "POST") return await expireTriviaQuestion(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -794,6 +795,27 @@ async function answerTriviaQuestion(req, res) {
     prefer: "return=representation"
   });
   return res.status(200).json({ assignment: updated, expired, isCorrect });
+}
+
+async function expireTriviaQuestion(req, res) {
+  const body = await readBody(req);
+  const user = await requireApprovedParticipant(body.userId);
+  const assignmentId = clean(body.assignmentId);
+  const [assignment] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}&participant_id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if (!assignment) throw httpError(404, "السؤال غير موجود");
+  if (assignment.answered_at) return res.status(200).json({ assignment, expired: true });
+  if (!assignment.started_at) throw httpError(409, "السؤال لم يبدأ");
+  const [question] = await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(assignment.question_id)}&limit=1`);
+  if (!question) throw httpError(404, "السؤال غير موجود");
+  const timeLimitMs = Math.max(1, Number(question.time_limit_seconds || 20)) * 1000;
+  const expired = Date.now() - new Date(assignment.started_at).getTime() > timeLimitMs;
+  if (!expired) return res.status(200).json({ assignment, expired: false, serverNow: new Date().toISOString() });
+  const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ answered_at: new Date().toISOString(), selected_option: null, is_correct: false, points_awarded: 0 }),
+    prefer: "return=representation"
+  });
+  return res.status(200).json({ assignment: updated, expired: true, serverNow: new Date().toISOString() });
 }
 
 function triviaQuestionPayload(body) {

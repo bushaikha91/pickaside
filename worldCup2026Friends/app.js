@@ -1028,6 +1028,7 @@ function triviaQuestionModal() {
           </select>
         </label>
         <label class="field"><span>النقاط</span><input name="points" type="number" min="1" max="1000" value="10" /></label>
+        <label class="field"><span>الثواني</span><input name="timeLimitSeconds" type="number" min="5" max="300" value="20" /></label>
       </div>
       <button class="primary-btn" type="submit">إضافة السؤال</button>
         </form>
@@ -1042,11 +1043,15 @@ function triviaQuestionRow(question) {
     <article class="trivia-admin-row">
       <div>
         <strong>${escapeHtml(question.question_text)}</strong>
-        <span class="small">الإجابة: ${correct} | ${question.points || 0} نقطة</span>
+        <span class="small">الإجابة: ${correct} | ${question.points || 0} نقطة | ${triviaTimeLimitSeconds({ question })} ثانية</span>
       </div>
       <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
     </article>
   `;
+}
+
+function triviaTimeLimitSeconds(assignment) {
+  return Math.max(1, Number(assignment.question?.time_limit_seconds || 20));
 }
 
 function participantTriviaView() {
@@ -1056,7 +1061,7 @@ function participantTriviaView() {
     <div class="section-title">
       <div>
         <h2>معلومات عامة</h2>
-        <span class="small">20 ثانية لكل سؤال. الإجابة الصحيحة تضيف نقاطاً لترتيبك.</span>
+        <span class="small">مدة كل سؤال يحددها المنظم. الإجابة الصحيحة تضيف نقاطاً لترتيبك.</span>
       </div>
       <span class="pill">${earned} نقطة إضافية</span>
     </div>
@@ -1071,7 +1076,7 @@ function triviaAssignmentCard(assignment) {
   const question = assignment.question || {};
   const started = !!assignment.started_at;
   const answered = !!assignment.answered_at;
-  const deadline = assignment.started_at ? new Date(new Date(assignment.started_at).getTime() + 20000).toISOString() : "";
+  const deadline = assignment.started_at ? new Date(new Date(assignment.started_at).getTime() + triviaTimeLimitSeconds(assignment) * 1000).toISOString() : "";
   const expired = started && !answered && new Date(deadline).getTime() <= serverNowMs();
   const options = [
     ["a", question.option_a],
@@ -2193,7 +2198,8 @@ function bindApp() {
           optionC: form.elements.optionC.value.trim(),
           optionD: form.elements.optionD.value.trim(),
           correctOption: form.elements.correctOption.value,
-          points: form.elements.points.value
+          points: form.elements.points.value,
+          timeLimitSeconds: form.elements.timeLimitSeconds.value
         })
       });
       state.notice = "تمت إضافة السؤال.";
@@ -2773,7 +2779,7 @@ function syncCountdownTimer() {
   const hasOpenMatch = state.currentUser && state.matches.some(match => !isVoteClosed(match));
   const hasOpenTrivia = state.currentUser && state.triviaAssignments.some(item => {
     if (!item.started_at || item.answered_at) return false;
-    return new Date(item.started_at).getTime() + 20000 > serverNowMs();
+    return new Date(item.started_at).getTime() + triviaTimeLimitSeconds(item) * 1000 > serverNowMs();
   });
   updateCountdowns();
   if ((hasOpenMatch || hasOpenTrivia) && !countdownTimer) {

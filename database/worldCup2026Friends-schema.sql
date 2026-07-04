@@ -141,10 +141,14 @@ create table if not exists public.worldcup2026friends_trivia_questions (
   option_d text not null,
   correct_option text not null check (correct_option in ('a', 'b', 'c', 'd')),
   points integer not null default 10,
+  time_limit_seconds integer not null default 20,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.worldcup2026friends_trivia_questions
+  add column if not exists time_limit_seconds integer not null default 20;
 
 create table if not exists public.worldcup2026friends_trivia_assignments (
   id uuid primary key default gen_random_uuid(),

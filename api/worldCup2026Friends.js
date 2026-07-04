@@ -589,7 +589,7 @@ async function ensureAssignmentsForParticipant(userId) {
 
 async function fetchTriviaAssignments(userId) {
   try {
-    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points)&order=created_at.asc`);
+    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points,time_limit_seconds)&order=created_at.asc`);
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -639,7 +639,8 @@ async function answerTriviaQuestion(req, res) {
   if (!assignment.started_at) throw httpError(409, "???? ?????? ?????");
   const [question] = await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(assignment.question_id)}&limit=1`);
   if (!question) throw httpError(404, "?????? ??? ?????");
-  const expired = Date.now() - new Date(assignment.started_at).getTime() > 20 * 1000;
+  const timeLimitMs = Math.max(1, Number(question.time_limit_seconds || 20)) * 1000;
+  const expired = Date.now() - new Date(assignment.started_at).getTime() > timeLimitMs;
   const isCorrect = !expired && selected === question.correct_option;
   const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, {
     method: "PATCH",
@@ -661,6 +662,7 @@ function triviaQuestionPayload(body) {
     option_d: clean(body.optionD),
     correct_option: correctOption,
     points: Math.max(1, Math.min(1000, Number(body.points) || 10)),
+    time_limit_seconds: Math.max(5, Math.min(300, Number(body.timeLimitSeconds) || 20)),
     is_active: body.isActive !== false,
     updated_at: new Date().toISOString()
   };

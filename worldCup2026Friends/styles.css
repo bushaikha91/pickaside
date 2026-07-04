@@ -1274,6 +1274,15 @@ button {
   margin-top: 14px;
 }
 
+.inline-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(180, 35, 24, 0.24);
+  border-radius: 8px;
+  color: #b42318;
+  font-weight: 800;
+  background: #fff3f0;
+}
+
 .trivia-settings-form {
   align-items: end;
 }

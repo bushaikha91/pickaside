@@ -95,6 +95,7 @@ const state = {
   addMatchOpen: false,
   addTriviaOpen: false,
   editTriviaQuestionId: null,
+  triviaModalError: "",
   organizerTriviaTab: "questions",
   triviaQuestionDifficulty: "easy"
 };
@@ -1054,6 +1055,7 @@ function triviaQuestionModal() {
           <button class="icon-close" type="button" data-trivia-close>×</button>
         </div>
         <form class="stack trivia-form" id="triviaQuestionForm">
+      ${state.triviaModalError ? `<div class="inline-error">${escapeHtml(state.triviaModalError)}</div>` : ""}
       <input name="difficulty" type="hidden" value="${selectedDifficulty}" />
       <span class="pill">${difficultyLabel(selectedDifficulty)}</span>
       <label class="field"><span>السؤال</span><input name="questionText" required placeholder="اكتب السؤال" value="${escapeHtml(question.question_text || "")}" /></label>
@@ -2285,12 +2287,14 @@ function bindApp() {
   document.querySelector("#addTriviaToggle")?.addEventListener("click", () => {
     state.addTriviaOpen = true;
     state.editTriviaQuestionId = null;
+    state.triviaModalError = "";
     render();
   });
 
   document.querySelector("[data-trivia-close]")?.addEventListener("click", () => {
     state.addTriviaOpen = false;
     state.editTriviaQuestionId = null;
+    state.triviaModalError = "";
     render();
   });
 
@@ -2298,6 +2302,7 @@ function bindApp() {
     if (event.target === event.currentTarget) {
       state.addTriviaOpen = false;
       state.editTriviaQuestionId = null;
+      state.triviaModalError = "";
       render();
     }
   });
@@ -2322,7 +2327,8 @@ function bindApp() {
     const button = form.querySelector("button[type='submit']");
     if (button) button.disabled = true;
     try {
-      await api("trivia-question", {
+      const wasEditing = !!state.editTriviaQuestionId;
+      const payload = await api("trivia-question", {
         method: "POST",
         body: JSON.stringify({
           userId: state.currentUser.id,
@@ -2337,13 +2343,23 @@ function bindApp() {
           timeLimitSeconds: form.elements.timeLimitSeconds.value
         })
       });
-      state.notice = state.editTriviaQuestionId ? "تم تعديل السؤال." : "تمت إضافة السؤال.";
+      if (payload.question?.id) {
+        const question = payload.question;
+        const exists = state.triviaQuestions.some(item => item.id === question.id);
+        state.triviaQuestions = exists
+          ? state.triviaQuestions.map(item => item.id === question.id ? { ...item, ...question } : item)
+          : [question, ...state.triviaQuestions];
+        state.triviaQuestionDifficulty = normalizeDifficulty(question.difficulty);
+      }
+      state.notice = wasEditing ? "تم تعديل السؤال." : "تمت إضافة السؤال.";
       state.addTriviaOpen = false;
       state.editTriviaQuestionId = null;
+      state.triviaModalError = "";
       form.reset();
-      await loadData({ silent: true });
+      render();
+      loadData({ silent: true }).catch(() => {});
     } catch (error) {
-      state.error = error.message || "تعذر حفظ السؤال";
+      state.triviaModalError = error.message || "تعذر حفظ السؤال";
       render();
     } finally {
       if (button) button.disabled = false;
@@ -2384,6 +2400,7 @@ function bindApp() {
       const question = state.triviaQuestions.find(item => item.id === state.editTriviaQuestionId);
       state.triviaQuestionDifficulty = normalizeDifficulty(question?.difficulty);
       state.addTriviaOpen = true;
+      state.triviaModalError = "";
       render();
     });
   });

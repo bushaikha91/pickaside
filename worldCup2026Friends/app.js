@@ -1187,13 +1187,11 @@ function participantTriviaView() {
   const earned = state.triviaAssignments.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
   const answeredAssignments = state.triviaAssignments.filter(item => item.answered_at);
   const correctAnswers = answeredAssignments.filter(item => item.is_correct).length;
-  const wrongAnswers = answeredAssignments.length - correctAnswers;
   const intelligencePercent = answeredAssignments.length ? Math.round((correctAnswers / answeredAssignments.length) * 100) : 0;
   return `
     <div class="summary-grid trivia-stats-grid">
       <div class="summary-card"><span class="small">نقاط إضافية</span><strong>${earned}</strong></div>
-      <div class="summary-card"><span class="small">إجابات صحيحة</span><strong>${correctAnswers}</strong></div>
-      <div class="summary-card"><span class="small">إجابات خاطئة</span><strong>${wrongAnswers}</strong></div>
+      <div class="summary-card"><span class="small">إجابات صحيحة</span><strong>${correctAnswers}/${answeredAssignments.length}</strong></div>
       <div class="summary-card"><span class="small">نسبة الذكاء</span><strong>${intelligencePercent}%</strong></div>
     </div>
     ${roundTabs()}

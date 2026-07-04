@@ -1299,7 +1299,8 @@ button {
   align-items: center;
 }
 
-.trivia-page-tabs {
+.trivia-page-tabs,
+.trivia-level-tabs {
   position: static;
   grid-template-columns: 1fr 1fr;
   margin-top: 14px;
@@ -1308,13 +1309,19 @@ button {
   backdrop-filter: none;
 }
 
-.trivia-page-tabs .tab {
+.trivia-level-tabs {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.trivia-page-tabs .tab,
+.trivia-level-tabs .tab {
   border-color: #d0d5dd;
   color: var(--ink);
   background: #fff;
 }
 
-.trivia-page-tabs .tab.active {
+.trivia-page-tabs .tab.active,
+.trivia-level-tabs .tab.active {
   border-color: var(--blue);
   color: #fff;
   background: linear-gradient(135deg, var(--blue), var(--green));

@@ -95,7 +95,8 @@ const state = {
   addMatchOpen: false,
   addTriviaOpen: false,
   editTriviaQuestionId: null,
-  organizerTriviaTab: "questions"
+  organizerTriviaTab: "questions",
+  triviaQuestionDifficulty: "easy"
 };
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
@@ -975,6 +976,7 @@ function triviaView() {
 
 function organizerTriviaView() {
   const triviaTab = state.organizerTriviaTab || "questions";
+  const activeDifficulty = normalizeDifficulty(state.triviaQuestionDifficulty);
   return `
     <div class="section-title">
       <div>
@@ -1011,33 +1013,38 @@ function organizerTriviaView() {
             <h2>بنك الأسئلة العام</h2>
             <span class="small">${state.triviaQuestions.length} سؤال</span>
           </div>
-          <button class="mini-btn" id="addTriviaToggle" type="button">إضافة سؤال</button>
+          <button class="mini-btn" id="addTriviaToggle" type="button">إضافة سؤال ${difficultyLabel(activeDifficulty)}</button>
         </div>
-        <div class="section-title">
-          <h2>الأسئلة</h2>
-          <span class="small">${state.triviaQuestions.length} سؤال</span>
+        <div class="tabs trivia-level-tabs">
+          ${["easy", "medium", "hard"].map(difficulty => `
+            <button class="tab ${activeDifficulty === difficulty ? "active" : ""}" data-trivia-difficulty-tab="${difficulty}" type="button">
+              ${difficultyLabel(difficulty)}
+            </button>
+          `).join("")}
         </div>
-        ${["easy", "medium", "hard"].map(difficulty => {
-          const questions = state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === difficulty);
-          return `
-            <section class="stack trivia-round-group">
-              <div class="section-title">
-                <h2>${difficultyLabel(difficulty)}</h2>
-                <span class="small">${questions.length} سؤال</span>
-              </div>
-              ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا المستوى.")}
-            </section>
-          `;
-        }).join("")}
+        ${triviaDifficultyQuestionList(activeDifficulty)}
       </section>`}
     </div>
+  `;
+}
+
+function triviaDifficultyQuestionList(difficulty) {
+  const questions = state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === normalizeDifficulty(difficulty));
+  return `
+    <section class="stack trivia-round-group">
+      <div class="section-title">
+        <h2>${difficultyLabel(difficulty)}</h2>
+        <span class="small">${questions.length} سؤال</span>
+      </div>
+      ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا المستوى.")}
+    </section>
   `;
 }
 
 function triviaQuestionModal() {
   const question = state.triviaQuestions.find(item => item.id === state.editTriviaQuestionId) || {};
   const isEditing = !!question.id;
-  const selectedDifficulty = normalizeDifficulty(question.difficulty);
+  const selectedDifficulty = isEditing ? normalizeDifficulty(question.difficulty) : normalizeDifficulty(state.triviaQuestionDifficulty);
   const selectedCorrect = String(question.correct_option || "a").toLowerCase();
   return `
     <div class="modal-backdrop" data-trivia-modal-close>
@@ -1047,16 +1054,8 @@ function triviaQuestionModal() {
           <button class="icon-close" type="button" data-trivia-close>×</button>
         </div>
         <form class="stack trivia-form" id="triviaQuestionForm">
-      <div class="form-grid">
-        <label class="field">
-          <span>المستوى</span>
-          <select name="difficulty" required>
-            <option value="easy" ${selectedDifficulty === "easy" ? "selected" : ""}>سهل</option>
-            <option value="medium" ${selectedDifficulty === "medium" ? "selected" : ""}>متوسط</option>
-            <option value="hard" ${selectedDifficulty === "hard" ? "selected" : ""}>صعب</option>
-          </select>
-        </label>
-      </div>
+      <input name="difficulty" type="hidden" value="${selectedDifficulty}" />
+      <span class="pill">${difficultyLabel(selectedDifficulty)}</span>
       <label class="field"><span>السؤال</span><input name="questionText" required placeholder="اكتب السؤال" value="${escapeHtml(question.question_text || "")}" /></label>
       <div class="form-grid">
         <label class="field"><span>الخيار A</span><input name="optionA" required value="${escapeHtml(question.option_a || "")}" /></label>
@@ -2310,6 +2309,13 @@ function bindApp() {
     });
   });
 
+  document.querySelectorAll("[data-trivia-difficulty-tab]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.triviaQuestionDifficulty = normalizeDifficulty(button.dataset.triviaDifficultyTab);
+      render();
+    });
+  });
+
   document.querySelector("#triviaQuestionForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -2375,6 +2381,8 @@ function bindApp() {
   document.querySelectorAll("[data-trivia-edit]").forEach(button => {
     button.addEventListener("click", () => {
       state.editTriviaQuestionId = button.dataset.triviaEdit;
+      const question = state.triviaQuestions.find(item => item.id === state.editTriviaQuestionId);
+      state.triviaQuestionDifficulty = normalizeDifficulty(question?.difficulty);
       state.addTriviaOpen = true;
       render();
     });

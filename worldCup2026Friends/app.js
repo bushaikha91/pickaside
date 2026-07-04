@@ -709,8 +709,7 @@ function matchFormView() {
 }
 
 function standingsView() {
-  if (state.currentUser.role === "organizer") return organizerStandingsMatrixView();
-  return participantStandingsListView();
+  return standingsMatrixView({ allowDetails: state.currentUser.role === "organizer" });
 }
 
 function normalizePrediction(prediction) {
@@ -765,8 +764,9 @@ function participantStandingsListView() {
   `;
 }
 
-function organizerStandingsMatrixView() {
-  const settledMatches = sortMatches(state.matches.filter(match => match.winner));
+function standingsMatrixView(options = {}) {
+  const allowDetails = !!options.allowDetails;
+  const settledMatches = sortMatches(state.matches.filter(match => match.winner && !isHiddenRound(match.round_id)));
   return `
     ${state.standings.length ? `
       <div class="standings-board" role="region" aria-label="جدول ترتيب المشاركين">
@@ -815,10 +815,10 @@ function organizerStandingsMatrixView() {
           ${state.standings.map((row, index) => `
             <div class="matrix-player-row ${index < 3 ? "podium-row" : ""}">
               <div class="matrix-cell player-cell">
-                <button class="leader-name-button" data-participant-detail="${row.id}" type="button">
+                ${allowDetails ? `<button class="leader-name-button" data-participant-detail="${row.id}" type="button">` : `<div class="leader-name-button static-leader-name">`}
                   ${avatarTile(row, "avatar-mini")}
                   <strong>${escapeHtml(row.name)}</strong>
-                </button>
+                ${allowDetails ? `</button>` : `</div>`}
               </div>
               <div class="matrix-cell rank-cell"><span class="rank-number">${index + 1}</span>${rankTrendView(row.id)}</div>
             </div>

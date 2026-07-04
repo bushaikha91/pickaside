@@ -1293,6 +1293,33 @@ button {
   background: #fff;
 }
 
+.trivia-admin-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.trivia-page-tabs {
+  position: static;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 14px;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.trivia-page-tabs .tab {
+  border-color: #d0d5dd;
+  color: var(--ink);
+  background: #fff;
+}
+
+.trivia-page-tabs .tab.active {
+  border-color: var(--blue);
+  color: #fff;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+}
+
 .trivia-card.correct {
   border-color: rgba(6, 118, 71, 0.24);
 }

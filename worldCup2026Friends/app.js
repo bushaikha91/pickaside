@@ -93,7 +93,9 @@ const state = {
   posterRound: null,
   detailParticipantId: null,
   addMatchOpen: false,
-  addTriviaOpen: false
+  addTriviaOpen: false,
+  editTriviaQuestionId: null,
+  organizerTriviaTab: "questions"
 };
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
@@ -972,6 +974,7 @@ function triviaView() {
 }
 
 function organizerTriviaView() {
+  const triviaTab = state.organizerTriviaTab || "questions";
   return `
     <div class="section-title">
       <div>
@@ -979,9 +982,12 @@ function organizerTriviaView() {
         <span class="small">أضف بنك أسئلة عام لكل المستويات. كل جولة تسحب سؤالاً عشوائياً من كل مستوى بدون تكرار لنفس المتسابق.</span>
       </div>
     </div>
-    <button class="add-match-toggle" id="addTriviaToggle" type="button">إضافة سؤال</button>
+    <div class="tabs trivia-page-tabs">
+      <button class="tab ${triviaTab === "questions" ? "active" : ""}" data-trivia-page-tab="questions" type="button">الأسئلة</button>
+      <button class="tab ${triviaTab === "rounds" ? "active" : ""}" data-trivia-page-tab="rounds" type="button">الجولات</button>
+    </div>
     <div class="trivia-question-list">
-      <section class="panel stack">
+      ${triviaTab === "rounds" ? `<section class="panel stack">
         <div class="section-title">
           <h2>إعدادات الجولات والنقاط</h2>
           <span class="small">حدد عدد الجولات ونقاط كل مستوى لكل دور.</span>
@@ -999,10 +1005,16 @@ function organizerTriviaView() {
             </form>
           `;
         }).join("")}
-      </section>
-      <section class="panel stack">
+      </section>` : `<section class="panel stack">
         <div class="section-title">
-          <h2>بنك الأسئلة العام</h2>
+          <div>
+            <h2>بنك الأسئلة العام</h2>
+            <span class="small">${state.triviaQuestions.length} سؤال</span>
+          </div>
+          <button class="mini-btn" id="addTriviaToggle" type="button">إضافة سؤال</button>
+        </div>
+        <div class="section-title">
+          <h2>الأسئلة</h2>
           <span class="small">${state.triviaQuestions.length} سؤال</span>
         </div>
         ${["easy", "medium", "hard"].map(difficulty => {
@@ -1017,17 +1029,21 @@ function organizerTriviaView() {
             </section>
           `;
         }).join("")}
-      </section>
+      </section>`}
     </div>
   `;
 }
 
 function triviaQuestionModal() {
+  const question = state.triviaQuestions.find(item => item.id === state.editTriviaQuestionId) || {};
+  const isEditing = !!question.id;
+  const selectedDifficulty = normalizeDifficulty(question.difficulty);
+  const selectedCorrect = String(question.correct_option || "a").toLowerCase();
   return `
     <div class="modal-backdrop" data-trivia-modal-close>
       <section class="modal-card stack add-match-modal">
         <div class="section-title">
-          <h2>إضافة سؤال</h2>
+          <h2>${isEditing ? "تعديل سؤال" : "إضافة سؤال"}</h2>
           <button class="icon-close" type="button" data-trivia-close>×</button>
         </div>
         <form class="stack trivia-form" id="triviaQuestionForm">
@@ -1035,32 +1051,32 @@ function triviaQuestionModal() {
         <label class="field">
           <span>المستوى</span>
           <select name="difficulty" required>
-            <option value="easy">سهل</option>
-            <option value="medium">متوسط</option>
-            <option value="hard">صعب</option>
+            <option value="easy" ${selectedDifficulty === "easy" ? "selected" : ""}>سهل</option>
+            <option value="medium" ${selectedDifficulty === "medium" ? "selected" : ""}>متوسط</option>
+            <option value="hard" ${selectedDifficulty === "hard" ? "selected" : ""}>صعب</option>
           </select>
         </label>
       </div>
-      <label class="field"><span>السؤال</span><input name="questionText" required placeholder="اكتب السؤال" /></label>
+      <label class="field"><span>السؤال</span><input name="questionText" required placeholder="اكتب السؤال" value="${escapeHtml(question.question_text || "")}" /></label>
       <div class="form-grid">
-        <label class="field"><span>الخيار A</span><input name="optionA" required /></label>
-        <label class="field"><span>الخيار B</span><input name="optionB" required /></label>
-        <label class="field"><span>الخيار C</span><input name="optionC" required /></label>
-        <label class="field"><span>الخيار D</span><input name="optionD" required /></label>
+        <label class="field"><span>الخيار A</span><input name="optionA" required value="${escapeHtml(question.option_a || "")}" /></label>
+        <label class="field"><span>الخيار B</span><input name="optionB" required value="${escapeHtml(question.option_b || "")}" /></label>
+        <label class="field"><span>الخيار C</span><input name="optionC" required value="${escapeHtml(question.option_c || "")}" /></label>
+        <label class="field"><span>الخيار D</span><input name="optionD" required value="${escapeHtml(question.option_d || "")}" /></label>
       </div>
       <div class="form-grid">
         <label class="field">
           <span>الإجابة الصحيحة</span>
           <select name="correctOption" required>
-            <option value="a">A</option>
-            <option value="b">B</option>
-            <option value="c">C</option>
-            <option value="d">D</option>
+            <option value="a" ${selectedCorrect === "a" ? "selected" : ""}>A</option>
+            <option value="b" ${selectedCorrect === "b" ? "selected" : ""}>B</option>
+            <option value="c" ${selectedCorrect === "c" ? "selected" : ""}>C</option>
+            <option value="d" ${selectedCorrect === "d" ? "selected" : ""}>D</option>
           </select>
         </label>
-        <label class="field"><span>الثواني</span><input name="timeLimitSeconds" type="number" min="5" max="300" value="20" /></label>
+        <label class="field"><span>الثواني</span><input name="timeLimitSeconds" type="number" min="5" max="300" value="${triviaTimeLimitSeconds({ question })}" /></label>
       </div>
-      <button class="primary-btn" type="submit">إضافة السؤال</button>
+      <button class="primary-btn" type="submit">${isEditing ? "حفظ التعديل" : "إضافة السؤال"}</button>
         </form>
       </section>
     </div>
@@ -1075,7 +1091,10 @@ function triviaQuestionRow(question) {
         <strong>${escapeHtml(question.question_text)}</strong>
         <span class="small">${difficultyLabel(question.difficulty)} | الإجابة: ${correct} | ${triviaTimeLimitSeconds({ question })} ثانية</span>
       </div>
-      <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
+      <div class="trivia-admin-actions">
+        <button class="mini-btn" data-trivia-edit="${question.id}" type="button">تعديل</button>
+        <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
+      </div>
     </article>
   `;
 }
@@ -2266,19 +2285,29 @@ function bindApp() {
 
   document.querySelector("#addTriviaToggle")?.addEventListener("click", () => {
     state.addTriviaOpen = true;
+    state.editTriviaQuestionId = null;
     render();
   });
 
   document.querySelector("[data-trivia-close]")?.addEventListener("click", () => {
     state.addTriviaOpen = false;
+    state.editTriviaQuestionId = null;
     render();
   });
 
   document.querySelector("[data-trivia-modal-close]")?.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.addTriviaOpen = false;
+      state.editTriviaQuestionId = null;
       render();
     }
+  });
+
+  document.querySelectorAll("[data-trivia-page-tab]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.organizerTriviaTab = button.dataset.triviaPageTab || "questions";
+      render();
+    });
   });
 
   document.querySelector("#triviaQuestionForm")?.addEventListener("submit", async event => {
@@ -2291,6 +2320,7 @@ function bindApp() {
         method: "POST",
         body: JSON.stringify({
           userId: state.currentUser.id,
+          questionId: state.editTriviaQuestionId,
           difficulty: form.elements.difficulty.value,
           questionText: form.elements.questionText.value.trim(),
           optionA: form.elements.optionA.value.trim(),
@@ -2301,8 +2331,9 @@ function bindApp() {
           timeLimitSeconds: form.elements.timeLimitSeconds.value
         })
       });
-      state.notice = "تمت إضافة السؤال.";
+      state.notice = state.editTriviaQuestionId ? "تم تعديل السؤال." : "تمت إضافة السؤال.";
       state.addTriviaOpen = false;
+      state.editTriviaQuestionId = null;
       form.reset();
       await loadData({ silent: true });
     } catch (error) {
@@ -2338,6 +2369,14 @@ function bindApp() {
       } finally {
         if (button) button.disabled = false;
       }
+    });
+  });
+
+  document.querySelectorAll("[data-trivia-edit]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.editTriviaQuestionId = button.dataset.triviaEdit;
+      state.addTriviaOpen = true;
+      render();
     });
   });
 

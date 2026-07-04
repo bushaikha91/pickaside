@@ -555,7 +555,7 @@ async function requireApprovedParticipant(userId) {
 
 async function fetchTriviaQuestions() {
   try {
-    return await supabase("worldcup2026friends_trivia_questions?select=*&order=round_id.asc&order=difficulty.asc&order=created_at.desc");
+    return await supabase("worldcup2026friends_trivia_questions?select=*&order=difficulty.asc&order=created_at.desc");
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -578,18 +578,12 @@ async function ensureTriviaAssignments(userId) {
 
 async function ensureAssignmentsForParticipant(userId) {
   const existing = await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=question_id,round_id,question_round,difficulty`);
-  const existingByRound = new Map();
-  existing.forEach(item => {
-    const roundId = normalizeRoundId(item.round_id);
-    if (!existingByRound.has(roundId)) existingByRound.set(roundId, new Set());
-    existingByRound.get(roundId).add(item.question_id);
-  });
+  const assignedQuestionIds = new Set(existing.map(item => item.question_id));
   const existingSlots = new Set(existing.map(item => triviaSlotKey(item.round_id, item.question_round, item.difficulty)));
   const settings = await fetchTriviaSettings();
   const settingsByRound = new Map(settings.map(item => [normalizeRoundId(item.round_id), Math.max(1, Number(item.round_count || 1))]));
-  const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,round_id,difficulty");
+  const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,difficulty");
   for (const roundId of ["r16", "qf", "sf", "final"]) {
-    const assigned = existingByRound.get(roundId) || new Set();
     const roundCount = settingsByRound.get(roundId) || 1;
     const inserts = [];
     for (let questionRound = 1; questionRound <= roundCount; questionRound++) {
@@ -597,13 +591,12 @@ async function ensureAssignmentsForParticipant(userId) {
         const slotKey = triviaSlotKey(roundId, questionRound, difficulty);
         if (existingSlots.has(slotKey)) continue;
         const candidates = shuffle(questions.filter(item =>
-          normalizeRoundId(item.round_id) === roundId &&
           normalizeDifficulty(item.difficulty) === difficulty &&
-          !assigned.has(item.id)
+          !assignedQuestionIds.has(item.id)
         ));
         if (!candidates.length) continue;
         const [chosen] = candidates;
-        assigned.add(chosen.id);
+        assignedQuestionIds.add(chosen.id);
         existingSlots.add(slotKey);
         inserts.push({
           participant_id: userId,
@@ -652,7 +645,14 @@ async function saveTriviaSettings(req, res) {
   if (!["r16", "qf", "sf", "final"].includes(roundId)) throw httpError(400, "????? ??? ????");
   const [setting] = await supabase("worldcup2026friends_trivia_settings?on_conflict=round_id", {
     method: "POST",
-    body: JSON.stringify({ round_id: roundId, round_count: roundCount, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({
+      round_id: roundId,
+      round_count: roundCount,
+      easy_points: clampTriviaPoints(body.easyPoints, 10),
+      medium_points: clampTriviaPoints(body.mediumPoints, 20),
+      hard_points: clampTriviaPoints(body.hardPoints, 30),
+      updated_at: new Date().toISOString()
+    }),
     prefer: "resolution=merge-duplicates,return=representation"
   });
   return res.status(200).json({ setting });
@@ -693,20 +693,21 @@ async function answerTriviaQuestion(req, res) {
   const timeLimitMs = Math.max(1, Number(question.time_limit_seconds || 20)) * 1000;
   const expired = Date.now() - new Date(assignment.started_at).getTime() > timeLimitMs;
   const isCorrect = !expired && selected === question.correct_option;
+  const [setting] = await supabase(`worldcup2026friends_trivia_settings?round_id=eq.${encodeURIComponent(normalizeRoundId(assignment.round_id))}&limit=1`);
+  const awardedPoints = isCorrect ? triviaPointsForDifficulty(setting, assignment.difficulty || question.difficulty) : 0;
   const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, {
     method: "PATCH",
-    body: JSON.stringify({ answered_at: new Date().toISOString(), selected_option: selected, is_correct: isCorrect, points_awarded: isCorrect ? Number(question.points || 0) : 0 }),
+    body: JSON.stringify({ answered_at: new Date().toISOString(), selected_option: selected, is_correct: isCorrect, points_awarded: awardedPoints }),
     prefer: "return=representation"
   });
   return res.status(200).json({ assignment: updated, expired, isCorrect });
 }
 
 function triviaQuestionPayload(body) {
-  const roundId = normalizeRoundId(clean(body.roundId));
   const correctOption = clean(body.correctOption).toLowerCase();
   const difficulty = normalizeDifficulty(body.difficulty);
   const payload = {
-    round_id: roundId,
+    round_id: "global",
     difficulty,
     question_text: clean(body.questionText),
     option_a: clean(body.optionA),
@@ -719,10 +720,20 @@ function triviaQuestionPayload(body) {
     is_active: body.isActive !== false,
     updated_at: new Date().toISOString()
   };
-  if (!["r16", "qf", "sf", "final"].includes(roundId)) throw httpError(400, "????? ??? ????");
   if (!payload.question_text || !payload.option_a || !payload.option_b || !payload.option_c || !payload.option_d) throw httpError(400, "???? ?????? ????????? ???????");
   if (!["a", "b", "c", "d"].includes(correctOption)) throw httpError(400, "??? ??????? ???????");
   return payload;
+}
+
+function clampTriviaPoints(value, fallback) {
+  return Math.max(1, Math.min(1000, Number(value) || fallback));
+}
+
+function triviaPointsForDifficulty(setting, difficulty) {
+  const normalized = normalizeDifficulty(difficulty);
+  if (normalized === "hard") return clampTriviaPoints(setting?.hard_points, 30);
+  if (normalized === "medium") return clampTriviaPoints(setting?.medium_points, 20);
+  return clampTriviaPoints(setting?.easy_points, 10);
 }
 
 function normalizeDifficulty(value) {

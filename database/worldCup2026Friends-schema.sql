@@ -161,8 +161,20 @@ alter table public.worldcup2026friends_trivia_questions
 create table if not exists public.worldcup2026friends_trivia_settings (
   round_id text primary key,
   round_count integer not null default 1,
+  easy_points integer not null default 10,
+  medium_points integer not null default 20,
+  hard_points integer not null default 30,
   updated_at timestamptz not null default now()
 );
+
+alter table public.worldcup2026friends_trivia_settings
+  add column if not exists easy_points integer not null default 10;
+
+alter table public.worldcup2026friends_trivia_settings
+  add column if not exists medium_points integer not null default 20;
+
+alter table public.worldcup2026friends_trivia_settings
+  add column if not exists hard_points integer not null default 30;
 
 create table if not exists public.worldcup2026friends_trivia_assignments (
   id uuid primary key default gen_random_uuid(),

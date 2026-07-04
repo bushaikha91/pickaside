@@ -976,28 +976,48 @@ function organizerTriviaView() {
     <div class="section-title">
       <div>
         <h2>معلومات عامة</h2>
-        <span class="small">أضف بنك أسئلة عام لكل دور ومستوى. كل جولة تسحب سؤالاً عشوائياً من كل مستوى بدون تكرار لنفس المتسابق.</span>
+        <span class="small">أضف بنك أسئلة عام لكل المستويات. كل جولة تسحب سؤالاً عشوائياً من كل مستوى بدون تكرار لنفس المتسابق.</span>
       </div>
     </div>
     <button class="add-match-toggle" id="addTriviaToggle" type="button">إضافة سؤال</button>
     <div class="trivia-question-list">
-      ${visibleRounds().map(round => {
-        const questions = state.triviaQuestions.filter(item => normalizeRoundId(item.round_id) === round.id);
-        const roundCount = triviaRoundCount(round.id);
-        return `
-          <section class="panel stack">
-            <div class="section-title">
-              <h2>${round.name}</h2>
-              <span class="small">${roundCount} جولة | ${questions.length} سؤال</span>
-            </div>
+      <section class="panel stack">
+        <div class="section-title">
+          <h2>إعدادات الجولات والنقاط</h2>
+          <span class="small">حدد عدد الجولات ونقاط كل مستوى لكل دور.</span>
+        </div>
+        ${visibleRounds().map(round => {
+          const setting = triviaRoundSetting(round.id);
+          return `
             <form class="trivia-settings-form form-grid" data-trivia-settings="${round.id}">
-              <label class="field"><span>عدد الجولات</span><input name="roundCount" type="number" min="1" max="20" value="${roundCount}" /></label>
-              <button class="mini-btn" type="submit">حفظ الجولات</button>
+              <strong>${round.name}</strong>
+              <label class="field"><span>عدد الجولات</span><input name="roundCount" type="number" min="1" max="20" value="${triviaRoundCount(round.id)}" /></label>
+              <label class="field"><span>نقاط السهل</span><input name="easyPoints" type="number" min="1" max="1000" value="${triviaSettingPoints(setting, "easy")}" /></label>
+              <label class="field"><span>نقاط المتوسط</span><input name="mediumPoints" type="number" min="1" max="1000" value="${triviaSettingPoints(setting, "medium")}" /></label>
+              <label class="field"><span>نقاط الصعب</span><input name="hardPoints" type="number" min="1" max="1000" value="${triviaSettingPoints(setting, "hard")}" /></label>
+              <button class="mini-btn" type="submit">حفظ</button>
             </form>
-            ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا الدور.")}
-          </section>
-        `;
-      }).join("")}
+          `;
+        }).join("")}
+      </section>
+      <section class="panel stack">
+        <div class="section-title">
+          <h2>بنك الأسئلة العام</h2>
+          <span class="small">${state.triviaQuestions.length} سؤال</span>
+        </div>
+        ${["easy", "medium", "hard"].map(difficulty => {
+          const questions = state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === difficulty);
+          return `
+            <section class="stack trivia-round-group">
+              <div class="section-title">
+                <h2>${difficultyLabel(difficulty)}</h2>
+                <span class="small">${questions.length} سؤال</span>
+              </div>
+              ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا المستوى.")}
+            </section>
+          `;
+        }).join("")}
+      </section>
     </div>
   `;
 }
@@ -1011,12 +1031,6 @@ function triviaQuestionModal() {
           <button class="icon-close" type="button" data-trivia-close>×</button>
         </div>
         <form class="stack trivia-form" id="triviaQuestionForm">
-      <label class="field">
-        <span>الدور</span>
-        <select name="roundId" required>
-          ${visibleRounds().map(round => `<option value="${round.id}">${round.name}</option>`).join("")}
-        </select>
-      </label>
       <div class="form-grid">
         <label class="field">
           <span>المستوى</span>
@@ -1044,7 +1058,6 @@ function triviaQuestionModal() {
             <option value="d">D</option>
           </select>
         </label>
-        <label class="field"><span>النقاط</span><input name="points" type="number" min="1" max="1000" value="10" /></label>
         <label class="field"><span>الثواني</span><input name="timeLimitSeconds" type="number" min="5" max="300" value="20" /></label>
       </div>
       <button class="primary-btn" type="submit">إضافة السؤال</button>
@@ -1060,16 +1073,31 @@ function triviaQuestionRow(question) {
     <article class="trivia-admin-row">
       <div>
         <strong>${escapeHtml(question.question_text)}</strong>
-        <span class="small">${difficultyLabel(question.difficulty)} | الإجابة: ${correct} | ${question.points || 0} نقطة | ${triviaTimeLimitSeconds({ question })} ثانية</span>
+        <span class="small">${difficultyLabel(question.difficulty)} | الإجابة: ${correct} | ${triviaTimeLimitSeconds({ question })} ثانية</span>
       </div>
       <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
     </article>
   `;
 }
 
+function triviaRoundSetting(roundId) {
+  return state.triviaSettings.find(item => normalizeRoundId(item.round_id) === normalizeRoundId(roundId)) || {};
+}
+
 function triviaRoundCount(roundId) {
-  const setting = state.triviaSettings.find(item => normalizeRoundId(item.round_id) === normalizeRoundId(roundId));
+  const setting = triviaRoundSetting(roundId);
   return Math.max(1, Number(setting?.round_count || 1));
+}
+
+function triviaSettingPoints(setting, difficulty) {
+  const normalized = normalizeDifficulty(difficulty);
+  if (normalized === "hard") return Math.max(1, Number(setting?.hard_points || 30));
+  if (normalized === "medium") return Math.max(1, Number(setting?.medium_points || 20));
+  return Math.max(1, Number(setting?.easy_points || 10));
+}
+
+function triviaDifficultyPoints(roundId, difficulty) {
+  return triviaSettingPoints(triviaRoundSetting(roundId), difficulty);
 }
 
 function difficultyLabel(value) {
@@ -1144,6 +1172,7 @@ function triviaRoundGroups(assignments) {
 
 function triviaAssignmentCard(assignment) {
   const question = assignment.question || {};
+  const availablePoints = triviaDifficultyPoints(assignment.round_id, assignment.difficulty || question.difficulty);
   const started = !!assignment.started_at;
   const answered = !!assignment.answered_at;
   const deadline = assignment.started_at ? new Date(new Date(assignment.started_at).getTime() + triviaTimeLimitSeconds(assignment) * 1000).toISOString() : "";
@@ -1159,7 +1188,7 @@ function triviaAssignmentCard(assignment) {
       <div class="section-title">
         <h2>${started ? escapeHtml(question.question_text || "سؤال") : "سؤال جاهز"}</h2>
         <span class="status-chip ${answered ? assignment.is_correct ? "approved" : "wrong" : expired ? "rejected" : "pending"}">
-          ${difficultyLabel(assignment.difficulty || question.difficulty)} | ${assignment._pendingAnswer ? "جاري اعتماد الإجابة..." : answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${question.points || 0} نقطة`}
+          ${difficultyLabel(assignment.difficulty || question.difficulty)} | ${assignment._pendingAnswer ? "جاري اعتماد الإجابة..." : answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${availablePoints} نقطة`}
         </span>
       </div>
       ${!started ? `<span class="small">اضغط ابدأ السؤال لعرض السؤال وتشغيل العداد.</span>` : ""}
@@ -2262,7 +2291,6 @@ function bindApp() {
         method: "POST",
         body: JSON.stringify({
           userId: state.currentUser.id,
-          roundId: form.elements.roundId.value,
           difficulty: form.elements.difficulty.value,
           questionText: form.elements.questionText.value.trim(),
           optionA: form.elements.optionA.value.trim(),
@@ -2270,7 +2298,6 @@ function bindApp() {
           optionC: form.elements.optionC.value.trim(),
           optionD: form.elements.optionD.value.trim(),
           correctOption: form.elements.correctOption.value,
-          points: form.elements.points.value,
           timeLimitSeconds: form.elements.timeLimitSeconds.value
         })
       });
@@ -2297,10 +2324,13 @@ function bindApp() {
           body: JSON.stringify({
             userId: state.currentUser.id,
             roundId: form.dataset.triviaSettings,
-            roundCount: form.elements.roundCount.value
+            roundCount: form.elements.roundCount.value,
+            easyPoints: form.elements.easyPoints.value,
+            mediumPoints: form.elements.mediumPoints.value,
+            hardPoints: form.elements.hardPoints.value
           })
         });
-        state.notice = "تم حفظ عدد جولات الأسئلة.";
+        state.notice = "تم حفظ إعدادات الجولات والنقاط.";
         await loadData({ silent: true });
       } catch (error) {
         state.error = error.message || "تعذر حفظ إعدادات الجولات";
@@ -3016,6 +3046,11 @@ function roundName(id) {
 
 function normalizeRoundId(id) {
   return id === "r8" ? "qf" : id;
+}
+
+function normalizeDifficulty(value) {
+  const difficulty = String(value || "easy").toLowerCase();
+  return ["easy", "medium", "hard"].includes(difficulty) ? difficulty : "easy";
 }
 
 function roundMatchesActiveTab(match, roundId) {

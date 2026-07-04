@@ -555,7 +555,7 @@ async function requireApprovedParticipant(userId) {
 
 async function fetchTriviaQuestions() {
   try {
-    return await supabase("worldcup2026friends_trivia_questions?select=*&order=round_id.asc&order=question_round.asc&order=difficulty.asc&order=created_at.desc");
+    return await supabase("worldcup2026friends_trivia_questions?select=*&order=round_id.asc&order=difficulty.asc&order=created_at.desc");
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -587,7 +587,7 @@ async function ensureAssignmentsForParticipant(userId) {
   const existingSlots = new Set(existing.map(item => triviaSlotKey(item.round_id, item.question_round, item.difficulty)));
   const settings = await fetchTriviaSettings();
   const settingsByRound = new Map(settings.map(item => [normalizeRoundId(item.round_id), Math.max(1, Number(item.round_count || 1))]));
-  const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,round_id,question_round,difficulty");
+  const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,round_id,difficulty");
   for (const roundId of ["r16", "qf", "sf", "final"]) {
     const assigned = existingByRound.get(roundId) || new Set();
     const roundCount = settingsByRound.get(roundId) || 1;
@@ -598,7 +598,6 @@ async function ensureAssignmentsForParticipant(userId) {
         if (existingSlots.has(slotKey)) continue;
         const candidates = shuffle(questions.filter(item =>
           normalizeRoundId(item.round_id) === roundId &&
-          Number(item.question_round || 1) === questionRound &&
           normalizeDifficulty(item.difficulty) === difficulty &&
           !assigned.has(item.id)
         ));
@@ -627,7 +626,7 @@ async function ensureAssignmentsForParticipant(userId) {
 
 async function fetchTriviaAssignments(userId) {
   try {
-    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,question_round,difficulty,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points,time_limit_seconds,question_round,difficulty)&order=question_round.asc&order=difficulty.asc&order=created_at.asc`);
+    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,question_round,difficulty,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points,time_limit_seconds,difficulty)&order=question_round.asc&order=difficulty.asc&order=created_at.asc`);
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -708,7 +707,6 @@ function triviaQuestionPayload(body) {
   const difficulty = normalizeDifficulty(body.difficulty);
   const payload = {
     round_id: roundId,
-    question_round: Math.max(1, Math.min(20, Number(body.questionRound) || 1)),
     difficulty,
     question_text: clean(body.questionText),
     option_a: clean(body.optionA),

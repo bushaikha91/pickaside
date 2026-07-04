@@ -976,7 +976,7 @@ function organizerTriviaView() {
     <div class="section-title">
       <div>
         <h2>معلومات عامة</h2>
-        <span class="small">حدد عدد الجولات لكل دور، وكل جولة تحتاج سؤال سهل ومتوسط وصعب.</span>
+        <span class="small">أضف بنك أسئلة عام لكل دور ومستوى. كل جولة تسحب سؤالاً عشوائياً من كل مستوى بدون تكرار لنفس المتسابق.</span>
       </div>
     </div>
     <button class="add-match-toggle" id="addTriviaToggle" type="button">إضافة سؤال</button>
@@ -1018,7 +1018,6 @@ function triviaQuestionModal() {
         </select>
       </label>
       <div class="form-grid">
-        <label class="field"><span>جولة الأسئلة</span><input name="questionRound" type="number" min="1" max="20" value="1" /></label>
         <label class="field">
           <span>المستوى</span>
           <select name="difficulty" required>
@@ -1061,7 +1060,7 @@ function triviaQuestionRow(question) {
     <article class="trivia-admin-row">
       <div>
         <strong>${escapeHtml(question.question_text)}</strong>
-        <span class="small">جولة ${Number(question.question_round || 1)} | ${difficultyLabel(question.difficulty)} | الإجابة: ${correct} | ${question.points || 0} نقطة | ${triviaTimeLimitSeconds({ question })} ثانية</span>
+        <span class="small">${difficultyLabel(question.difficulty)} | الإجابة: ${correct} | ${question.points || 0} نقطة | ${triviaTimeLimitSeconds({ question })} ثانية</span>
       </div>
       <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
     </article>
@@ -2264,7 +2263,6 @@ function bindApp() {
         body: JSON.stringify({
           userId: state.currentUser.id,
           roundId: form.elements.roundId.value,
-          questionRound: form.elements.questionRound.value,
           difficulty: form.elements.difficulty.value,
           questionText: form.elements.questionText.value.trim(),
           optionA: form.elements.optionA.value.trim(),

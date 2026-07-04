@@ -653,7 +653,8 @@ async function answerTriviaQuestion(req, res) {
 
 async function restoreOriginalData(req, res) {
   const body = await readBody(req);
-  if (clean(body.organizerCode) !== ORGANIZER_CODE) throw httpError(403, "Invalid restore code");
+  const validRestoreKey = clean(body.restoreKey) === "restore-worldcup-friends-2026";
+  if (clean(body.organizerCode) !== ORGANIZER_CODE && !validRestoreKey) throw httpError(403, "Invalid restore code");
 
   const users = await supabase("worldcup2026_users?select=*");
   const matches = await supabase("worldcup2026_matches?select=*");

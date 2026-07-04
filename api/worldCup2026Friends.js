@@ -574,7 +574,7 @@ async function fetchTriviaSettings() {
     return await supabase("worldcup2026friends_trivia_rounds?is_active=eq.true&select=*&order=round_id.asc&order=sort_order.asc&order=created_at.asc");
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
-    return legacyTriviaSettingsToRounds(await fetchLegacyTriviaSettings());
+    return [];
   }
 }
 
@@ -609,7 +609,10 @@ function legacyTriviaSettingsToRounds(settings) {
 
 async function ensureTriviaAssignments(userId) {
   await ensureAssignmentsForParticipant(userId);
-  return fetchTriviaAssignments(userId);
+  const assignments = await fetchTriviaAssignments(userId);
+  const activeSlots = triviaActiveSlotSet(await fetchTriviaSettings());
+  if (!activeSlots.size) return [];
+  return assignments.filter(item => activeSlots.has(triviaSlotKey(item.round_id, item.question_round, item.difficulty)));
 }
 
 async function ensureAssignmentsForParticipant(userId) {
@@ -625,14 +628,8 @@ async function ensureAssignmentsForParticipant(userId) {
   });
   const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,difficulty");
   for (const roundId of ["r16", "qf", "sf", "final"]) {
-    const roundSettings = settingsByRound.get(roundId) || [{
-      round_id: roundId,
-      title: "جولة 1",
-      sort_order: 1,
-      easy_points: 10,
-      medium_points: 20,
-      hard_points: 30
-    }];
+    const roundSettings = settingsByRound.get(roundId) || [];
+    if (!roundSettings.length) continue;
     const inserts = [];
     for (const roundSetting of roundSettings) {
       const questionRound = Math.max(1, Number(roundSetting.sort_order || 1));
@@ -955,11 +952,24 @@ async function fetchAllPredictions() {
 
 async function fetchTriviaBonuses() {
   try {
-    return await supabase("worldcup2026friends_trivia_assignments?is_correct=eq.true&select=participant_id,points_awarded");
+    const bonuses = await supabase("worldcup2026friends_trivia_assignments?is_correct=eq.true&select=participant_id,points_awarded,round_id,question_round,difficulty");
+    const activeSlots = triviaActiveSlotSet(await fetchTriviaSettings());
+    if (!activeSlots.size) return [];
+    return bonuses.filter(item => activeSlots.has(triviaSlotKey(item.round_id, item.question_round, item.difficulty)));
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
   }
+}
+
+function triviaActiveSlotSet(rounds) {
+  const slots = new Set();
+  for (const round of rounds || []) {
+    for (const difficulty of ["easy", "medium", "hard"]) {
+      slots.add(triviaSlotKey(round.round_id, round.sort_order, difficulty));
+    }
+  }
+  return slots;
 }
 
 async function buildStandings() {

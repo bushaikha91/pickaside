@@ -912,11 +912,11 @@ function triviaSlotKey(roundId, questionRound, difficulty) {
 }
 
 async function calculateTournament() {
-  const [users, matches, predictions, triviaBonuses] = await Promise.all([
+  const [users, matches, predictions, triviaResults] = await Promise.all([
     fetchStandingUsers(),
     supabase("worldcup2026friends_matches?select=id,round_id,winner,starts_at,team_a,team_b"),
     fetchAllPredictions(),
-    fetchTriviaBonuses()
+    fetchTriviaResults()
   ]);
 
   const predictionByUserMatch = new Map(predictions.map(item => [`${item.user_id}:${item.match_id}`, item]));
@@ -928,7 +928,10 @@ async function calculateTournament() {
     avatar_url: user.avatar_url || "",
     points: 0,
     correct_predictions: 0,
-    wrong_predictions: 0
+    wrong_predictions: 0,
+    trivia_correct: 0,
+    trivia_wrong: 0,
+    trivia_points: 0
   }]));
 
   for (const roundId of ROUND_ORDER) {
@@ -947,9 +950,17 @@ async function calculateTournament() {
     }
   }
 
-  for (const bonus of triviaBonuses) {
-    const row = stats.get(bonus.participant_id);
-    if (row) row.points += Number(bonus.points_awarded || 0);
+  for (const result of triviaResults) {
+    const row = stats.get(result.participant_id);
+    if (!row) continue;
+    if (result.is_correct) {
+      const points = Number(result.points_awarded || 0);
+      row.trivia_correct += 1;
+      row.trivia_points += points;
+      row.points += points;
+    } else {
+      row.trivia_wrong += 1;
+    }
   }
 
   return {
@@ -972,12 +983,12 @@ async function fetchAllPredictions() {
   }
 }
 
-async function fetchTriviaBonuses() {
+async function fetchTriviaResults() {
   try {
-    const bonuses = await supabase("worldcup2026friends_trivia_assignments?is_correct=eq.true&select=participant_id,points_awarded,round_id,question_round,difficulty");
+    const results = await supabase("worldcup2026friends_trivia_assignments?answered_at=not.is.null&select=participant_id,is_correct,points_awarded,round_id,question_round,difficulty");
     const activeSlots = triviaActiveSlotSet(await fetchTriviaSettings());
     if (!activeSlots.size) return [];
-    return bonuses.filter(item => activeSlots.has(triviaSlotKey(item.round_id, item.question_round, item.difficulty)));
+    return results.filter(item => activeSlots.has(triviaSlotKey(item.round_id, item.question_round, item.difficulty)));
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];

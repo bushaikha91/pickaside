@@ -76,6 +76,7 @@ const state = {
   championPicks: [],
   triviaQuestions: [],
   triviaAssignments: [],
+  triviaSettings: [],
   rankMovement: {},
   participants: [],
   organizers: [],
@@ -154,6 +155,7 @@ async function loadData(options = {}) {
     state.championPicks = payload.championPicks || [];
     state.triviaQuestions = payload.triviaQuestions || [];
     state.triviaAssignments = payload.triviaAssignments || [];
+    state.triviaSettings = payload.triviaSettings || [];
     state.participants = payload.participants || [];
     state.organizers = payload.organizers || [];
     if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
@@ -974,19 +976,24 @@ function organizerTriviaView() {
     <div class="section-title">
       <div>
         <h2>معلومات عامة</h2>
-        <span class="small">أضف بنك أسئلة لكل دور، وسيظهر لكل متسابق 3 أسئلة عشوائية.</span>
+        <span class="small">حدد عدد الجولات لكل دور، وكل جولة تحتاج سؤال سهل ومتوسط وصعب.</span>
       </div>
     </div>
     <button class="add-match-toggle" id="addTriviaToggle" type="button">إضافة سؤال</button>
     <div class="trivia-question-list">
       ${visibleRounds().map(round => {
         const questions = state.triviaQuestions.filter(item => normalizeRoundId(item.round_id) === round.id);
+        const roundCount = triviaRoundCount(round.id);
         return `
           <section class="panel stack">
             <div class="section-title">
               <h2>${round.name}</h2>
-              <span class="small">${questions.length} سؤال</span>
+              <span class="small">${roundCount} جولة | ${questions.length} سؤال</span>
             </div>
+            <form class="trivia-settings-form form-grid" data-trivia-settings="${round.id}">
+              <label class="field"><span>عدد الجولات</span><input name="roundCount" type="number" min="1" max="20" value="${roundCount}" /></label>
+              <button class="mini-btn" type="submit">حفظ الجولات</button>
+            </form>
             ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا الدور.")}
           </section>
         `;
@@ -1010,6 +1017,17 @@ function triviaQuestionModal() {
           ${visibleRounds().map(round => `<option value="${round.id}">${round.name}</option>`).join("")}
         </select>
       </label>
+      <div class="form-grid">
+        <label class="field"><span>جولة الأسئلة</span><input name="questionRound" type="number" min="1" max="20" value="1" /></label>
+        <label class="field">
+          <span>المستوى</span>
+          <select name="difficulty" required>
+            <option value="easy">سهل</option>
+            <option value="medium">متوسط</option>
+            <option value="hard">صعب</option>
+          </select>
+        </label>
+      </div>
       <label class="field"><span>السؤال</span><input name="questionText" required placeholder="اكتب السؤال" /></label>
       <div class="form-grid">
         <label class="field"><span>الخيار A</span><input name="optionA" required /></label>
@@ -1043,11 +1061,20 @@ function triviaQuestionRow(question) {
     <article class="trivia-admin-row">
       <div>
         <strong>${escapeHtml(question.question_text)}</strong>
-        <span class="small">الإجابة: ${correct} | ${question.points || 0} نقطة | ${triviaTimeLimitSeconds({ question })} ثانية</span>
+        <span class="small">جولة ${Number(question.question_round || 1)} | ${difficultyLabel(question.difficulty)} | الإجابة: ${correct} | ${question.points || 0} نقطة | ${triviaTimeLimitSeconds({ question })} ثانية</span>
       </div>
       <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
     </article>
   `;
+}
+
+function triviaRoundCount(roundId) {
+  const setting = state.triviaSettings.find(item => normalizeRoundId(item.round_id) === normalizeRoundId(roundId));
+  return Math.max(1, Number(setting?.round_count || 1));
+}
+
+function difficultyLabel(value) {
+  return ({ easy: "سهل", medium: "متوسط", hard: "صعب" })[String(value || "easy")] || "سهل";
 }
 
 function triviaTimeLimitSeconds(assignment) {
@@ -1087,9 +1114,33 @@ function participantTriviaView() {
     </div>
     ${roundTabs()}
     <div class="trivia-question-list">
-      ${assignments.length ? assignments.map(triviaAssignmentCard).join("") : emptyView("لا توجد أسئلة متاحة لهذا الدور حالياً.")}
+      ${assignments.length ? triviaRoundGroups(assignments).map(([roundNumber, roundAssignments]) => `
+        <section class="stack trivia-round-group">
+          <div class="section-title">
+            <h2>جولة ${roundNumber}</h2>
+            <span class="small">${roundAssignments.filter(item => item.answered_at && item.is_correct).length}/3 صحيح</span>
+          </div>
+          ${roundAssignments.map(triviaAssignmentCard).join("")}
+        </section>
+      `).join("") : emptyView("لا توجد أسئلة متاحة لهذا الدور حالياً.")}
     </div>
   `;
+}
+
+function triviaRoundGroups(assignments) {
+  const grouped = new Map();
+  assignments.forEach(item => {
+    const roundNumber = Math.max(1, Number(item.question_round || item.question?.question_round || 1));
+    if (!grouped.has(roundNumber)) grouped.set(roundNumber, []);
+    grouped.get(roundNumber).push(item);
+  });
+  const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
+  return [...grouped.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([roundNumber, items]) => [
+      roundNumber,
+      items.sort((a, b) => (difficultyOrder[a.difficulty || a.question?.difficulty || "easy"] || 9) - (difficultyOrder[b.difficulty || b.question?.difficulty || "easy"] || 9))
+    ]);
 }
 
 function triviaAssignmentCard(assignment) {
@@ -1109,7 +1160,7 @@ function triviaAssignmentCard(assignment) {
       <div class="section-title">
         <h2>${started ? escapeHtml(question.question_text || "سؤال") : "سؤال جاهز"}</h2>
         <span class="status-chip ${answered ? assignment.is_correct ? "approved" : "wrong" : expired ? "rejected" : "pending"}">
-          ${assignment._pendingAnswer ? "جاري اعتماد الإجابة..." : answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${question.points || 0} نقطة`}
+          ${difficultyLabel(assignment.difficulty || question.difficulty)} | ${assignment._pendingAnswer ? "جاري اعتماد الإجابة..." : answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${question.points || 0} نقطة`}
         </span>
       </div>
       ${!started ? `<span class="small">اضغط ابدأ السؤال لعرض السؤال وتشغيل العداد.</span>` : ""}
@@ -2213,6 +2264,8 @@ function bindApp() {
         body: JSON.stringify({
           userId: state.currentUser.id,
           roundId: form.elements.roundId.value,
+          questionRound: form.elements.questionRound.value,
+          difficulty: form.elements.difficulty.value,
           questionText: form.elements.questionText.value.trim(),
           optionA: form.elements.optionA.value.trim(),
           optionB: form.elements.optionB.value.trim(),
@@ -2233,6 +2286,31 @@ function bindApp() {
     } finally {
       if (button) button.disabled = false;
     }
+  });
+
+  document.querySelectorAll("[data-trivia-settings]").forEach(form => {
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const button = form.querySelector("button[type='submit']");
+      if (button) button.disabled = true;
+      try {
+        await api("trivia-settings", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            roundId: form.dataset.triviaSettings,
+            roundCount: form.elements.roundCount.value
+          })
+        });
+        state.notice = "تم حفظ عدد جولات الأسئلة.";
+        await loadData({ silent: true });
+      } catch (error) {
+        state.error = error.message || "تعذر حفظ إعدادات الجولات";
+        render();
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
   });
 
   document.querySelectorAll("[data-trivia-delete]").forEach(button => {

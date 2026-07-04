@@ -142,6 +142,8 @@ create table if not exists public.worldcup2026friends_trivia_questions (
   correct_option text not null check (correct_option in ('a', 'b', 'c', 'd')),
   points integer not null default 10,
   time_limit_seconds integer not null default 20,
+  question_round integer not null default 1,
+  difficulty text not null default 'easy' check (difficulty in ('easy', 'medium', 'hard')),
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -150,11 +152,25 @@ create table if not exists public.worldcup2026friends_trivia_questions (
 alter table public.worldcup2026friends_trivia_questions
   add column if not exists time_limit_seconds integer not null default 20;
 
+alter table public.worldcup2026friends_trivia_questions
+  add column if not exists question_round integer not null default 1;
+
+alter table public.worldcup2026friends_trivia_questions
+  add column if not exists difficulty text not null default 'easy';
+
+create table if not exists public.worldcup2026friends_trivia_settings (
+  round_id text primary key,
+  round_count integer not null default 1,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.worldcup2026friends_trivia_assignments (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.worldcup2026friends_users(id) on delete cascade,
   question_id uuid not null references public.worldcup2026friends_trivia_questions(id) on delete cascade,
   round_id text not null,
+  question_round integer not null default 1,
+  difficulty text not null default 'easy' check (difficulty in ('easy', 'medium', 'hard')),
   started_at timestamptz,
   answered_at timestamptz,
   selected_option text check (selected_option in ('a', 'b', 'c', 'd')),
@@ -164,12 +180,22 @@ create table if not exists public.worldcup2026friends_trivia_assignments (
   unique (participant_id, question_id)
 );
 
+alter table public.worldcup2026friends_trivia_assignments
+  add column if not exists question_round integer not null default 1;
+
+alter table public.worldcup2026friends_trivia_assignments
+  add column if not exists difficulty text not null default 'easy';
+
 alter table public.worldcup2026friends_trivia_questions disable row level security;
 alter table public.worldcup2026friends_trivia_assignments disable row level security;
+alter table public.worldcup2026friends_trivia_settings disable row level security;
 
 grant all on table public.worldcup2026friends_trivia_questions to anon;
 grant all on table public.worldcup2026friends_trivia_assignments to anon;
+grant all on table public.worldcup2026friends_trivia_settings to anon;
 grant all on table public.worldcup2026friends_trivia_questions to authenticated;
 grant all on table public.worldcup2026friends_trivia_assignments to authenticated;
+grant all on table public.worldcup2026friends_trivia_settings to authenticated;
 grant all on table public.worldcup2026friends_trivia_questions to service_role;
 grant all on table public.worldcup2026friends_trivia_assignments to service_role;
+grant all on table public.worldcup2026friends_trivia_settings to service_role;

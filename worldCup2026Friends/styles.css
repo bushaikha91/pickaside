@@ -1274,6 +1274,14 @@ button {
   margin-top: 14px;
 }
 
+.trivia-settings-form {
+  align-items: end;
+}
+
+.trivia-round-group {
+  gap: 10px;
+}
+
 .trivia-admin-row {
   display: grid;
   grid-template-columns: 1fr auto;

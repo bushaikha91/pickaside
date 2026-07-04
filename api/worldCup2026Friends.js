@@ -43,6 +43,7 @@ module.exports = async function handler(req, res) {
     if (action === "champion-option" && req.method === "POST") return await saveChampionOption(req, res);
     if (action === "champion-pick" && req.method === "POST") return await saveChampionPick(req, res);
     if (action === "trivia-question" && req.method === "POST") return await saveTriviaQuestion(req, res);
+    if (action === "trivia-settings" && req.method === "POST") return await saveTriviaSettings(req, res);
     if (action === "trivia-question-delete" && req.method === "POST") return await deleteTriviaQuestion(req, res);
     if (action === "trivia-start" && req.method === "POST") return await startTriviaQuestion(req, res);
     if (action === "trivia-answer" && req.method === "POST") return await answerTriviaQuestion(req, res);
@@ -61,13 +62,14 @@ async function sendState(req, res) {
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
   const tournament = await calculateTournament();
 
-  const [matches, predictions, participants, organizers, championData, triviaQuestions] = await Promise.all([
+  const [matches, predictions, participants, organizers, championData, triviaQuestions, triviaSettings] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026friends_matches?select=*&order=winner.asc.nullsfirst&order=starts_at.asc") : [],
     userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
     isOrganizer ? fetchParticipants() : [],
     isOrganizer ? fetchOrganizers() : [],
     isOrganizer ? fetchChampionData() : { options: [], picks: [] },
-    isOrganizer ? fetchTriviaQuestions() : []
+    isOrganizer ? fetchTriviaQuestions() : [],
+    isOrganizer || isApprovedParticipant ? fetchTriviaSettings() : []
   ]);
   const triviaAssignments = isApprovedParticipant ? await ensureTriviaAssignments(userId) : [];
 
@@ -85,6 +87,7 @@ async function sendState(req, res) {
     championOptions: championData.options,
     championPicks: championData.picks,
     triviaQuestions,
+    triviaSettings,
     triviaAssignments,
     serverNow: new Date().toISOString()
   });
@@ -552,7 +555,16 @@ async function requireApprovedParticipant(userId) {
 
 async function fetchTriviaQuestions() {
   try {
-    return await supabase("worldcup2026friends_trivia_questions?select=*&order=round_id.asc&order=created_at.desc");
+    return await supabase("worldcup2026friends_trivia_questions?select=*&order=round_id.asc&order=question_round.asc&order=difficulty.asc&order=created_at.desc");
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return [];
+  }
+}
+
+async function fetchTriviaSettings() {
+  try {
+    return await supabase("worldcup2026friends_trivia_settings?select=*&order=round_id.asc");
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -565,31 +577,57 @@ async function ensureTriviaAssignments(userId) {
 }
 
 async function ensureAssignmentsForParticipant(userId) {
-  const existing = await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=question_id,round_id`);
+  const existing = await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=question_id,round_id,question_round,difficulty`);
   const existingByRound = new Map();
   existing.forEach(item => {
     const roundId = normalizeRoundId(item.round_id);
     if (!existingByRound.has(roundId)) existingByRound.set(roundId, new Set());
     existingByRound.get(roundId).add(item.question_id);
   });
-  const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,round_id");
+  const existingSlots = new Set(existing.map(item => triviaSlotKey(item.round_id, item.question_round, item.difficulty)));
+  const settings = await fetchTriviaSettings();
+  const settingsByRound = new Map(settings.map(item => [normalizeRoundId(item.round_id), Math.max(1, Number(item.round_count || 1))]));
+  const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,round_id,question_round,difficulty");
   for (const roundId of ["r16", "qf", "sf", "final"]) {
     const assigned = existingByRound.get(roundId) || new Set();
-    const needed = Math.max(0, 3 - assigned.size);
-    if (!needed) continue;
-    const candidates = shuffle(questions.filter(item => normalizeRoundId(item.round_id) === roundId && !assigned.has(item.id))).slice(0, needed);
-    if (!candidates.length) continue;
-    await supabase("worldcup2026friends_trivia_assignments", {
-      method: "POST",
-      body: JSON.stringify(candidates.map(item => ({ participant_id: userId, question_id: item.id, round_id: roundId }))),
-      prefer: "return=minimal"
-    });
+    const roundCount = settingsByRound.get(roundId) || 1;
+    const inserts = [];
+    for (let questionRound = 1; questionRound <= roundCount; questionRound++) {
+      for (const difficulty of ["easy", "medium", "hard"]) {
+        const slotKey = triviaSlotKey(roundId, questionRound, difficulty);
+        if (existingSlots.has(slotKey)) continue;
+        const candidates = shuffle(questions.filter(item =>
+          normalizeRoundId(item.round_id) === roundId &&
+          Number(item.question_round || 1) === questionRound &&
+          normalizeDifficulty(item.difficulty) === difficulty &&
+          !assigned.has(item.id)
+        ));
+        if (!candidates.length) continue;
+        const [chosen] = candidates;
+        assigned.add(chosen.id);
+        existingSlots.add(slotKey);
+        inserts.push({
+          participant_id: userId,
+          question_id: chosen.id,
+          round_id: roundId,
+          question_round: questionRound,
+          difficulty
+        });
+      }
+    }
+    if (inserts.length) {
+      await supabase("worldcup2026friends_trivia_assignments", {
+        method: "POST",
+        body: JSON.stringify(inserts),
+        prefer: "return=minimal"
+      });
+    }
   }
 }
 
 async function fetchTriviaAssignments(userId) {
   try {
-    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points,time_limit_seconds)&order=created_at.asc`);
+    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,question_round,difficulty,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points,time_limit_seconds,question_round,difficulty)&order=question_round.asc&order=difficulty.asc&order=created_at.asc`);
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -605,6 +643,20 @@ async function saveTriviaQuestion(req, res) {
     ? await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(questionId)}`, { method: "PATCH", body: JSON.stringify(payload), prefer: "return=representation" })
     : await supabase("worldcup2026friends_trivia_questions", { method: "POST", body: JSON.stringify(payload), prefer: "return=representation" });
   return res.status(200).json({ question: rows[0] });
+}
+
+async function saveTriviaSettings(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const roundId = normalizeRoundId(clean(body.roundId));
+  const roundCount = Math.max(1, Math.min(20, Number(body.roundCount) || 1));
+  if (!["r16", "qf", "sf", "final"].includes(roundId)) throw httpError(400, "????? ??? ????");
+  const [setting] = await supabase("worldcup2026friends_trivia_settings?on_conflict=round_id", {
+    method: "POST",
+    body: JSON.stringify({ round_id: roundId, round_count: roundCount, updated_at: new Date().toISOString() }),
+    prefer: "resolution=merge-duplicates,return=representation"
+  });
+  return res.status(200).json({ setting });
 }
 
 async function deleteTriviaQuestion(req, res) {
@@ -653,8 +705,11 @@ async function answerTriviaQuestion(req, res) {
 function triviaQuestionPayload(body) {
   const roundId = normalizeRoundId(clean(body.roundId));
   const correctOption = clean(body.correctOption).toLowerCase();
+  const difficulty = normalizeDifficulty(body.difficulty);
   const payload = {
     round_id: roundId,
+    question_round: Math.max(1, Math.min(20, Number(body.questionRound) || 1)),
+    difficulty,
     question_text: clean(body.questionText),
     option_a: clean(body.optionA),
     option_b: clean(body.optionB),
@@ -670,6 +725,15 @@ function triviaQuestionPayload(body) {
   if (!payload.question_text || !payload.option_a || !payload.option_b || !payload.option_c || !payload.option_d) throw httpError(400, "???? ?????? ????????? ???????");
   if (!["a", "b", "c", "d"].includes(correctOption)) throw httpError(400, "??? ??????? ???????");
   return payload;
+}
+
+function normalizeDifficulty(value) {
+  const difficulty = clean(value).toLowerCase();
+  return ["easy", "medium", "hard"].includes(difficulty) ? difficulty : "easy";
+}
+
+function triviaSlotKey(roundId, questionRound, difficulty) {
+  return `${normalizeRoundId(roundId)}:${Math.max(1, Number(questionRound) || 1)}:${normalizeDifficulty(difficulty)}`;
 }
 
 async function calculateTournament() {

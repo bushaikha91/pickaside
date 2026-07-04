@@ -1389,6 +1389,16 @@ button {
   gap: 14px;
 }
 
+.trivia-play-modal .trivia-round-card {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.trivia-play-modal .trivia-round-card > .section-title {
+  display: none;
+}
+
 .trivia-round-points,
 .trivia-round-result {
   display: grid;

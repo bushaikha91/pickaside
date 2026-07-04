@@ -96,6 +96,7 @@ const state = {
   addTriviaOpen: false,
   addTriviaRoundOpen: false,
   editTriviaQuestionId: null,
+  activeTriviaRoundKey: null,
   triviaModalError: "",
   triviaRoundModalError: "",
   organizerTriviaTab: "questions",
@@ -311,6 +312,7 @@ function appTemplate() {
     ${state.addMatchOpen ? matchFormModal() : ""}
     ${state.addTriviaOpen ? triviaQuestionModal() : ""}
     ${state.addTriviaRoundOpen ? triviaRoundModal() : ""}
+    ${state.activeTriviaRoundKey ? triviaParticipantRoundModal() : ""}
   `;
 }
 
@@ -1197,7 +1199,7 @@ function participantTriviaView() {
     ${roundTabs()}
     <div class="trivia-question-list">
       ${assignments.length ? triviaRoundGroups(assignments).map(([roundNumber, roundAssignments]) => `
-        ${triviaRoundCard(roundNumber, roundAssignments)}
+        ${triviaRoundSummaryCard(roundNumber, roundAssignments)}
       `).join("") : emptyView("لا توجد أسئلة متاحة لهذا الدور حالياً.")}
     </div>
   `;
@@ -1219,8 +1221,58 @@ function triviaRoundGroups(assignments) {
     ]);
 }
 
-function triviaRoundCard(roundNumber, assignments) {
+function triviaRoundKey(roundId, roundNumber) {
+  return `${normalizeRoundId(roundId)}:${Math.max(1, Number(roundNumber) || 1)}`;
+}
+
+function triviaRoundSummaryCard(roundNumber, assignments) {
   const setting = triviaRoundSetting(activeRound, roundNumber);
+  const title = setting.title || `جولة ${roundNumber}`;
+  const completed = assignments.filter(triviaAssignmentComplete);
+  const correct = completed.filter(item => item.is_correct).length;
+  const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
+  const started = assignments.some(item => item.started_at || item.answered_at);
+  const allDone = assignments.length > 0 && completed.length === assignments.length;
+  return `
+    <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
+      <div class="section-title">
+        <div>
+          <h2>${escapeHtml(title)}</h2>
+          <span class="small">${allDone ? `${correct}/3 صحيح | ${points} نقطة` : started ? `${completed.length}/3 مكتمل` : "جاهزة للبدء"}</span>
+        </div>
+        <span class="status-chip ${allDone ? "approved" : started ? "pending" : ""}">${allDone ? "مكتمل" : started ? "قيد اللعب" : "جديدة"}</span>
+      </div>
+      <div class="trivia-round-points">
+        <span>سهل: ${triviaSettingPoints(setting, "easy")} نقطة</span>
+        <span>متوسط: ${triviaSettingPoints(setting, "medium")} نقطة</span>
+        <span>صعب: ${triviaSettingPoints(setting, "hard")} نقطة</span>
+      </div>
+      <button class="primary-btn" data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}" type="button">${allDone ? "عرض النتيجة" : started ? "متابعة الجولة" : "فتح الجولة"}</button>
+    </article>
+  `;
+}
+
+function triviaParticipantRoundModal() {
+  const [roundId, roundValue] = String(state.activeTriviaRoundKey || "").split(":");
+  const roundNumber = Math.max(1, Number(roundValue) || 1);
+  const assignments = triviaRoundGroups(state.triviaAssignments.filter(item => normalizeRoundId(item.round_id) === normalizeRoundId(roundId)))
+    .find(([itemRound]) => itemRound === roundNumber)?.[1] || [];
+  if (!assignments.length) return "";
+  return `
+    <div class="modal-backdrop" data-trivia-participant-round-close>
+      <section class="modal-card stack trivia-play-modal">
+        <div class="section-title">
+          <h2>${escapeHtml(triviaRoundSetting(roundId, roundNumber).title || `جولة ${roundNumber}`)}</h2>
+          <button class="icon-close" type="button" data-trivia-participant-round-x>×</button>
+        </div>
+        ${triviaRoundCard(roundNumber, assignments, roundId)}
+      </section>
+    </div>
+  `;
+}
+
+function triviaRoundCard(roundNumber, assignments, displayRoundId = activeRound) {
+  const setting = triviaRoundSetting(displayRoundId, roundNumber);
   const title = setting.title || `جولة ${roundNumber}`;
   const completed = assignments.filter(triviaAssignmentComplete);
   const correct = completed.filter(item => item.is_correct).length;
@@ -2486,6 +2538,25 @@ function bindApp() {
     });
   });
 
+  document.querySelectorAll("[data-trivia-round-open]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.activeTriviaRoundKey = button.dataset.triviaRoundOpen;
+      render();
+    });
+  });
+
+  document.querySelector("[data-trivia-participant-round-x]")?.addEventListener("click", () => {
+    state.activeTriviaRoundKey = null;
+    render();
+  });
+
+  document.querySelector("[data-trivia-participant-round-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.activeTriviaRoundKey = null;
+      render();
+    }
+  });
+
   document.querySelector("#triviaQuestionForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -3206,7 +3277,7 @@ function handleExpiredTriviaQuestions() {
 }
 
 function hasOpenModal() {
-  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen);
+  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.activeTriviaRoundKey);
 }
 
 function bindSwipeRows() {

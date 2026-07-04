@@ -982,12 +982,6 @@ function organizerTriviaView() {
   const triviaTab = state.organizerTriviaTab || "questions";
   const activeDifficulty = normalizeDifficulty(state.triviaQuestionDifficulty);
   return `
-    <div class="section-title">
-      <div>
-        <h2>معلومات عامة</h2>
-        <span class="small">أضف بنك أسئلة عام لكل المستويات. كل جولة تسحب سؤالاً عشوائياً من كل مستوى بدون تكرار لنفس المتسابق.</span>
-      </div>
-    </div>
     <div class="tabs trivia-page-tabs">
       <button class="tab ${triviaTab === "questions" ? "active" : ""}" data-trivia-page-tab="questions" type="button">الأسئلة</button>
       <button class="tab ${triviaTab === "rounds" ? "active" : ""}" data-trivia-page-tab="rounds" type="button">الجولات</button>
@@ -1194,14 +1188,8 @@ function participantTriviaView() {
   const wrongAnswers = answeredAssignments.length - correctAnswers;
   const intelligencePercent = answeredAssignments.length ? Math.round((correctAnswers / answeredAssignments.length) * 100) : 0;
   return `
-    <div class="section-title">
-      <div>
-        <h2>معلومات عامة</h2>
-        <span class="small">مدة كل سؤال يحددها المنظم. الإجابة الصحيحة تضيف نقاطاً لترتيبك.</span>
-      </div>
-      <span class="pill">${earned} نقطة إضافية</span>
-    </div>
     <div class="summary-grid trivia-stats-grid">
+      <div class="summary-card"><span class="small">نقاط إضافية</span><strong>${earned}</strong></div>
       <div class="summary-card"><span class="small">إجابات صحيحة</span><strong>${correctAnswers}</strong></div>
       <div class="summary-card"><span class="small">إجابات خاطئة</span><strong>${wrongAnswers}</strong></div>
       <div class="summary-card"><span class="small">نسبة الذكاء</span><strong>${intelligencePercent}%</strong></div>

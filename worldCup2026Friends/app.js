@@ -274,11 +274,11 @@ function appTemplate() {
       <button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>
       <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
       <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ترشيحات البطل</button>
-      <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">معلومات عامة</button>
+      <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">س/ج</button>
     `
     : `
       <button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>
-      <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">معلومات عامة</button>
+      <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">س/ج</button>
     `;
 
   return `

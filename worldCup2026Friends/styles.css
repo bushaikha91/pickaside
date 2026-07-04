@@ -1293,13 +1293,19 @@ button {
 
 .trivia-admin-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 12px;
   border: 1px solid #e4e7ec;
   border-radius: 8px;
   background: #fff;
+}
+
+.trivia-admin-row strong,
+.trivia-admin-row .small {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .trivia-admin-actions {
@@ -1351,9 +1357,16 @@ button {
 }
 
 .trivia-options .choice {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
   justify-content: flex-start;
   min-height: 46px;
+  height: auto;
+  padding: 10px 12px;
   text-align: start;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .trivia-options .choice span {
@@ -1365,6 +1378,21 @@ button {
   border-radius: 50%;
   color: #fff;
   background: var(--navy);
+}
+
+.trivia-card .section-title {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.trivia-card .section-title h2 {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.trivia-card .status-chip {
+  justify-self: start;
+  white-space: normal;
 }
 
 .leader-name-button {

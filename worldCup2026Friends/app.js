@@ -93,7 +93,7 @@ const state = {
 };
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
-let activeRound = "r32";
+let activeRound = "r16";
 let countdownTimer = null;
 let predictionSaveSeq = 0;
 
@@ -593,13 +593,21 @@ function errorView(message) {
 function roundTabs() {
   return `
     <div class="round-tabs">
-      ${rounds.map(round => `
+      ${visibleRounds().map(round => `
         <button class="round-tab ${activeRound === round.id ? "active" : ""}" data-round="${round.id}">
           ${round.name}
         </button>
       `).join("")}
     </div>
   `;
+}
+
+function visibleRounds() {
+  return rounds.filter(round => round.id !== "r32");
+}
+
+function isHiddenRound(roundId) {
+  return normalizeRoundId(roundId) === "r32";
 }
 
 function participantMatchesView() {
@@ -831,7 +839,7 @@ function participantDetailModal(participantId) {
       .map(item => [item.match_id, item])
   );
   const participantPoints = state.allMatchPoints[participantId] || {};
-  const rows = sortMatches(state.matches).map(match => {
+  const rows = sortMatches(state.matches.filter(match => !isHiddenRound(match.round_id))).map(match => {
     const prediction = participantPredictions.get(match.id);
     const points = participantPoints[match.id];
     const status = !match.winner
@@ -886,7 +894,7 @@ function lawsView() {
         <h3>الجوكر</h3>
         <p>${jokerLaw}</p>
       </article>
-      ${rounds.map(round => `
+      ${visibleRounds().map(round => `
         <article class="law-card">
           <h3>${round.name}</h3>
           <p>${displayLaws[round.id] || laws[round.id]}</p>

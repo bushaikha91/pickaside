@@ -1291,6 +1291,31 @@ button {
   gap: 10px;
 }
 
+.trivia-question-list .section-title h2,
+.trivia-card .section-title h2 {
+  font-size: 19px;
+  line-height: 1.35;
+}
+
+.trivia-question-list,
+.trivia-question-list .small,
+.trivia-card,
+.trivia-card .small,
+.trivia-admin-row,
+.trivia-options .choice {
+  font-size: 13px;
+}
+
+.trivia-question-list .status-chip,
+.trivia-card .status-chip,
+.trivia-question-list .mini-btn {
+  font-size: 12px;
+}
+
+.trivia-stats-grid .summary-card strong {
+  font-size: 19px;
+}
+
 .trivia-admin-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

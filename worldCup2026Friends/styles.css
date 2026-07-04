@@ -1269,6 +1269,53 @@ button {
   white-space: nowrap;
 }
 
+.trivia-form,
+.trivia-question-list {
+  margin-top: 14px;
+}
+
+.trivia-admin-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.trivia-card.correct {
+  border-color: rgba(6, 118, 71, 0.24);
+}
+
+.trivia-card.wrong,
+.trivia-card.expired {
+  border-color: rgba(180, 35, 24, 0.22);
+}
+
+.trivia-options {
+  display: grid;
+  gap: 8px;
+}
+
+.trivia-options .choice {
+  justify-content: flex-start;
+  min-height: 46px;
+  text-align: start;
+}
+
+.trivia-options .choice span {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  margin-inline-end: 8px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--navy);
+}
+
 .leader-name-button {
   display: block;
   width: 100%;

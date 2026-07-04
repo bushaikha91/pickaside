@@ -74,6 +74,8 @@ const state = {
   allMatchStakes: {},
   championOptions: [],
   championPicks: [],
+  triviaQuestions: [],
+  triviaAssignments: [],
   rankMovement: {},
   participants: [],
   organizers: [],
@@ -149,6 +151,8 @@ async function loadData(options = {}) {
     state.allMatchStakes = payload.allMatchStakes || {};
     state.championOptions = payload.championOptions || [];
     state.championPicks = payload.championPicks || [];
+    state.triviaQuestions = payload.triviaQuestions || [];
+    state.triviaAssignments = payload.triviaAssignments || [];
     state.participants = payload.participants || [];
     state.organizers = payload.organizers || [];
     if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
@@ -260,8 +264,12 @@ function appTemplate() {
       <button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>
       <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
       <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ترشيحات البطل</button>
+      <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">معلومات عامة</button>
     `
-    : `<button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>`;
+    : `
+      <button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>
+      <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">معلومات عامة</button>
+    `;
 
   return `
     <header class="topbar">
@@ -298,6 +306,7 @@ function appTemplate() {
 function currentView() {
   if (activeTab === "standings") return standingsView();
   if (activeTab === "laws") return lawsView();
+  if (activeTab === "trivia") return triviaView();
   if (state.currentUser.role === "participant" && state.currentUser.participant_status !== "approved") {
     return participantStatusView();
   }
@@ -951,6 +960,129 @@ function lawsView() {
         </article>
       `).join("")}
     </div>
+  `;
+}
+
+function triviaView() {
+  return state.currentUser.role === "organizer" ? organizerTriviaView() : participantTriviaView();
+}
+
+function organizerTriviaView() {
+  return `
+    <div class="section-title">
+      <div>
+        <h2>معلومات عامة</h2>
+        <span class="small">أضف بنك أسئلة لكل دور، وسيظهر لكل متسابق 3 أسئلة عشوائية.</span>
+      </div>
+    </div>
+    <form class="panel stack trivia-form" id="triviaQuestionForm">
+      <label class="field">
+        <span>الدور</span>
+        <select name="roundId" required>
+          ${visibleRounds().map(round => `<option value="${round.id}">${round.name}</option>`).join("")}
+        </select>
+      </label>
+      <label class="field"><span>السؤال</span><input name="questionText" required placeholder="اكتب السؤال" /></label>
+      <div class="form-grid">
+        <label class="field"><span>الخيار A</span><input name="optionA" required /></label>
+        <label class="field"><span>الخيار B</span><input name="optionB" required /></label>
+        <label class="field"><span>الخيار C</span><input name="optionC" required /></label>
+        <label class="field"><span>الخيار D</span><input name="optionD" required /></label>
+      </div>
+      <div class="form-grid">
+        <label class="field">
+          <span>الإجابة الصحيحة</span>
+          <select name="correctOption" required>
+            <option value="a">A</option>
+            <option value="b">B</option>
+            <option value="c">C</option>
+            <option value="d">D</option>
+          </select>
+        </label>
+        <label class="field"><span>النقاط</span><input name="points" type="number" min="1" max="1000" value="10" /></label>
+      </div>
+      <button class="primary-btn" type="submit">إضافة السؤال</button>
+    </form>
+    <div class="trivia-question-list">
+      ${visibleRounds().map(round => {
+        const questions = state.triviaQuestions.filter(item => normalizeRoundId(item.round_id) === round.id);
+        return `
+          <section class="panel stack">
+            <div class="section-title">
+              <h2>${round.name}</h2>
+              <span class="small">${questions.length} سؤال</span>
+            </div>
+            ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا الدور.")}
+          </section>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function triviaQuestionRow(question) {
+  const correct = String(question.correct_option || "").toUpperCase();
+  return `
+    <article class="trivia-admin-row">
+      <div>
+        <strong>${escapeHtml(question.question_text)}</strong>
+        <span class="small">الإجابة: ${correct} | ${question.points || 0} نقطة</span>
+      </div>
+      <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
+    </article>
+  `;
+}
+
+function participantTriviaView() {
+  const assignments = state.triviaAssignments.filter(item => normalizeRoundId(item.round_id) === normalizeRoundId(activeRound));
+  const earned = state.triviaAssignments.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
+  return `
+    <div class="section-title">
+      <div>
+        <h2>معلومات عامة</h2>
+        <span class="small">20 ثانية لكل سؤال. الإجابة الصحيحة تضيف نقاطاً لترتيبك.</span>
+      </div>
+      <span class="pill">${earned} نقطة إضافية</span>
+    </div>
+    ${roundTabs()}
+    <div class="trivia-question-list">
+      ${assignments.length ? assignments.map(triviaAssignmentCard).join("") : emptyView("لا توجد أسئلة متاحة لهذا الدور حالياً.")}
+    </div>
+  `;
+}
+
+function triviaAssignmentCard(assignment) {
+  const question = assignment.question || {};
+  const started = !!assignment.started_at;
+  const answered = !!assignment.answered_at;
+  const deadline = assignment.started_at ? new Date(new Date(assignment.started_at).getTime() + 20000).toISOString() : "";
+  const expired = started && !answered && new Date(deadline).getTime() <= serverNowMs();
+  const options = [
+    ["a", question.option_a],
+    ["b", question.option_b],
+    ["c", question.option_c],
+    ["d", question.option_d]
+  ];
+  return `
+    <article class="panel stack trivia-card ${answered ? assignment.is_correct ? "correct" : "wrong" : expired ? "expired" : ""}">
+      <div class="section-title">
+        <h2>${escapeHtml(question.question_text || "سؤال")}</h2>
+        <span class="status-chip ${answered ? assignment.is_correct ? "approved" : "wrong" : expired ? "rejected" : "pending"}">
+          ${answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${question.points || 0} نقطة`}
+        </span>
+      </div>
+      ${started && !answered && !expired ? `<span class="countdown" ${countdownAttrs(deadline, "الوقت: ")}>${countdownText(deadline)}</span>` : ""}
+      ${!started ? `<button class="primary-btn" data-trivia-start="${assignment.id}" type="button">ابدأ السؤال</button>` : `
+        <div class="trivia-options">
+          ${options.map(([key, value]) => `
+            <button class="choice ${assignment.selected_option === key ? "active" : ""}" data-trivia-answer="${assignment.id}" data-option="${key}" type="button" ${answered || expired ? "disabled" : ""}>
+              <span>${key.toUpperCase()}</span>
+              ${escapeHtml(value || "-")}
+            </button>
+          `).join("")}
+        </div>
+      `}
+    </article>
   `;
 }
 
@@ -2011,6 +2143,90 @@ function bindApp() {
     }
   });
 
+  document.querySelector("#triviaQuestionForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    if (button) button.disabled = true;
+    try {
+      await api("trivia-question", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: state.currentUser.id,
+          roundId: form.elements.roundId.value,
+          questionText: form.elements.questionText.value.trim(),
+          optionA: form.elements.optionA.value.trim(),
+          optionB: form.elements.optionB.value.trim(),
+          optionC: form.elements.optionC.value.trim(),
+          optionD: form.elements.optionD.value.trim(),
+          correctOption: form.elements.correctOption.value,
+          points: form.elements.points.value
+        })
+      });
+      state.notice = "تمت إضافة السؤال.";
+      form.reset();
+      await loadData({ silent: true });
+    } catch (error) {
+      state.error = error.message || "تعذر حفظ السؤال";
+      render();
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("[data-trivia-delete]").forEach(button => {
+    button.addEventListener("click", async () => {
+      if (!confirm("حذف السؤال؟")) return;
+      try {
+        await api("trivia-question-delete", {
+          method: "POST",
+          body: JSON.stringify({ userId: state.currentUser.id, questionId: button.dataset.triviaDelete })
+        });
+        state.notice = "تم حذف السؤال.";
+        await loadData({ silent: true });
+      } catch (error) {
+        state.error = error.message || "تعذر حذف السؤال";
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-trivia-start]").forEach(button => {
+    button.addEventListener("click", async () => {
+      try {
+        const payload = await api("trivia-start", {
+          method: "POST",
+          body: JSON.stringify({ userId: state.currentUser.id, assignmentId: button.dataset.triviaStart })
+        });
+        if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
+        await loadData({ silent: true });
+      } catch (error) {
+        state.error = error.message || "تعذر بدء السؤال";
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-trivia-answer]").forEach(button => {
+    button.addEventListener("click", async () => {
+      try {
+        const payload = await api("trivia-answer", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            assignmentId: button.dataset.triviaAnswer,
+            selectedOption: button.dataset.option
+          })
+        });
+        state.notice = payload.isCorrect ? "إجابة صحيحة. تمت إضافة النقاط." : "إجابة غير صحيحة.";
+        await loadData({ silent: true });
+      } catch (error) {
+        state.error = error.message || "تعذر حفظ الإجابة";
+        render();
+      }
+    });
+  });
+
   document.querySelectorAll("[data-champion-option]").forEach(form => {
     form.addEventListener("submit", async event => {
       event.preventDefault();
@@ -2521,15 +2737,19 @@ function showInlineError(errorBox, message) {
 
 function syncCountdownTimer() {
   const hasOpenMatch = state.currentUser && state.matches.some(match => !isVoteClosed(match));
+  const hasOpenTrivia = state.currentUser && state.triviaAssignments.some(item => {
+    if (!item.started_at || item.answered_at) return false;
+    return new Date(item.started_at).getTime() + 20000 > serverNowMs();
+  });
   updateCountdowns();
-  if (hasOpenMatch && !countdownTimer) {
+  if ((hasOpenMatch || hasOpenTrivia) && !countdownTimer) {
     countdownTimer = setInterval(() => {
       if (!state.currentUser) return;
       const expired = updateCountdowns();
       if (expired && !hasOpenModal()) render();
     }, 1000);
   }
-  if (!hasOpenMatch && countdownTimer) {
+  if (!hasOpenMatch && !hasOpenTrivia && countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
   }

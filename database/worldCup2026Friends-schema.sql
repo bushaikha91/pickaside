@@ -130,3 +130,42 @@ grant all on table public.worldcup2026friends_matches to service_role;
 grant all on table public.worldcup2026friends_predictions to service_role;
 grant all on table public.worldcup2026friends_champion_options to service_role;
 grant all on table public.worldcup2026friends_champion_picks to service_role;
+
+create table if not exists public.worldcup2026friends_trivia_questions (
+  id uuid primary key default gen_random_uuid(),
+  round_id text not null,
+  question_text text not null,
+  option_a text not null,
+  option_b text not null,
+  option_c text not null,
+  option_d text not null,
+  correct_option text not null check (correct_option in ('a', 'b', 'c', 'd')),
+  points integer not null default 10,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.worldcup2026friends_trivia_assignments (
+  id uuid primary key default gen_random_uuid(),
+  participant_id uuid not null references public.worldcup2026friends_users(id) on delete cascade,
+  question_id uuid not null references public.worldcup2026friends_trivia_questions(id) on delete cascade,
+  round_id text not null,
+  started_at timestamptz,
+  answered_at timestamptz,
+  selected_option text check (selected_option in ('a', 'b', 'c', 'd')),
+  is_correct boolean,
+  points_awarded integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (participant_id, question_id)
+);
+
+alter table public.worldcup2026friends_trivia_questions disable row level security;
+alter table public.worldcup2026friends_trivia_assignments disable row level security;
+
+grant all on table public.worldcup2026friends_trivia_questions to anon;
+grant all on table public.worldcup2026friends_trivia_assignments to anon;
+grant all on table public.worldcup2026friends_trivia_questions to authenticated;
+grant all on table public.worldcup2026friends_trivia_assignments to authenticated;
+grant all on table public.worldcup2026friends_trivia_questions to service_role;
+grant all on table public.worldcup2026friends_trivia_assignments to service_role;

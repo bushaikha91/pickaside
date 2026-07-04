@@ -42,6 +42,10 @@ module.exports = async function handler(req, res) {
     if (action === "password-reset-complete" && req.method === "POST") return await completePasswordReset(req, res);
     if (action === "champion-option" && req.method === "POST") return await saveChampionOption(req, res);
     if (action === "champion-pick" && req.method === "POST") return await saveChampionPick(req, res);
+    if (action === "trivia-question" && req.method === "POST") return await saveTriviaQuestion(req, res);
+    if (action === "trivia-question-delete" && req.method === "POST") return await deleteTriviaQuestion(req, res);
+    if (action === "trivia-start" && req.method === "POST") return await startTriviaQuestion(req, res);
+    if (action === "trivia-answer" && req.method === "POST") return await answerTriviaQuestion(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -57,13 +61,15 @@ async function sendState(req, res) {
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
   const tournament = await calculateTournament();
 
-  const [matches, predictions, participants, organizers, championData] = await Promise.all([
+  const [matches, predictions, participants, organizers, championData, triviaQuestions] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026friends_matches?select=*&order=winner.asc.nullsfirst&order=starts_at.asc") : [],
     userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
     isOrganizer ? fetchParticipants() : [],
     isOrganizer ? fetchOrganizers() : [],
-    isOrganizer ? fetchChampionData() : { options: [], picks: [] }
+    isOrganizer ? fetchChampionData() : { options: [], picks: [] },
+    isOrganizer ? fetchTriviaQuestions() : []
   ]);
+  const triviaAssignments = isApprovedParticipant ? await ensureTriviaAssignments(userId) : [];
 
   return res.status(200).json({
     user,
@@ -78,6 +84,8 @@ async function sendState(req, res) {
     organizers,
     championOptions: championData.options,
     championPicks: championData.picks,
+    triviaQuestions,
+    triviaAssignments,
     serverNow: new Date().toISOString()
   });
 }
@@ -538,13 +546,136 @@ async function requireApprovedParticipant(userId) {
   if (!user || user.role !== "participant" || user.participant_status !== "approved") {
     throw httpError(403, "لا يمكنك التوقع قبل موافقة المنظم");
   }
+  return user;
+}
+
+
+async function fetchTriviaQuestions() {
+  try {
+    return await supabase("worldcup2026friends_trivia_questions?select=*&order=round_id.asc&order=created_at.desc");
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return [];
+  }
+}
+
+async function ensureTriviaAssignments(userId) {
+  await ensureAssignmentsForParticipant(userId);
+  return fetchTriviaAssignments(userId);
+}
+
+async function ensureAssignmentsForParticipant(userId) {
+  const existing = await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=question_id,round_id`);
+  const existingByRound = new Map();
+  existing.forEach(item => {
+    const roundId = normalizeRoundId(item.round_id);
+    if (!existingByRound.has(roundId)) existingByRound.set(roundId, new Set());
+    existingByRound.get(roundId).add(item.question_id);
+  });
+  const questions = await supabase("worldcup2026friends_trivia_questions?is_active=eq.true&select=id,round_id");
+  for (const roundId of ["r16", "qf", "sf", "final"]) {
+    const assigned = existingByRound.get(roundId) || new Set();
+    const needed = Math.max(0, 3 - assigned.size);
+    if (!needed) continue;
+    const candidates = shuffle(questions.filter(item => normalizeRoundId(item.round_id) === roundId && !assigned.has(item.id))).slice(0, needed);
+    if (!candidates.length) continue;
+    await supabase("worldcup2026friends_trivia_assignments", {
+      method: "POST",
+      body: JSON.stringify(candidates.map(item => ({ participant_id: userId, question_id: item.id, round_id: roundId }))),
+      prefer: "return=minimal"
+    });
+  }
+}
+
+async function fetchTriviaAssignments(userId) {
+  try {
+    return await supabase(`worldcup2026friends_trivia_assignments?participant_id=eq.${encodeURIComponent(userId)}&select=id,round_id,started_at,answered_at,selected_option,is_correct,points_awarded,question:worldcup2026friends_trivia_questions(id,question_text,option_a,option_b,option_c,option_d,points)&order=created_at.asc`);
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return [];
+  }
+}
+
+async function saveTriviaQuestion(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const payload = triviaQuestionPayload(body);
+  const questionId = clean(body.questionId);
+  const rows = questionId
+    ? await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(questionId)}`, { method: "PATCH", body: JSON.stringify(payload), prefer: "return=representation" })
+    : await supabase("worldcup2026friends_trivia_questions", { method: "POST", body: JSON.stringify(payload), prefer: "return=representation" });
+  return res.status(200).json({ question: rows[0] });
+}
+
+async function deleteTriviaQuestion(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const questionId = clean(body.questionId);
+  if (!questionId) throw httpError(400, "?????? ?????");
+  await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(questionId)}`, { method: "DELETE", prefer: "return=minimal" });
+  return res.status(200).json({ ok: true });
+}
+
+async function startTriviaQuestion(req, res) {
+  const body = await readBody(req);
+  const user = await requireApprovedParticipant(body.userId);
+  const assignmentId = clean(body.assignmentId);
+  const [assignment] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}&participant_id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if (!assignment) throw httpError(404, "?????? ??? ?????");
+  if (assignment.started_at || assignment.answered_at) return res.status(200).json({ assignment, serverNow: new Date().toISOString() });
+  const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, { method: "PATCH", body: JSON.stringify({ started_at: new Date().toISOString() }), prefer: "return=representation" });
+  return res.status(200).json({ assignment: updated, serverNow: new Date().toISOString() });
+}
+
+async function answerTriviaQuestion(req, res) {
+  const body = await readBody(req);
+  const user = await requireApprovedParticipant(body.userId);
+  const assignmentId = clean(body.assignmentId);
+  const selected = clean(body.selectedOption).toLowerCase();
+  if (!["a", "b", "c", "d"].includes(selected)) throw httpError(400, "???????? ??? ????");
+  const [assignment] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}&participant_id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if (!assignment) throw httpError(404, "?????? ??? ?????");
+  if (assignment.answered_at) throw httpError(409, "??? ??????? ??? ??????");
+  if (!assignment.started_at) throw httpError(409, "???? ?????? ?????");
+  const [question] = await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(assignment.question_id)}&limit=1`);
+  if (!question) throw httpError(404, "?????? ??? ?????");
+  const expired = Date.now() - new Date(assignment.started_at).getTime() > 20 * 1000;
+  const isCorrect = !expired && selected === question.correct_option;
+  const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ answered_at: new Date().toISOString(), selected_option: selected, is_correct: isCorrect, points_awarded: isCorrect ? Number(question.points || 0) : 0 }),
+    prefer: "return=representation"
+  });
+  return res.status(200).json({ assignment: updated, expired, isCorrect });
+}
+
+function triviaQuestionPayload(body) {
+  const roundId = normalizeRoundId(clean(body.roundId));
+  const correctOption = clean(body.correctOption).toLowerCase();
+  const payload = {
+    round_id: roundId,
+    question_text: clean(body.questionText),
+    option_a: clean(body.optionA),
+    option_b: clean(body.optionB),
+    option_c: clean(body.optionC),
+    option_d: clean(body.optionD),
+    correct_option: correctOption,
+    points: Math.max(1, Math.min(1000, Number(body.points) || 10)),
+    is_active: body.isActive !== false,
+    updated_at: new Date().toISOString()
+  };
+  if (!["r16", "qf", "sf", "final"].includes(roundId)) throw httpError(400, "????? ??? ????");
+  if (!payload.question_text || !payload.option_a || !payload.option_b || !payload.option_c || !payload.option_d) throw httpError(400, "???? ?????? ????????? ???????");
+  if (!["a", "b", "c", "d"].includes(correctOption)) throw httpError(400, "??? ??????? ???????");
+  return payload;
 }
 
 async function calculateTournament() {
-  const [users, matches, predictions] = await Promise.all([
+  const [users, matches, predictions, triviaBonuses] = await Promise.all([
     fetchStandingUsers(),
     supabase("worldcup2026friends_matches?select=id,round_id,winner,starts_at,team_a,team_b"),
-    fetchAllPredictions()
+    fetchAllPredictions(),
+    fetchTriviaBonuses()
   ]);
 
   const predictionByUserMatch = new Map(predictions.map(item => [`${item.user_id}:${item.match_id}`, item]));
@@ -575,6 +706,11 @@ async function calculateTournament() {
     }
   }
 
+  for (const bonus of triviaBonuses) {
+    const row = stats.get(bonus.participant_id);
+    if (row) row.points += Number(bonus.points_awarded || 0);
+  }
+
   return {
     predictions,
     matchPoints,
@@ -592,6 +728,15 @@ async function fetchAllPredictions() {
     if (!isOptionalColumnError(error)) throw error;
     return (await supabase("worldcup2026friends_predictions?select=user_id,match_id,winner"))
       .map(item => ({ ...item, is_joker: false }));
+  }
+}
+
+async function fetchTriviaBonuses() {
+  try {
+    return await supabase("worldcup2026friends_trivia_assignments?is_correct=eq.true&select=participant_id,points_awarded");
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return [];
   }
 }
 
@@ -753,6 +898,10 @@ function stakeRow(match, pickedWinner, winnerStake, safetyStake) {
 
 function roundPoints(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function shuffle(items) {
+  return [...items].sort(() => crypto.randomInt(0, 3) - 1);
 }
 
 function hashPassword(password) {

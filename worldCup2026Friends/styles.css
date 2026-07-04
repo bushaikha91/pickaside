@@ -1612,6 +1612,10 @@ button {
   font-size: 20px;
 }
 
+.trivia-stats-grid {
+  margin: 12px 0 14px;
+}
+
 .empty {
   padding: 22px 12px;
   border: 1px dashed #cbd5e1;

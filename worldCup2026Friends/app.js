@@ -1068,6 +1068,10 @@ function updateTriviaAssignment(assignmentId, updates) {
 function participantTriviaView() {
   const assignments = state.triviaAssignments.filter(item => normalizeRoundId(item.round_id) === normalizeRoundId(activeRound));
   const earned = state.triviaAssignments.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
+  const answeredAssignments = state.triviaAssignments.filter(item => item.answered_at);
+  const correctAnswers = answeredAssignments.filter(item => item.is_correct).length;
+  const wrongAnswers = answeredAssignments.length - correctAnswers;
+  const intelligencePercent = answeredAssignments.length ? Math.round((correctAnswers / answeredAssignments.length) * 100) : 0;
   return `
     <div class="section-title">
       <div>
@@ -1075,6 +1079,11 @@ function participantTriviaView() {
         <span class="small">مدة كل سؤال يحددها المنظم. الإجابة الصحيحة تضيف نقاطاً لترتيبك.</span>
       </div>
       <span class="pill">${earned} نقطة إضافية</span>
+    </div>
+    <div class="summary-grid trivia-stats-grid">
+      <div class="summary-card"><span class="small">إجابات صحيحة</span><strong>${correctAnswers}</strong></div>
+      <div class="summary-card"><span class="small">إجابات خاطئة</span><strong>${wrongAnswers}</strong></div>
+      <div class="summary-card"><span class="small">نسبة الذكاء</span><strong>${intelligencePercent}%</strong></div>
     </div>
     ${roundTabs()}
     <div class="trivia-question-list">

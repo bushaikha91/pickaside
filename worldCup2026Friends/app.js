@@ -94,6 +94,7 @@ const state = {
 
 let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
 let activeRound = "r16";
+let userSelectedRound = false;
 let countdownTimer = null;
 let predictionSaveSeq = 0;
 
@@ -151,6 +152,7 @@ async function loadData(options = {}) {
     state.participants = payload.participants || [];
     state.organizers = payload.organizers || [];
     if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
+    syncParticipantActiveRound();
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
   } finally {
@@ -608,6 +610,35 @@ function visibleRounds() {
 
 function isHiddenRound(roundId) {
   return normalizeRoundId(roundId) === "r32";
+}
+
+function syncParticipantActiveRound() {
+  if (state.currentUser?.role !== "participant") return;
+  if (!visibleRounds().some(round => round.id === normalizeRoundId(activeRound))) {
+    activeRound = defaultParticipantRound();
+    return;
+  }
+  if (!userSelectedRound || isRoundCompleted(activeRound)) {
+    activeRound = defaultParticipantRound();
+  }
+}
+
+function defaultParticipantRound() {
+  const visible = visibleRounds();
+  for (const round of visible) {
+    const matches = matchesForRound(round.id);
+    if (!matches.length || !matches.every(match => !!match.winner)) return round.id;
+  }
+  return visible[visible.length - 1]?.id || "r16";
+}
+
+function isRoundCompleted(roundId) {
+  const matches = matchesForRound(roundId);
+  return !!matches.length && matches.every(match => !!match.winner);
+}
+
+function matchesForRound(roundId) {
+  return state.matches.filter(match => roundMatchesActiveTab(match, roundId));
 }
 
 function participantMatchesView() {
@@ -2031,6 +2062,7 @@ function bindApp() {
   document.querySelectorAll("[data-round]").forEach(button => {
     button.addEventListener("click", () => {
       activeRound = button.dataset.round;
+      userSelectedRound = true;
       state.addMatchOpen = false;
       render();
     });

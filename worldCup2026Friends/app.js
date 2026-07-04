@@ -1054,6 +1054,17 @@ function triviaTimeLimitSeconds(assignment) {
   return Math.max(1, Number(assignment.question?.time_limit_seconds || 20));
 }
 
+function updateTriviaAssignment(assignmentId, updates) {
+  state.triviaAssignments = state.triviaAssignments.map(item => {
+    if (item.id !== assignmentId) return item;
+    return {
+      ...item,
+      ...updates,
+      question: updates.question || item.question
+    };
+  });
+}
+
 function participantTriviaView() {
   const assignments = state.triviaAssignments.filter(item => normalizeRoundId(item.round_id) === normalizeRoundId(activeRound));
   const earned = state.triviaAssignments.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
@@ -1089,7 +1100,7 @@ function triviaAssignmentCard(assignment) {
       <div class="section-title">
         <h2>${started ? escapeHtml(question.question_text || "سؤال") : "سؤال جاهز"}</h2>
         <span class="status-chip ${answered ? assignment.is_correct ? "approved" : "wrong" : expired ? "rejected" : "pending"}">
-          ${answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${question.points || 0} نقطة`}
+          ${assignment._pendingAnswer ? "جاري اعتماد الإجابة..." : answered ? assignment.is_correct ? `صحيح +${assignment.points_awarded}` : "خطأ" : expired ? "انتهى الوقت" : `${question.points || 0} نقطة`}
         </span>
       </div>
       ${!started ? `<span class="small">اضغط ابدأ السؤال لعرض السؤال وتشغيل العداد.</span>` : ""}
@@ -1097,7 +1108,7 @@ function triviaAssignmentCard(assignment) {
       ${!started ? `<button class="primary-btn" data-trivia-start="${assignment.id}" type="button">ابدأ السؤال</button>` : `
         <div class="trivia-options">
           ${options.map(([key, value]) => `
-            <button class="choice ${assignment.selected_option === key ? "active" : ""}" data-trivia-answer="${assignment.id}" data-option="${key}" type="button" ${answered || expired ? "disabled" : ""}>
+            <button class="choice ${assignment.selected_option === key ? "active" : ""}" data-trivia-answer="${assignment.id}" data-option="${key}" type="button" ${answered || expired || assignment._pendingAnswer ? "disabled" : ""}>
               <span>${key.toUpperCase()}</span>
               ${escapeHtml(value || "-")}
             </button>
@@ -2234,14 +2245,21 @@ function bindApp() {
 
   document.querySelectorAll("[data-trivia-start]").forEach(button => {
     button.addEventListener("click", async () => {
+      const assignmentId = button.dataset.triviaStart;
+      const previous = state.triviaAssignments.find(item => item.id === assignmentId);
       try {
+        button.disabled = true;
+        updateTriviaAssignment(assignmentId, { started_at: new Date(serverNowMs()).toISOString() });
+        render();
         const payload = await api("trivia-start", {
           method: "POST",
-          body: JSON.stringify({ userId: state.currentUser.id, assignmentId: button.dataset.triviaStart })
+          body: JSON.stringify({ userId: state.currentUser.id, assignmentId })
         });
         if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
-        await loadData({ silent: true });
+        updateTriviaAssignment(assignmentId, payload.assignment || {});
+        render();
       } catch (error) {
+        if (previous) updateTriviaAssignment(assignmentId, previous);
         state.error = error.message || "تعذر بدء السؤال";
         render();
       }
@@ -2250,18 +2268,26 @@ function bindApp() {
 
   document.querySelectorAll("[data-trivia-answer]").forEach(button => {
     button.addEventListener("click", async () => {
+      const assignmentId = button.dataset.triviaAnswer;
+      const selectedOption = button.dataset.option;
+      const previous = state.triviaAssignments.find(item => item.id === assignmentId);
       try {
+        updateTriviaAssignment(assignmentId, { selected_option: selectedOption, _pendingAnswer: true });
+        render();
         const payload = await api("trivia-answer", {
           method: "POST",
           body: JSON.stringify({
             userId: state.currentUser.id,
-            assignmentId: button.dataset.triviaAnswer,
-            selectedOption: button.dataset.option
+            assignmentId,
+            selectedOption
           })
         });
         state.notice = payload.isCorrect ? "إجابة صحيحة. تمت إضافة النقاط." : "إجابة غير صحيحة.";
-        await loadData({ silent: true });
+        updateTriviaAssignment(assignmentId, { ...(payload.assignment || {}), _pendingAnswer: false });
+        render();
+        setTimeout(() => loadData({ silent: true }), 500);
       } catch (error) {
+        if (previous) updateTriviaAssignment(assignmentId, previous);
         state.error = error.message || "تعذر حفظ الإجابة";
         render();
       }

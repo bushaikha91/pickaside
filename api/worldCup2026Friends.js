@@ -46,6 +46,7 @@ module.exports = async function handler(req, res) {
     if (action === "trivia-question-delete" && req.method === "POST") return await deleteTriviaQuestion(req, res);
     if (action === "trivia-start" && req.method === "POST") return await startTriviaQuestion(req, res);
     if (action === "trivia-answer" && req.method === "POST") return await answerTriviaQuestion(req, res);
+    if (action === "restore-original-data" && req.method === "POST") return await restoreOriginalData(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -648,6 +649,54 @@ async function answerTriviaQuestion(req, res) {
     prefer: "return=representation"
   });
   return res.status(200).json({ assignment: updated, expired, isCorrect });
+}
+
+async function restoreOriginalData(req, res) {
+  const body = await readBody(req);
+  if (clean(body.organizerCode) !== ORGANIZER_CODE) throw httpError(403, "Invalid restore code");
+
+  const users = await supabase("worldcup2026_users?select=*");
+  const matches = await supabase("worldcup2026_matches?select=*");
+  const predictions = await supabase("worldcup2026_predictions?select=*");
+  const championPicks = await supabase("worldcup2026_champion_picks?select=*");
+
+  await removeConflictingFriendUsers(users);
+  await upsertRows("worldcup2026friends_users", users);
+  await upsertRows("worldcup2026friends_matches", matches);
+  await upsertRows("worldcup2026friends_predictions", predictions);
+  await upsertRows("worldcup2026friends_champion_picks", championPicks);
+
+  return res.status(200).json({
+    ok: true,
+    restored: {
+      users: users.length,
+      matches: matches.length,
+      predictions: predictions.length,
+      championPicks: championPicks.length
+    }
+  });
+}
+
+async function removeConflictingFriendUsers(sourceUsers) {
+  const sourceByPhone = new Map(sourceUsers.filter(user => user.phone).map(user => [user.phone, user.id]));
+  if (!sourceByPhone.size) return;
+  const friends = await supabase("worldcup2026friends_users?select=id,phone");
+  const conflicts = friends.filter(user => user.phone && sourceByPhone.get(user.phone) && sourceByPhone.get(user.phone) !== user.id);
+  for (const conflict of conflicts) {
+    await supabase(`worldcup2026friends_users?id=eq.${encodeURIComponent(conflict.id)}`, {
+      method: "DELETE",
+      prefer: "return=minimal"
+    });
+  }
+}
+
+async function upsertRows(table, rows) {
+  if (!rows.length) return;
+  await supabase(`${table}?on_conflict=id`, {
+    method: "POST",
+    body: JSON.stringify(rows),
+    prefer: "resolution=merge-duplicates,return=minimal"
+  });
 }
 
 function triviaQuestionPayload(body) {

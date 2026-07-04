@@ -1254,6 +1254,21 @@ button {
   margin-bottom: 3px;
 }
 
+.avatar-edit-btn {
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .leader-name-button {
   display: block;
   width: 100%;

@@ -392,6 +392,7 @@ function participantsView() {
 }
 
 function requestRow(user) {
+  const avatarControl = participantAvatarControl(user);
   return `
     <article class="participant-row">
       ${avatarTile(user, "avatar-small")}
@@ -400,6 +401,7 @@ function requestRow(user) {
       </div>
       <span class="status-chip ${user.participant_status}">${statusLabel(user.participant_status)}</span>
       <div class="participant-actions">
+        ${avatarControl}
         <button class="mini-btn approve" data-participant-status="approved" data-participant-id="${user.id}">قبول</button>
         <button class="mini-btn reject" data-participant-status="rejected" data-participant-id="${user.id}">رفض</button>
       </div>
@@ -534,6 +536,7 @@ function passwordResetRow(user) {
 }
 
 function participantRow(user) {
+  const avatarControl = participantAvatarControl(user);
   return `
     <article class="swipe-row" data-swipe-row>
       <button class="swipe-delete" data-participant-delete="${user.id}" data-participant-name="${escapeHtml(user.name)}">حذف</button>
@@ -543,12 +546,16 @@ function participantRow(user) {
           <strong>${escapeHtml(user.name)}</strong>
         </div>
         <span class="status-chip approved">مقبول</span>
+        <div class="participant-actions">
+          ${avatarControl}
+        </div>
       </div>
     </article>
   `;
 }
 
 function rejectedRow(user) {
+  const avatarControl = participantAvatarControl(user);
   return `
     <article class="participant-row">
       ${avatarTile(user, "avatar-small")}
@@ -556,7 +563,19 @@ function rejectedRow(user) {
         <strong>${escapeHtml(user.name)}</strong>
       </div>
       <span class="status-chip rejected">مرفوض</span>
+      <div class="participant-actions">
+        ${avatarControl}
+      </div>
     </article>
+  `;
+}
+
+function participantAvatarControl(user) {
+  return `
+    <label class="mini-btn avatar-edit-btn">
+      تغيير الصورة
+      <input class="visually-hidden" type="file" accept="image/*" data-participant-avatar="${escapeHtml(user.id)}" />
+    </label>
   `;
 }
 
@@ -2118,6 +2137,35 @@ function bindApp() {
       } catch (error) {
         state.error = error.message || "تعذر تحديث طلب المشارك";
         render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-participant-avatar]").forEach(input => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const label = input.closest(".avatar-edit-btn");
+      const previousText = label?.childNodes?.[0]?.textContent || "";
+      if (label) label.childNodes[0].textContent = "جاري...";
+      try {
+        const avatarUrl = await imageFileToDataUrl(file, 180);
+        await api("participant-avatar", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            participantId: input.dataset.participantAvatar,
+            avatarUrl
+          })
+        });
+        state.notice = "تم تحديث صورة المتسابق.";
+        await loadData({ silent: true });
+      } catch (error) {
+        state.error = error.message || "تعذر تحديث صورة المتسابق";
+        render();
+      } finally {
+        input.value = "";
+        if (label) label.childNodes[0].textContent = previousText || "تغيير الصورة";
       }
     });
   });

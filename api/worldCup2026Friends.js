@@ -34,6 +34,7 @@ module.exports = async function handler(req, res) {
     if (action === "prediction" && req.method === "POST") return await savePrediction(req, res);
     if (action === "result" && req.method === "POST") return await saveResult(req, res);
     if (action === "profile" && req.method === "POST") return await updateProfile(req, res);
+    if (action === "participant-avatar" && req.method === "POST") return await updateParticipantAvatar(req, res);
     if (action === "participant-status" && req.method === "POST") return await updateParticipantStatus(req, res);
     if (action === "participant-delete" && req.method === "POST") return await deleteParticipant(req, res);
     if (action === "participant-reapply" && req.method === "POST") return await reapplyParticipant(req, res);
@@ -325,6 +326,25 @@ async function updateProfile(req, res) {
     method: "PATCH",
     prefer: "return=representation",
     body: JSON.stringify(payload)
+  });
+  return res.status(200).json({ user: publicUser(user) });
+}
+
+async function updateParticipantAvatar(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const participantId = clean(body.participantId);
+  if (!participantId) throw httpError(400, "المتسابق مطلوب");
+  const [participant] = await supabase(`worldcup2026friends_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant&limit=1`);
+  if (!participant) throw httpError(404, "المتسابق غير موجود");
+
+  const [user] = await supabase(`worldcup2026friends_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: JSON.stringify({
+      avatar_url: cleanImageDataUrl(body.avatarUrl),
+      updated_at: new Date().toISOString()
+    })
   });
   return res.status(200).json({ user: publicUser(user) });
 }

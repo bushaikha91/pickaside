@@ -555,10 +555,15 @@ async function requireApprovedParticipant(userId) {
 
 async function fetchTriviaQuestions() {
   try {
-    return await supabase("worldcup2026friends_trivia_questions?select=*&order=difficulty.asc&order=created_at.desc");
+    return (await supabase("worldcup2026friends_trivia_questions?select=*&order=difficulty.asc&order=created_at.desc")).map(normalizeTriviaQuestionRow);
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
-    return [];
+    try {
+      return (await supabase("worldcup2026friends_trivia_questions?select=id,round_id,question_text,option_a,option_b,option_c,option_d,correct_option,points,is_active,created_at&order=created_at.desc")).map(normalizeTriviaQuestionRow);
+    } catch (fallbackError) {
+      if (!isOptionalColumnError(fallbackError)) throw fallbackError;
+      return [];
+    }
   }
 }
 
@@ -631,10 +636,17 @@ async function saveTriviaQuestion(req, res) {
   await requireOrganizer(body.userId);
   const payload = triviaQuestionPayload(body);
   const questionId = clean(body.questionId);
-  const rows = questionId
-    ? await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(questionId)}`, { method: "PATCH", body: JSON.stringify(payload), prefer: "return=representation" })
-    : await supabase("worldcup2026friends_trivia_questions", { method: "POST", body: JSON.stringify(payload), prefer: "return=representation" });
-  return res.status(200).json({ question: rows[0] });
+  try {
+    const rows = await writeTriviaQuestion(questionId, payload);
+    return res.status(200).json({ question: normalizeTriviaQuestionRow(rows[0]) });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    const rows = await writeTriviaQuestion(questionId, legacyTriviaQuestionPayload(payload));
+    return res.status(200).json({
+      question: normalizeTriviaQuestionRow(rows[0]),
+      warning: "تم حفظ السؤال. لتفعيل المستويات والثواني بشكل كامل شغل تحديث جدول المعلومات العامة في Supabase."
+    });
+  }
 }
 
 async function saveTriviaSettings(req, res) {
@@ -723,6 +735,44 @@ function triviaQuestionPayload(body) {
   if (!payload.question_text || !payload.option_a || !payload.option_b || !payload.option_c || !payload.option_d) throw httpError(400, "???? ?????? ????????? ???????");
   if (!["a", "b", "c", "d"].includes(correctOption)) throw httpError(400, "??? ??????? ???????");
   return payload;
+}
+
+async function writeTriviaQuestion(questionId, payload) {
+  if (questionId) {
+    return await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(questionId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+      prefer: "return=representation"
+    });
+  }
+  return await supabase("worldcup2026friends_trivia_questions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    prefer: "return=representation"
+  });
+}
+
+function legacyTriviaQuestionPayload(payload) {
+  return {
+    round_id: payload.round_id || "global",
+    question_text: payload.question_text,
+    option_a: payload.option_a,
+    option_b: payload.option_b,
+    option_c: payload.option_c,
+    option_d: payload.option_d,
+    correct_option: payload.correct_option,
+    points: payload.points || 10,
+    is_active: payload.is_active !== false
+  };
+}
+
+function normalizeTriviaQuestionRow(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    difficulty: normalizeDifficulty(row.difficulty),
+    time_limit_seconds: Math.max(5, Number(row.time_limit_seconds || 20))
+  };
 }
 
 function clampTriviaPoints(value, fallback) {

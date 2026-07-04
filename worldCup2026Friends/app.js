@@ -1242,11 +1242,6 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
         </div>
         <span class="status-chip ${allDone ? "approved" : started ? "pending" : ""}">${allDone ? "مكتمل" : started ? "قيد اللعب" : "جديدة"}</span>
       </div>
-      <div class="trivia-round-points">
-        <span>سهل: ${triviaSettingPoints(setting, "easy")} نقطة</span>
-        <span>متوسط: ${triviaSettingPoints(setting, "medium")} نقطة</span>
-        <span>صعب: ${triviaSettingPoints(setting, "hard")} نقطة</span>
-      </div>
       <button class="primary-btn" data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}" type="button">${allDone ? "عرض النتيجة" : started ? "متابعة الجولة" : "فتح الجولة"}</button>
     </article>
   `;

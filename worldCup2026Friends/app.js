@@ -1124,6 +1124,7 @@ function triviaQuestionModal() {
       </div>
       <button class="primary-btn" type="submit">${isEditing ? "حفظ التعديل" : "إضافة السؤال"}</button>
         </form>
+        ${isEditing ? `<button class="danger-btn" data-trivia-delete="${question.id}" data-trivia-question="${escapeHtml(question.question_text || "هذا السؤال")}" type="button">حذف السؤال</button>` : ""}
       </section>
     </div>
   `;
@@ -1138,8 +1139,7 @@ function triviaQuestionRow(question) {
         <span class="small">${difficultyLabel(question.difficulty)} | الإجابة: ${correct} | ${triviaTimeLimitSeconds({ question })} ثانية</span>
       </div>
       <div class="trivia-admin-actions">
-        <button class="mini-btn" data-trivia-edit="${question.id}" type="button">تعديل</button>
-        <button class="mini-btn reject" data-trivia-delete="${question.id}" type="button">حذف</button>
+        <button class="text-link" data-trivia-edit="${question.id}" type="button">تعديل</button>
       </div>
     </article>
   `;
@@ -2496,13 +2496,17 @@ function bindApp() {
 
   document.querySelectorAll("[data-trivia-delete]").forEach(button => {
     button.addEventListener("click", async () => {
-      if (!confirm("حذف السؤال؟")) return;
+      const questionText = button.dataset.triviaQuestion || "هذا السؤال";
+      if (!confirm(`سيتم حذف ${questionText} وكل مشاركات اللاعبين المرتبطة به. هل تريد المتابعة؟`)) return;
       try {
         await api("trivia-question-delete", {
           method: "POST",
           body: JSON.stringify({ userId: state.currentUser.id, questionId: button.dataset.triviaDelete })
         });
         state.notice = "تم حذف السؤال.";
+        state.addTriviaOpen = false;
+        state.editTriviaQuestionId = null;
+        state.triviaModalError = "";
         await loadData({ silent: true });
       } catch (error) {
         state.error = error.message || "تعذر حذف السؤال";

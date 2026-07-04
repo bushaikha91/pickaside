@@ -1339,6 +1339,10 @@ button {
   align-items: center;
 }
 
+.trivia-admin-actions .text-link {
+  justify-self: start;
+}
+
 .trivia-page-tabs,
 .trivia-level-tabs {
   position: static;

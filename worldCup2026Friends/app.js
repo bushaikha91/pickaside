@@ -76,6 +76,7 @@ const state = {
   championPicks: [],
   triviaQuestions: [],
   triviaAssignments: [],
+  allTriviaAssignments: [],
   triviaSettings: [],
   rankMovement: {},
   participants: [],
@@ -87,6 +88,7 @@ const state = {
   profileOpen: false,
   voterModalMatch: null,
   voteResultsModalMatch: null,
+  triviaResultsRound: null,
   championListOpen: false,
   editModalMatch: null,
   resultModalMatch: null,
@@ -162,6 +164,7 @@ async function loadData(options = {}) {
     state.championPicks = payload.championPicks || [];
     state.triviaQuestions = payload.triviaQuestions || [];
     state.triviaAssignments = payload.triviaAssignments || [];
+    state.allTriviaAssignments = payload.allTriviaAssignments || [];
     state.triviaSettings = payload.triviaSettings || [];
     state.participants = payload.participants || [];
     state.organizers = payload.organizers || [];
@@ -304,6 +307,7 @@ function appTemplate() {
     ${state.profileOpen ? profileModal() : ""}
     ${state.voterModalMatch ? voterModal(state.voterModalMatch) : ""}
     ${state.voteResultsModalMatch ? voteResultsModal(state.voteResultsModalMatch) : ""}
+    ${state.triviaResultsRound ? triviaResultsModal(state.triviaResultsRound) : ""}
     ${state.championListOpen ? championListModal() : ""}
     ${state.editModalMatch ? matchEditModal(state.editModalMatch) : ""}
     ${state.resultModalMatch ? resultModal(state.resultModalMatch) : ""}
@@ -1029,7 +1033,7 @@ function organizerTriviaView() {
   `;
 }
 
-function triviaRoundList(roundId) {
+function triviaRoundListLegacy(roundId) {
   const items = triviaRoundsFor(roundId);
   if (!items.length) return "";
   return `
@@ -1049,6 +1053,148 @@ function triviaRoundList(roundId) {
         </article>
       `).join("")}
     </section>
+  `;
+}
+
+function triviaRoundList(roundId) {
+  const items = triviaRoundsFor(roundId);
+  if (!items.length) return "";
+  return `
+    <section class="stack trivia-round-group">
+      <div class="section-title">
+        <h2>${roundName(roundId)}</h2>
+        <span class="small">${items.length} جولة</span>
+      </div>
+      ${items.map(item => `
+        <article class="trivia-admin-row">
+          <div>
+            <strong>${escapeHtml(item.title || `جولة ${item.sort_order || 1}`)}</strong>
+            <span class="small">سهل ${triviaSettingPoints(item, "easy")} | متوسط ${triviaSettingPoints(item, "medium")} | صعب ${triviaSettingPoints(item, "hard")}</span>
+            <span class="small">${triviaRoundOpenLabel(item)}</span>
+            <span class="small">${triviaRoundAdminSummary(item)}</span>
+          </div>
+          <div class="trivia-admin-actions">
+            <button class="mini-btn" data-trivia-results="${item.id}" type="button">النتائج</button>
+            <button class="mini-btn reject" data-trivia-round-delete="${item.id}" type="button">حذف</button>
+          </div>
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
+function triviaRoundAdminSummary(round) {
+  const approvedCount = state.participants.filter(user => user.participant_status === "approved").length;
+  const rows = triviaRoundResultRows(round);
+  const completed = rows.filter(row => row.completedCount === 3).length;
+  const correct = rows.reduce((sum, row) => sum + row.correctCount, 0);
+  const points = rows.reduce((sum, row) => sum + row.points, 0);
+  return `اكتمل ${completed}/${approvedCount} | صحيح ${correct} | نقاط ${points}`;
+}
+
+function triviaRoundResultRows(round) {
+  const approved = state.participants
+    .filter(user => user.participant_status === "approved")
+    .map(hydrateParticipantAvatar);
+  const roundId = normalizeRoundId(round?.round_id);
+  const roundNumber = Math.max(1, Number(round?.sort_order || 1));
+  const assignments = state.allTriviaAssignments.filter(item =>
+    normalizeRoundId(item.round_id) === roundId &&
+    Math.max(1, Number(item.question_round || 1)) === roundNumber
+  );
+  const byUser = new Map();
+  assignments.forEach(item => {
+    const participantId = item.participant_id || item.user?.id;
+    if (!participantId) return;
+    if (!byUser.has(participantId)) byUser.set(participantId, []);
+    byUser.get(participantId).push(item);
+  });
+  const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
+  return approved.map(user => {
+    const items = (byUser.get(user.id) || []).sort((a, b) =>
+      (difficultyOrder[normalizeDifficulty(a.difficulty || a.question?.difficulty)] || 9) -
+      (difficultyOrder[normalizeDifficulty(b.difficulty || b.question?.difficulty)] || 9)
+    );
+    const answered = items.filter(item => item.answered_at);
+    const completedCount = answered.length;
+    const correctCount = answered.filter(item => item.is_correct).length;
+    const points = answered.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
+    return { user, assignments: items, completedCount, correctCount, points };
+  });
+}
+
+function triviaResultsModal(roundIdValue) {
+  const round = state.triviaSettings.find(item => item.id === roundIdValue);
+  if (!round) return "";
+  const rows = triviaRoundResultRows(round);
+  const answeredPlayers = rows.filter(row => row.completedCount > 0).length;
+  const completedPlayers = rows.filter(row => row.completedCount === 3).length;
+  const correct = rows.reduce((sum, row) => sum + row.correctCount, 0);
+  const points = rows.reduce((sum, row) => sum + row.points, 0);
+  return `
+    <div class="modal-backdrop" data-trivia-results-modal-close>
+      <section class="modal-card stack">
+        <div class="section-title">
+          <h2>نتائج س/ج</h2>
+          <button class="icon-close" type="button" data-trivia-results-close>×</button>
+        </div>
+        <div class="vote-result-match">
+          <strong>${escapeHtml(round.title || `جولة ${round.sort_order || 1}`)}</strong>
+          <span class="vote-result-date">${roundName(round.round_id)} | ${triviaRoundOpenLabel(round)}</span>
+        </div>
+        <div class="vote-result-summary trivia-result-summary">
+          <span>شاركوا: ${answeredPlayers}</span>
+          <span>مكتمل: ${completedPlayers}/${rows.length}</span>
+          <span>صحيح: ${correct}</span>
+          <span>النقاط: ${points}</span>
+        </div>
+        <div class="vote-result-table trivia-result-table">
+          <div class="vote-result-head trivia-result-head">
+            <span>المشارك</span>
+            <span>النتيجة</span>
+            <span>النقاط</span>
+          </div>
+          ${rows.length ? rows.map(row => triviaResultRow(row)).join("") : emptyView("لا يوجد مشاركون مقبولون.")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function triviaResultRow(row) {
+  const statusClass = row.completedCount === 3 ? "team-a" : row.completedCount > 0 ? "team-b" : "missing";
+  const statusText = row.completedCount === 3 ? `${row.correctCount}/3 صحيح` : row.completedCount > 0 ? `${row.completedCount}/3 مكتمل` : "لم يبدأ";
+  return `
+    <div class="vote-result-row trivia-result-row">
+      <span class="vote-result-player">${avatarTile(row.user, "vote-avatar")}<strong>${escapeHtml(row.user.name)}</strong></span>
+      <span class="vote-result-pick ${statusClass}">${statusText}</span>
+      <span class="vote-result-joker">${row.points}</span>
+      <div class="trivia-result-answers">
+        ${row.assignments.length ? row.assignments.map(triviaResultAnswer).join("") : `<span class="small">لا توجد أسئلة مخصصة بعد.</span>`}
+      </div>
+    </div>
+  `;
+}
+
+function triviaResultAnswer(assignment) {
+  const question = assignment.question || {};
+  const selected = String(assignment.selected_option || "").toLowerCase();
+  const correct = String(question.correct_option || "").toLowerCase();
+  const selectedText = selected ? triviaOptionText(question, selected) : "لم تتم الإجابة";
+  const correctText = correct ? triviaOptionText(question, correct) : "غير متاحة";
+  const status = assignment.answered_at ? assignment.is_correct ? "صحيح" : "خطأ" : assignment.started_at ? "بدأ ولم يجب" : "لم يبدأ";
+  const statusClass = assignment.answered_at ? assignment.is_correct ? "approved" : "wrong" : "pending";
+  return `
+    <article class="trivia-result-answer">
+      <div>
+        <strong>${difficultyLabel(assignment.difficulty || question.difficulty)}</strong>
+        <span class="small">${escapeHtml(question.question_text || "السؤال غير متاح")}</span>
+      </div>
+      <span class="status-chip ${statusClass}">${status}</span>
+      <span class="small">اختياره: ${escapeHtml(selectedText)}</span>
+      <span class="small">الصحيح: ${escapeHtml(correctText)}</span>
+      <span class="small">النقاط: ${Number(assignment.points_awarded) || 0}</span>
+    </article>
   `;
 }
 
@@ -2575,6 +2721,13 @@ function bindApp() {
     });
   });
 
+  document.querySelectorAll("[data-trivia-results]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.triviaResultsRound = button.dataset.triviaResults;
+      render();
+    });
+  });
+
   document.querySelector("[data-voters-close]")?.addEventListener("click", () => {
     state.voterModalMatch = null;
     render();
@@ -2582,6 +2735,11 @@ function bindApp() {
 
   document.querySelector("[data-vote-results-close]")?.addEventListener("click", () => {
     state.voteResultsModalMatch = null;
+    render();
+  });
+
+  document.querySelector("[data-trivia-results-close]")?.addEventListener("click", () => {
+    state.triviaResultsRound = null;
     render();
   });
 
@@ -2605,6 +2763,13 @@ function bindApp() {
   document.querySelector("[data-vote-results-modal-close]")?.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.voteResultsModalMatch = null;
+      render();
+    }
+  });
+
+  document.querySelector("[data-trivia-results-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.triviaResultsRound = null;
       render();
     }
   });
@@ -2935,6 +3100,7 @@ function bindApp() {
   document.querySelectorAll("[data-tab]").forEach(button => {
     button.addEventListener("click", () => {
       activeTab = button.dataset.tab;
+      state.triviaResultsRound = null;
       render();
     });
   });
@@ -3413,7 +3579,7 @@ function handleExpiredTriviaQuestions() {
 }
 
 function hasOpenModal() {
-  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.activeTriviaRoundKey);
+  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.triviaResultsRound || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.activeTriviaRoundKey);
 }
 
 function bindSwipeRows() {

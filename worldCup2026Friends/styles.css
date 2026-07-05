@@ -1088,6 +1088,44 @@ button {
   color: var(--blue);
 }
 
+.trivia-result-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.trivia-result-row {
+  align-items: start;
+}
+
+.trivia-result-answers {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 0 8px 10px;
+}
+
+.trivia-result-answer {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+  text-align: right;
+}
+
+.trivia-result-answer > div {
+  display: grid;
+  gap: 3px;
+}
+
+.trivia-result-answer .status-chip {
+  justify-self: start;
+}
+
+.trivia-result-answer .small {
+  white-space: normal;
+}
+
 .manager-tools {
   margin-top: 12px;
   border: 1px solid var(--line);

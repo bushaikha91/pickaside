@@ -719,6 +719,10 @@ async function saveTriviaRound(req, res) {
   const roundId = normalizeRoundId(clean(body.roundId));
   if (!["r16", "qf", "sf", "final"].includes(roundId)) throw httpError(400, "الدور غير صحيح");
   const title = clean(body.title);
+  const opensAt = clean(body.opensAt);
+  if (!opensAt) throw httpError(400, "وقت فتح الجولة مطلوب");
+  const opensAtDate = new Date(opensAt);
+  if (Number.isNaN(opensAtDate.getTime())) throw httpError(400, "وقت فتح الجولة غير صحيح");
   if (!title) throw httpError(400, "عنوان الجولة مطلوب");
   const existing = await fetchTriviaSettings();
   const nextOrder = Math.max(0, ...existing.filter(item => normalizeRoundId(item.round_id) === roundId).map(item => Number(item.sort_order) || 0)) + 1;
@@ -729,14 +733,21 @@ async function saveTriviaRound(req, res) {
     easy_points: clampTriviaPoints(body.easyPoints, 10),
     medium_points: clampTriviaPoints(body.mediumPoints, 20),
     hard_points: clampTriviaPoints(body.hardPoints, 30),
+    opens_at: opensAtDate.toISOString(),
     is_active: true,
     updated_at: new Date().toISOString()
   };
-  const [round] = await supabase("worldcup2026friends_trivia_rounds", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    prefer: "return=representation"
-  });
+  let round;
+  try {
+    [round] = await supabase("worldcup2026friends_trivia_rounds", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      prefer: "return=representation"
+    });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث opens_at لجولات س/ج");
+  }
   return res.status(200).json({ round });
 }
 
@@ -769,6 +780,8 @@ async function startTriviaQuestion(req, res) {
   const [assignment] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}&participant_id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if (!assignment) throw httpError(404, "?????? ??? ?????");
   if (assignment.started_at || assignment.answered_at) return res.status(200).json({ assignment, serverNow: new Date().toISOString() });
+  const setting = await fetchTriviaRoundForAssignment(assignment);
+  enforceTriviaRoundOpen(setting);
   const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, { method: "PATCH", body: JSON.stringify({ started_at: new Date().toISOString() }), prefer: "return=representation" });
   return res.status(200).json({ assignment: updated, serverNow: new Date().toISOString() });
 }
@@ -859,6 +872,25 @@ async function fetchTriviaRoundForAssignment(assignment) {
     if (!isOptionalColumnError(error)) throw error;
     const [setting] = await supabase(`worldcup2026friends_trivia_settings?round_id=eq.${encodeURIComponent(roundId)}&limit=1`);
     return setting;
+  }
+}
+
+function enforceTriviaRoundOpen(setting) {
+  if (!setting?.opens_at) return;
+  const opensAt = new Date(setting.opens_at);
+  if (Number.isNaN(opensAt.getTime()) || opensAt.getTime() <= Date.now()) return;
+  throw httpError(403, `الجولة تفتح في ${formatDubaiDateTime(opensAt)}`);
+}
+
+function formatDubaiDateTime(value) {
+  try {
+    return new Intl.DateTimeFormat("ar-AE", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Asia/Dubai"
+    }).format(value);
+  } catch {
+    return value.toISOString();
   }
 }
 

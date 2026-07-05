@@ -184,6 +184,7 @@ create table if not exists public.worldcup2026friends_trivia_rounds (
   easy_points integer not null default 10,
   medium_points integer not null default 20,
   hard_points integer not null default 30,
+  opens_at timestamptz,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -203,6 +204,9 @@ alter table public.worldcup2026friends_trivia_rounds
 
 alter table public.worldcup2026friends_trivia_rounds
   add column if not exists hard_points integer not null default 30;
+
+alter table public.worldcup2026friends_trivia_rounds
+  add column if not exists opens_at timestamptz;
 
 alter table public.worldcup2026friends_trivia_rounds
   add column if not exists is_active boolean not null default true;

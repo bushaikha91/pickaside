@@ -692,6 +692,12 @@ button {
   background: #98a2b3;
 }
 
+.primary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  background: #98a2b3;
+}
+
 .avatar-tile {
   border-radius: 50%;
 }
@@ -1416,6 +1422,16 @@ button {
   font-weight: 800;
   text-align: center;
   background: #fff;
+}
+
+.trivia-round-lock {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #fedf89;
+  border-radius: 8px;
+  color: #93370d;
+  background: #fffbeb;
 }
 
 .trivia-round-result {

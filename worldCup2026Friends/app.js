@@ -1043,6 +1043,7 @@ function triviaRoundList(roundId) {
           <div>
             <strong>${escapeHtml(item.title || `جولة ${item.sort_order || 1}`)}</strong>
             <span class="small">سهل ${triviaSettingPoints(item, "easy")} | متوسط ${triviaSettingPoints(item, "medium")} | صعب ${triviaSettingPoints(item, "hard")}</span>
+            <span class="small">${triviaRoundOpenLabel(item)}</span>
           </div>
           <button class="mini-btn reject" data-trivia-round-delete="${item.id}" type="button">حذف</button>
         </article>
@@ -1068,6 +1069,7 @@ function triviaRoundModal() {
               ${visibleRounds().map(round => `<option value="${round.id}">${round.name}</option>`).join("")}
             </select>
           </label>
+          <label class="field"><span>وقت فتح الجولة</span><input name="opensAt" required type="datetime-local" /></label>
           <div class="form-grid">
             <label class="field"><span>نقاط السهل</span><input name="easyPoints" type="number" min="1" max="1000" value="10" /></label>
             <label class="field"><span>نقاط المتوسط</span><input name="mediumPoints" type="number" min="1" max="1000" value="20" /></label>
@@ -1162,6 +1164,24 @@ function triviaRoundSetting(roundId, questionRound = 1) {
   return rounds.find(item => Math.max(1, Number(item.sort_order || 1)) === Math.max(1, Number(questionRound || 1))) || rounds[0] || {};
 }
 
+function triviaRoundOpenState(setting) {
+  const value = setting?.opens_at || setting?.opensAt || "";
+  if (!value) return { locked: false, label: "الآن", value: "" };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { locked: false, label: "الآن", value: "" };
+  return {
+    locked: date.getTime() > serverNowMs(),
+    label: formatDate(value),
+    value: date.toISOString()
+  };
+}
+
+function triviaRoundOpenLabel(setting) {
+  const openState = triviaRoundOpenState(setting);
+  if (!openState.value) return "مفتوحة الآن";
+  return `${openState.locked ? "تفتح في" : "مفتوحة من"} ${openState.label}`;
+}
+
 function triviaSettingPoints(setting, difficulty) {
   const normalized = normalizeDifficulty(difficulty);
   if (normalized === "hard") return Math.max(1, Number(setting?.hard_points || 30));
@@ -1235,12 +1255,19 @@ function triviaRoundKey(roundId, roundNumber) {
 
 function triviaRoundSummaryCard(roundNumber, assignments) {
   const setting = triviaRoundSetting(activeRound, roundNumber);
+  const openState = triviaRoundOpenState(setting);
   const title = setting.title || `جولة ${roundNumber}`;
   const completed = assignments.filter(triviaAssignmentComplete);
   const correct = completed.filter(item => item.is_correct).length;
   const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
+  const locked = openState.locked && !started && !allDone;
+  const statusClass = allDone ? "approved" : locked ? "rejected" : started ? "pending" : "";
+  const statusText = allDone ? "مكتمل" : locked ? "مقفلة" : started ? "قيد اللعب" : "جديدة";
+  const detailText = allDone ? `${correct}/3 صحيح | ${points} نقطة` : locked ? `تفتح ${openState.label}` : started ? `${completed.length}/3 مكتمل` : "جاهزة للبدء";
+  const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "فتح الجولة";
+  const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
   return `
     <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
       <div class="section-title">
@@ -1306,6 +1333,74 @@ function triviaRoundIntro(firstAssignment) {
   return `
     <p class="small">عند بدء الجولة ستظهر لك الأسئلة واحداً بعد الآخر. بعد اختيار الإجابة أو انتهاء الوقت ينتقل التطبيق تلقائياً للسؤال التالي، وبعد السؤال الثالث تظهر النتيجة.</p>
     <button class="primary-btn" data-trivia-start="${firstAssignment?.id || ""}" type="button" ${firstAssignment ? "" : "disabled"}>ابدأ الجولة</button>
+  `;
+}
+
+function triviaRoundSummaryCard(roundNumber, assignments) {
+  const setting = triviaRoundSetting(activeRound, roundNumber);
+  const openState = triviaRoundOpenState(setting);
+  const title = setting.title || `جولة ${roundNumber}`;
+  const completed = assignments.filter(triviaAssignmentComplete);
+  const correct = completed.filter(item => item.is_correct).length;
+  const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
+  const started = assignments.some(item => item.started_at || item.answered_at);
+  const allDone = assignments.length > 0 && completed.length === assignments.length;
+  const locked = openState.locked && !started && !allDone;
+  const statusClass = allDone ? "approved" : locked ? "rejected" : started ? "pending" : "";
+  const statusText = allDone ? "مكتمل" : locked ? "مقفلة" : started ? "قيد اللعب" : "جديدة";
+  const detailText = allDone ? `${correct}/3 صحيح | ${points} نقطة` : locked ? `تفتح ${openState.label}` : started ? `${completed.length}/3 مكتمل` : "جاهزة للبدء";
+  const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "فتح الجولة";
+  const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
+  return `
+    <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
+      <div class="section-title">
+        <div>
+          <h2>${escapeHtml(title)}</h2>
+          <span class="small">${detailText}</span>
+        </div>
+        <span class="status-chip ${statusClass}">${statusText}</span>
+      </div>
+      <button class="primary-btn" ${buttonAttrs} type="button">${buttonText}</button>
+    </article>
+  `;
+}
+
+function triviaRoundCard(roundNumber, assignments, displayRoundId = activeRound) {
+  const setting = triviaRoundSetting(displayRoundId, roundNumber);
+  const openState = triviaRoundOpenState(setting);
+  const title = setting.title || `جولة ${roundNumber}`;
+  const completed = assignments.filter(triviaAssignmentComplete);
+  const correct = completed.filter(item => item.is_correct).length;
+  const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
+  const active = assignments.find(item => !triviaAssignmentComplete(item));
+  const started = assignments.some(item => item.started_at || item.answered_at);
+  const allDone = assignments.length > 0 && completed.length === assignments.length;
+  const locked = openState.locked && !started && !allDone;
+  return `
+    <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
+      <div class="section-title">
+        <div>
+          <h2>${escapeHtml(title)}</h2>
+          <span class="small">3 أسئلة بثلاث مستويات: سهل، متوسط، صعب</span>
+        </div>
+        <span class="status-chip ${allDone ? "approved" : locked ? "rejected" : started ? "pending" : ""}">${allDone ? "مكتمل" : locked ? "مقفلة" : started ? `${completed.length}/3` : "جاهزة"}</span>
+      </div>
+      <div class="trivia-round-points">
+        <span>سهل: ${triviaSettingPoints(setting, "easy")} نقطة</span>
+        <span>متوسط: ${triviaSettingPoints(setting, "medium")} نقطة</span>
+        <span>صعب: ${triviaSettingPoints(setting, "hard")} نقطة</span>
+      </div>
+      ${allDone ? triviaRoundResult(correct, points, assignments) : locked ? triviaRoundLockedView(openState) : !started ? triviaRoundIntro(assignments[0]) : triviaAssignmentCard(active, assignments)}
+    </article>
+  `;
+}
+
+function triviaRoundLockedView(openState) {
+  return `
+    <div class="trivia-round-lock">
+      <strong>الجولة مقفلة حالياً</strong>
+      <span class="small">تفتح تلقائياً في ${openState.label}</span>
+    </div>
   `;
 }
 
@@ -2654,6 +2749,7 @@ function bindApp() {
           userId: state.currentUser.id,
           title: form.elements.title.value.trim(),
           roundId: form.elements.roundId.value,
+          opensAt: datetimeLocalToIso(form.elements.opensAt.value),
           easyPoints: form.elements.easyPoints.value,
           mediumPoints: form.elements.mediumPoints.value,
           hardPoints: form.elements.hardPoints.value

@@ -1456,7 +1456,7 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const statusClass = allDone ? "approved" : locked ? "rejected" : started ? "pending" : "";
   const statusText = allDone ? "مكتمل" : locked ? "مقفلة" : started ? "قيد اللعب" : "جديدة";
   const detailText = allDone ? `${correct}/3 صحيح | ${points} نقطة` : locked ? `تفتح ${openState.label}` : started ? `${completed.length}/3 مكتمل` : "جاهزة للبدء";
-  const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "فتح الجولة";
+  const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "بدء الجولة";
   const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
   return `
     <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
@@ -1536,21 +1536,30 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
   const locked = openState.locked && !started && !allDone;
-  const statusClass = allDone ? "approved" : locked ? "rejected" : started ? "pending" : "";
-  const statusText = allDone ? "مكتمل" : locked ? "مقفلة" : started ? "قيد اللعب" : "جديدة";
-  const detailText = allDone ? `${correct}/3 صحيح | ${points} نقطة` : locked ? `تفتح ${openState.label}` : started ? `${completed.length}/3 مكتمل` : "جاهزة للبدء";
-  const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "فتح الجولة";
+  const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "بدء الجولة";
   const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
+  const countdownLabel = allDone
+    ? "مكتملة"
+    : locked
+      ? `تفتح بعد: ${countdownText(openState.value)}`
+      : started
+        ? "قيد اللعب"
+        : "مفتوحة الآن";
+  const countdownAttribute = locked ? countdownAttrs(openState.value, "تفتح بعد: ", "مفتوحة الآن") : "";
   return `
-    <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
-      <div class="section-title">
-        <div>
-          <h2>${escapeHtml(title)}</h2>
-          <span class="small">${detailText}</span>
-        </div>
-        <span class="status-chip ${statusClass}">${statusText}</span>
+    <article class="match-card participant-match-card participant-trivia-card ${allDone ? "correct" : ""} ${locked ? "locked-card" : ""}">
+      <div class="participant-match-top">
+        <span>${openState.value ? formatAdminMatchDate(openState.value) : "غير محدد"}</span>
+        <span class="participant-countdown ${allDone ? "expired" : ""}" ${countdownAttribute}>${countdownLabel}</span>
       </div>
-      <button class="primary-btn" ${buttonAttrs} type="button">${buttonText}</button>
+      <div class="participant-trivia-main">
+        <h2>${escapeHtml(title)}</h2>
+        <button class="primary-btn" ${buttonAttrs} type="button">${buttonText}</button>
+      </div>
+      <div class="participant-trivia-bottom">
+        <span><strong>${correct}/${assignments.length || 3}</strong><small>الصحيح</small></span>
+        <span><strong>${points}</strong><small>النقاط</small></span>
+      </div>
     </article>
   `;
 }
@@ -2493,8 +2502,8 @@ function countdownText(value) {
   return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
 }
 
-function countdownAttrs(value, prefix = "") {
-  return `data-countdown="${escapeHtml(value)}" data-countdown-prefix="${escapeHtml(prefix)}"`;
+function countdownAttrs(value, prefix = "", expiredText = "مغلق") {
+  return `data-countdown="${escapeHtml(value)}" data-countdown-prefix="${escapeHtml(prefix)}" data-countdown-expired-text="${escapeHtml(expiredText)}"`;
 }
 
 function updateCountdowns() {
@@ -2502,8 +2511,9 @@ function updateCountdowns() {
   document.querySelectorAll("[data-countdown]").forEach(element => {
     const deadline = element.dataset.countdown;
     const prefix = element.dataset.countdownPrefix || "";
+    const expiredText = element.dataset.countdownExpiredText || "مغلق";
     const isExpired = new Date(deadline).getTime() <= serverNowMs();
-    element.textContent = isExpired ? "مغلق" : `${prefix}${countdownText(deadline)}`;
+    element.textContent = isExpired ? expiredText : `${prefix}${countdownText(deadline)}`;
     element.classList.toggle("expired", isExpired);
     if (isExpired && element.dataset.wasExpired !== "true") expired = true;
     element.dataset.wasExpired = isExpired ? "true" : "false";
@@ -3616,12 +3626,17 @@ function showInlineError(errorBox, message) {
 
 function syncCountdownTimer() {
   const hasOpenMatch = state.currentUser && state.matches.some(match => !isVoteClosed(match));
+  const hasPendingTriviaOpen = state.currentUser && state.triviaAssignments.some(item => {
+    if (triviaAssignmentComplete(item)) return false;
+    const setting = triviaRoundSetting(item.round_id, item.question_round);
+    return triviaRoundOpenState(setting).locked;
+  });
   const hasOpenTrivia = state.currentUser && state.triviaAssignments.some(item => {
     if (!item.started_at || item.answered_at) return false;
     return new Date(item.started_at).getTime() + triviaTimeLimitSeconds(item) * 1000 > serverNowMs();
   });
   updateCountdowns();
-  if ((hasOpenMatch || hasOpenTrivia) && !countdownTimer) {
+  if ((hasOpenMatch || hasOpenTrivia || hasPendingTriviaOpen) && !countdownTimer) {
     countdownTimer = setInterval(() => {
       if (!state.currentUser) return;
       const expired = updateCountdowns();
@@ -3629,7 +3644,7 @@ function syncCountdownTimer() {
       if (expired && !hasOpenModal()) render();
     }, 1000);
   }
-  if (!hasOpenMatch && !hasOpenTrivia && countdownTimer) {
+  if (!hasOpenMatch && !hasOpenTrivia && !hasPendingTriviaOpen && countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
   }

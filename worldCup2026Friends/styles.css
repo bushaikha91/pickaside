@@ -458,6 +458,68 @@ button {
   color: #b42318;
 }
 
+.participant-trivia-card {
+  direction: rtl;
+}
+
+.participant-trivia-main {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 18px 16px 14px;
+  text-align: center;
+}
+
+.participant-trivia-main h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.participant-trivia-main .primary-btn {
+  width: min(100%, 250px);
+}
+
+.participant-trivia-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.participant-trivia-bottom span {
+  display: grid;
+  gap: 3px;
+  min-height: 48px;
+  place-items: center;
+  border: 1px solid #d8dee8;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.participant-trivia-bottom span:first-child {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.participant-trivia-bottom span:last-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.participant-trivia-bottom strong {
+  color: var(--navy);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.participant-trivia-bottom small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .participant-choice-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

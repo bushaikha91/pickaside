@@ -1460,31 +1460,65 @@ button {
   box-shadow: 0 6px 18px rgba(16, 24, 40, 0.1);
 }
 
-.trivia-round-admin-cards .trivia-admin-row > div:first-child {
+.trivia-round-admin-cards .trivia-admin-row > div:nth-child(2) {
   display: grid;
   gap: 6px;
   padding: 16px;
   text-align: center;
 }
 
-.trivia-round-admin-cards .trivia-admin-row strong {
+.trivia-round-admin-cards .trivia-round-card-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  min-height: 50px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  direction: rtl;
+}
+
+.trivia-round-admin-cards .trivia-round-card-top span,
+.trivia-round-admin-cards .trivia-round-card-top strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.trivia-round-admin-cards .trivia-round-card-top span {
+  justify-self: end;
+  color: #101828;
+}
+
+.trivia-round-admin-cards .trivia-round-card-top strong {
+  justify-self: start;
+  color: #2c7a7b;
+}
+
+.trivia-round-admin-cards .trivia-admin-row > div:nth-child(2) > strong {
   color: #101828;
   font-size: 15px;
   font-weight: 900;
 }
 
-.trivia-round-admin-cards .trivia-admin-row .small {
+.trivia-round-admin-cards .trivia-admin-row > div:nth-child(2) .small {
   color: #667085;
   font-size: 11px;
   font-weight: 800;
 }
 
-.trivia-round-admin-cards .trivia-admin-row .small:first-of-type {
+.trivia-round-admin-cards .trivia-admin-row > div:nth-child(2) .small:first-of-type {
   justify-self: center;
   padding: 8px 12px;
   border-radius: 10px;
   color: #e6fffb;
   background: linear-gradient(135deg, var(--green), var(--blue));
+}
+
+.trivia-round-admin-cards .trivia-admin-row > div:nth-child(2) .small:nth-of-type(2) {
+  display: none;
 }
 
 .trivia-round-admin-cards .trivia-admin-actions {

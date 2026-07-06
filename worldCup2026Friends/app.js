@@ -1072,6 +1072,10 @@ function triviaRoundList(roundId) {
       </div>
       ${items.map(item => `
         <article class="trivia-admin-row">
+          <div class="trivia-round-card-top">
+            <span>${triviaRoundAdminDateLabel(item)}</span>
+            <strong>${triviaRoundStatusLabel(item)}</strong>
+          </div>
           <div>
             <strong>${escapeHtml(item.title || `جولة ${item.sort_order || 1}`)}</strong>
             <span class="small">سهل ${triviaSettingPoints(item, "easy")} | متوسط ${triviaSettingPoints(item, "medium")} | صعب ${triviaSettingPoints(item, "hard")}</span>
@@ -1356,6 +1360,15 @@ function triviaRoundOpenLabel(setting) {
   const openState = triviaRoundOpenState(setting);
   if (!openState.value) return "مفتوحة الآن";
   return `${openState.locked ? "تفتح في" : "مفتوحة من"} ${openState.label}`;
+}
+
+function triviaRoundAdminDateLabel(setting) {
+  const openState = triviaRoundOpenState(setting);
+  return openState.value ? openState.label : "الآن";
+}
+
+function triviaRoundStatusLabel(setting) {
+  return triviaRoundOpenState(setting).locked ? "لم تفتح" : "مفتوحة";
 }
 
 function triviaSettingPoints(setting, difficulty) {

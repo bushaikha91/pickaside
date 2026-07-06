@@ -18,9 +18,9 @@
   --header-gradient:
     linear-gradient(180deg, rgba(8, 20, 58, 0.22), rgba(8, 20, 58, 0.18)),
     url("assets/worldcup-2026-header-bg.jpg");
-  --action-gradient: linear-gradient(135deg, var(--red), var(--orange) 48%, var(--purple));
-  --success-gradient: linear-gradient(135deg, var(--deep-green), var(--green) 58%, var(--lime));
-  --accent-gradient: linear-gradient(135deg, var(--purple), var(--blue) 56%, var(--green));
+  --action-gradient: var(--red);
+  --success-gradient: var(--deep-green);
+  --accent-gradient: var(--purple);
   --shadow: 0 18px 44px rgba(122, 16, 20, 0.15);
 }
 
@@ -270,8 +270,8 @@ button {
 
 .login-panel .role-option.active {
   border-color: transparent;
-  background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 46%, var(--green) 100%);
-  box-shadow: 0 10px 22px rgba(36, 55, 255, 0.14);
+  background: var(--purple);
+  box-shadow: 0 10px 22px rgba(97, 48, 242, 0.14);
 }
 
 .login-panel .primary-btn {
@@ -453,7 +453,7 @@ button {
 .tabs .tab.active {
   border-color: rgba(255, 255, 255, 0.78);
   color: var(--navy);
-  background: linear-gradient(135deg, rgba(168, 255, 0, 0.96), rgba(0, 168, 98, 0.95));
+  background: var(--lime);
   box-shadow: 0 8px 18px rgba(8, 20, 58, 0.2);
 }
 
@@ -2024,7 +2024,7 @@ button {
 .matrix-player-row.podium-row .player-cell,
 .total-cell.podium-cell {
   color: #fff;
-  background: linear-gradient(135deg, var(--red), var(--blue));
+  background: var(--maroon);
 }
 
 .matrix-player-row.podium-row .leader-name-button,

@@ -1,6 +1,7 @@
 const SESSION_KEY = "wc2026friends-live-session-v1";
 const RANK_SNAPSHOT_KEY = "wc2026friends-rank-snapshot-v1";
 const ACTIVE_TAB_KEY = "wc2026friends-active-tab-v1";
+const STATE_CACHE_KEY = "wc2026friends-state-cache-v1";
 const APP_TIME_ZONE = "Asia/Dubai";
 const APP_TIME_OFFSET_MINUTES = 4 * 60;
 let deferredInstallPrompt = null;
@@ -150,29 +151,8 @@ async function loadData(options = {}) {
   try {
     const query = state.currentUser.id ? `state&userId=${encodeURIComponent(state.currentUser.id)}` : "state";
     const payload = await api(query);
-    if (payload.user) {
-      state.currentUser = { ...state.currentUser, ...payload.user };
-      writeSession(state.currentUser);
-    }
-    state.matches = payload.matches || [];
-    state.standings = payload.standings || [];
-    state.rankMovement = rankMovementFor(state.standings);
-    state.predictions = payload.predictions || {};
-    state.matchPoints = payload.matchPoints || {};
-    state.allPredictions = payload.allPredictions || [];
-    state.allMatchPoints = payload.allMatchPoints || {};
-    state.allMatchStakes = payload.allMatchStakes || {};
-    state.championOptions = payload.championOptions || [];
-    state.championPicks = payload.championPicks || [];
-    state.triviaQuestions = payload.triviaQuestions || [];
-    state.triviaAssignments = payload.triviaAssignments || [];
-    state.allTriviaAssignments = payload.allTriviaAssignments || [];
-    state.triviaSettings = payload.triviaSettings || [];
-    state.participants = payload.participants || [];
-    state.organizers = payload.organizers || [];
-    if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
-    syncActiveTab({ persist: true });
-    syncParticipantActiveRound();
+    applyStatePayload(payload);
+    writeStateCache(payload);
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
   } finally {
@@ -2667,6 +2647,7 @@ function bindApp() {
     state.currentUser = null;
     writeSession(null);
     writeActiveTab(null);
+    localStorage.removeItem(STATE_CACHE_KEY);
     activeTab = defaultTabForUser(null);
     render();
   });
@@ -3750,6 +3731,65 @@ function writeSession(user) {
   else localStorage.removeItem(SESSION_KEY);
 }
 
+function applyStatePayload(payload = {}) {
+  if (payload.user) {
+    state.currentUser = { ...state.currentUser, ...payload.user };
+    writeSession(state.currentUser);
+  }
+  state.matches = payload.matches || [];
+  state.standings = payload.standings || [];
+  state.rankMovement = rankMovementFor(state.standings);
+  state.predictions = payload.predictions || {};
+  state.matchPoints = payload.matchPoints || {};
+  state.allPredictions = payload.allPredictions || [];
+  state.allMatchPoints = payload.allMatchPoints || {};
+  state.allMatchStakes = payload.allMatchStakes || {};
+  state.championOptions = payload.championOptions || [];
+  state.championPicks = payload.championPicks || [];
+  state.triviaQuestions = payload.triviaQuestions || [];
+  state.triviaAssignments = payload.triviaAssignments || [];
+  state.allTriviaAssignments = payload.allTriviaAssignments || [];
+  state.triviaSettings = payload.triviaSettings || [];
+  state.participants = payload.participants || [];
+  state.organizers = payload.organizers || [];
+  if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
+  syncActiveTab({ persist: true });
+  syncParticipantActiveRound();
+}
+
+function readStateCache(user) {
+  if (!user?.id) return null;
+  try {
+    const cached = JSON.parse(localStorage.getItem(STATE_CACHE_KEY) || "null");
+    if (cached?.userId !== user.id || !cached.payload) return null;
+    return cached.payload;
+  } catch {
+    return null;
+  }
+}
+
+function writeStateCache(payload) {
+  if (!state.currentUser?.id || !payload) return;
+  try {
+    localStorage.setItem(STATE_CACHE_KEY, JSON.stringify({
+      userId: state.currentUser.id,
+      savedAt: new Date().toISOString(),
+      payload
+    }));
+  } catch {
+    localStorage.removeItem(STATE_CACHE_KEY);
+  }
+}
+
+function hydrateStateFromCache() {
+  const cached = readStateCache(state.currentUser);
+  if (!cached) return false;
+  applyStatePayload(cached);
+  state.loading = false;
+  state.error = "";
+  return true;
+}
+
 function defaultTabForUser(user) {
   return user?.role === "organizer" ? "manage" : "matches";
 }
@@ -3945,4 +3985,6 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => {});
 }
 
-loadData();
+const bootedFromCache = hydrateStateFromCache();
+if (bootedFromCache) render();
+loadData({ silent: bootedFromCache });

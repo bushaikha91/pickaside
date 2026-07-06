@@ -839,7 +839,7 @@ function standingsMatrixView(options = {}) {
           <div class="matrix-cell matrix-head total-head">إجمالي النقاط</div>
           ${state.standings.map((row, index) => `<div class="matrix-cell total-cell ${index < 3 ? "podium-cell" : ""}">${row.points}</div>`).join("")}
         </div>
-        <div class="standings-middle-scroll">
+        <div class="standings-middle-scroll" data-standings-scroll>
           <div class="standings-scroll-table">
             <div class="standings-middle-row matrix-head-row">
               ${settledMatches.map(match => `
@@ -849,7 +849,7 @@ function standingsMatrixView(options = {}) {
                   <div class="matrix-cell match-round-head">نقاط الجولة</div>
                 </div>
               `).join("")}
-              <div class="match-score-group summary-group">
+              <div class="match-score-group summary-group" data-standings-summary-anchor>
                 <div class="matrix-cell summary-head">إجمالي الصحيح</div>
                 <div class="matrix-cell summary-head">إجمالي الخطأ</div>
                 <div class="matrix-cell summary-head">نسبة الصحيح</div>
@@ -3169,6 +3169,10 @@ function bindApp() {
     });
   });
 
+  if (activeTab === "standings") {
+    requestAnimationFrame(focusStandingsPredictionSummary);
+  }
+
   document.querySelectorAll("[data-round]").forEach(button => {
     button.addEventListener("click", () => {
       activeRound = button.dataset.round;
@@ -3644,6 +3648,13 @@ function handleExpiredTriviaQuestions() {
 
 function hasOpenModal() {
   return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.triviaResultsRound || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.activeTriviaRoundKey);
+}
+
+function focusStandingsPredictionSummary() {
+  const scroll = document.querySelector("[data-standings-scroll]");
+  const anchor = document.querySelector("[data-standings-summary-anchor]");
+  if (!scroll || !anchor) return;
+  anchor.scrollIntoView({ block: "nearest", inline: "start" });
 }
 
 function bindSwipeRows() {

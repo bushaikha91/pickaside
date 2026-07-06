@@ -1474,7 +1474,7 @@ button {
   min-height: 50px;
   padding: 0 12px;
   border-bottom: 1px solid var(--line);
-  direction: rtl;
+  direction: ltr;
 }
 
 .trivia-round-admin-cards .trivia-round-card-top span,
@@ -1488,12 +1488,16 @@ button {
 }
 
 .trivia-round-admin-cards .trivia-round-card-top span {
+  grid-column: 2;
   justify-self: end;
+  direction: rtl;
   color: #101828;
 }
 
 .trivia-round-admin-cards .trivia-round-card-top strong {
+  grid-column: 1;
   justify-self: start;
+  direction: rtl;
   color: #2c7a7b;
 }
 

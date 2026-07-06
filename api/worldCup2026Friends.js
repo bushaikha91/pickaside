@@ -575,6 +575,7 @@ async function fetchTriviaQuestions() {
 }
 
 async function fetchInitialTriviaQuestions() {
+  const counts = await fetchTriviaQuestionCounts();
   const entries = await Promise.all(["easy", "medium", "hard"].map(async difficulty => {
     const page = await fetchTriviaQuestionPage({ difficulty, limit: 10, offset: 0 });
     return [difficulty, page];
@@ -585,6 +586,7 @@ async function fetchInitialTriviaQuestions() {
     questions.push(...page.questions);
     pages[difficulty] = {
       loaded: page.questions.length,
+      total: counts[difficulty] ?? page.total ?? page.questions.length,
       hasMore: page.hasMore
     };
   }
@@ -604,6 +606,7 @@ async function fetchTriviaQuestionPage({ difficulty, limit = 10, offset = 0 }) {
   const normalized = normalizeDifficulty(difficulty);
   const pageSize = Math.max(1, Math.min(30, Number(limit) || 10));
   const pageOffset = Math.max(0, Number(offset) || 0);
+  const total = await fetchTriviaQuestionCount(normalized);
   const query = `difficulty=eq.${encodeURIComponent(normalized)}&select=*&order=created_at.desc&limit=${pageSize + 1}&offset=${pageOffset}`;
   try {
     const rows = (await supabase(`worldcup2026friends_trivia_questions?${query}`)).map(normalizeTriviaQuestionRow);
@@ -611,8 +614,9 @@ async function fetchTriviaQuestionPage({ difficulty, limit = 10, offset = 0 }) {
       difficulty: normalized,
       offset: pageOffset,
       limit: pageSize,
+      total,
       questions: rows.slice(0, pageSize),
-      hasMore: rows.length > pageSize
+      hasMore: pageOffset + Math.min(rows.length, pageSize) < total
     };
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
@@ -623,14 +627,34 @@ async function fetchTriviaQuestionPage({ difficulty, limit = 10, offset = 0 }) {
         difficulty: normalized,
         offset: pageOffset,
         limit: pageSize,
+        total,
         questions: rows.slice(0, pageSize),
-        hasMore: rows.length > pageSize
+        hasMore: pageOffset + Math.min(rows.length, pageSize) < total
       };
     } catch (fallbackError) {
       if (!isOptionalColumnError(fallbackError)) throw fallbackError;
-      return { difficulty: normalized, offset: pageOffset, limit: pageSize, questions: [], hasMore: false };
+      return { difficulty: normalized, offset: pageOffset, limit: pageSize, total: 0, questions: [], hasMore: false };
     }
   }
+}
+
+async function fetchTriviaQuestionCounts() {
+  try {
+    const rows = await supabase("worldcup2026friends_trivia_questions?select=id,difficulty");
+    return rows.reduce((counts, row) => {
+      const difficulty = normalizeDifficulty(row.difficulty);
+      counts[difficulty] = (counts[difficulty] || 0) + 1;
+      return counts;
+    }, { easy: 0, medium: 0, hard: 0 });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return { easy: 0, medium: 0, hard: 0 };
+  }
+}
+
+async function fetchTriviaQuestionCount(difficulty) {
+  const counts = await fetchTriviaQuestionCounts();
+  return counts[normalizeDifficulty(difficulty)] || 0;
 }
 
 async function fetchTriviaSettings() {

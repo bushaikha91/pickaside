@@ -1265,7 +1265,7 @@ function triviaDifficultyQuestionList(difficulty) {
     <section class="stack trivia-round-group">
       <div class="section-title">
         <h2>${difficultyLabel(normalized)}</h2>
-        <span class="small">${questions.length} سؤال</span>
+        <span class="small">${triviaQuestionTotalCount(normalized)} سؤال</span>
       </div>
       ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا المستوى.")}
       ${loadMore}
@@ -1277,7 +1277,25 @@ function triviaQuestionPageState(difficulty) {
   const normalized = normalizeDifficulty(difficulty);
   return state.triviaQuestionPages?.[normalized] || {
     loaded: state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === normalized).length,
+    total: state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === normalized).length,
     hasMore: false
+  };
+}
+
+function triviaQuestionTotalCount(difficulty) {
+  const page = triviaQuestionPageState(difficulty);
+  return Number(page.total ?? page.loaded ?? 0);
+}
+
+function bumpTriviaQuestionTotal(difficulty, delta) {
+  const normalized = normalizeDifficulty(difficulty);
+  const page = triviaQuestionPageState(normalized);
+  state.triviaQuestionPages = {
+    ...state.triviaQuestionPages,
+    [normalized]: {
+      ...page,
+      total: Math.max(0, triviaQuestionTotalCount(normalized) + delta)
+    }
   };
 }
 
@@ -2970,11 +2988,17 @@ function bindApp() {
       });
       if (payload.question?.id) {
         const question = payload.question;
+        const previousQuestion = state.triviaQuestions.find(item => item.id === question.id);
         const exists = state.triviaQuestions.some(item => item.id === question.id);
         state.triviaQuestions = exists
           ? state.triviaQuestions.map(item => item.id === question.id ? { ...item, ...question } : item)
           : [question, ...state.triviaQuestions];
         state.triviaQuestionDifficulty = normalizeDifficulty(question.difficulty);
+        if (!exists) bumpTriviaQuestionTotal(question.difficulty, 1);
+        if (exists && normalizeDifficulty(previousQuestion?.difficulty) !== normalizeDifficulty(question.difficulty)) {
+          bumpTriviaQuestionTotal(previousQuestion?.difficulty, -1);
+          bumpTriviaQuestionTotal(question.difficulty, 1);
+        }
       }
       state.notice = wasEditing ? "تم تعديل السؤال." : "تمت إضافة السؤال.";
       state.addTriviaOpen = false;
@@ -3784,6 +3808,7 @@ async function loadMoreTriviaQuestions(difficulty) {
       ...state.triviaQuestionPages,
       [normalized]: {
         loaded: offset + incoming.length,
+        total: Number(payload.total ?? page.total ?? offset + incoming.length),
         hasMore: !!payload.hasMore
       }
     };

@@ -1079,7 +1079,6 @@ function triviaRoundList(roundId) {
             <strong>${escapeHtml(item.title || `جولة ${item.sort_order || 1}`)}</strong>
             <span class="small">سهل ${triviaSettingPoints(item, "easy")} | متوسط ${triviaSettingPoints(item, "medium")} | صعب ${triviaSettingPoints(item, "hard")}</span>
             <span class="small">${triviaRoundOpenLabel(item)}</span>
-            <span class="small">${triviaRoundAdminSummary(item)}</span>
           </div>
           <div class="trivia-admin-actions">
             <button class="mini-btn" data-trivia-results="${item.id}" type="button">${triviaRoundCompletionLabel(item)}</button>

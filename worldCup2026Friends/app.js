@@ -1,5 +1,6 @@
 const SESSION_KEY = "wc2026friends-live-session-v1";
 const RANK_SNAPSHOT_KEY = "wc2026friends-rank-snapshot-v1";
+const ACTIVE_TAB_KEY = "wc2026friends-active-tab-v1";
 const APP_TIME_ZONE = "Asia/Dubai";
 const APP_TIME_OFFSET_MINUTES = 4 * 60;
 let deferredInstallPrompt = null;
@@ -106,7 +107,7 @@ const state = {
   triviaQuestionDifficulty: "easy"
 };
 
-let activeTab = state.currentUser?.role === "organizer" ? "manage" : "matches";
+let activeTab = readActiveTab(state.currentUser);
 let activeRound = "r16";
 let userSelectedRound = false;
 let countdownTimer = null;
@@ -170,6 +171,7 @@ async function loadData(options = {}) {
     state.participants = payload.participants || [];
     state.organizers = payload.organizers || [];
     if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
+    syncActiveTab({ persist: true });
     syncParticipantActiveRound();
   } catch (error) {
     state.error = error.message || "تعذر تحميل بيانات البطولة";
@@ -188,6 +190,7 @@ function render() {
     return;
   }
 
+  syncActiveTab();
   app.innerHTML = appTemplate();
   bindApp();
 }
@@ -2627,6 +2630,7 @@ function bindLogin() {
       state.currentUser = payload.user;
       writeSession(payload.user);
       activeTab = payload.user.role === "organizer" ? "participants" : "matches";
+      writeActiveTab(activeTab);
       await loadData();
     } catch (error) {
       errorBox.textContent = error.message || "تعذر الدخول";
@@ -2662,6 +2666,8 @@ function bindApp() {
   document.querySelector("#logoutBtn").addEventListener("click", () => {
     state.currentUser = null;
     writeSession(null);
+    writeActiveTab(null);
+    activeTab = defaultTabForUser(null);
     render();
   });
 
@@ -3174,6 +3180,7 @@ function bindApp() {
   document.querySelectorAll("[data-tab]").forEach(button => {
     button.addEventListener("click", () => {
       activeTab = button.dataset.tab;
+      syncActiveTab({ persist: true });
       state.triviaResultsRound = null;
       render();
     });
@@ -3741,6 +3748,39 @@ function readSession() {
 function writeSession(user) {
   if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   else localStorage.removeItem(SESSION_KEY);
+}
+
+function defaultTabForUser(user) {
+  return user?.role === "organizer" ? "manage" : "matches";
+}
+
+function allowedTabsForUser(user) {
+  const sharedTabs = ["standings", "laws", "trivia"];
+  if (user?.role === "organizer") return ["manage", "participants", "champions", ...sharedTabs];
+  return ["matches", ...sharedTabs];
+}
+
+function normalizeActiveTabForUser(user, tab) {
+  const candidate = String(tab || "").trim();
+  return allowedTabsForUser(user).includes(candidate) ? candidate : defaultTabForUser(user);
+}
+
+function readActiveTab(user) {
+  try {
+    return normalizeActiveTabForUser(user, localStorage.getItem(ACTIVE_TAB_KEY));
+  } catch {
+    return defaultTabForUser(user);
+  }
+}
+
+function writeActiveTab(tab) {
+  if (tab) localStorage.setItem(ACTIVE_TAB_KEY, tab);
+  else localStorage.removeItem(ACTIVE_TAB_KEY);
+}
+
+function syncActiveTab(options = {}) {
+  activeTab = normalizeActiveTabForUser(state.currentUser, activeTab);
+  if (options.persist) writeActiveTab(activeTab);
 }
 
 function rankMovementFor(standings) {

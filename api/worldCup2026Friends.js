@@ -43,6 +43,7 @@ module.exports = async function handler(req, res) {
     if (action === "champion-option" && req.method === "POST") return await saveChampionOption(req, res);
     if (action === "champion-pick" && req.method === "POST") return await saveChampionPick(req, res);
     if (action === "trivia-question" && req.method === "POST") return await saveTriviaQuestion(req, res);
+    if (action === "trivia-questions" && req.method === "GET") return await sendTriviaQuestions(req, res);
     if (action === "trivia-settings" && req.method === "POST") return await saveTriviaSettings(req, res);
     if (action === "trivia-round" && req.method === "POST") return await saveTriviaRound(req, res);
     if (action === "trivia-round-delete" && req.method === "POST") return await deleteTriviaRound(req, res);
@@ -65,13 +66,13 @@ async function sendState(req, res) {
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
   const tournament = await calculateTournament();
 
-  const [matches, predictions, participants, organizers, championData, triviaQuestions, triviaSettings, allTriviaAssignments] = await Promise.all([
+  const [matches, predictions, participants, organizers, championData, triviaQuestionData, triviaSettings, allTriviaAssignments] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026friends_matches?select=*&order=winner.asc.nullsfirst&order=starts_at.asc") : [],
     userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
     isOrganizer ? fetchParticipants() : [],
     isOrganizer ? fetchOrganizers() : [],
     isOrganizer ? fetchChampionData() : { options: [], picks: [] },
-    isOrganizer ? fetchTriviaQuestions() : [],
+    isOrganizer ? fetchInitialTriviaQuestions() : { questions: [], pages: {} },
     isOrganizer || isApprovedParticipant ? fetchTriviaSettings() : [],
     isOrganizer ? fetchAllTriviaAssignments() : []
   ]);
@@ -90,7 +91,8 @@ async function sendState(req, res) {
     organizers,
     championOptions: championData.options,
     championPicks: championData.picks,
-    triviaQuestions,
+    triviaQuestions: triviaQuestionData.questions,
+    triviaQuestionPages: triviaQuestionData.pages,
     triviaSettings,
     triviaAssignments,
     allTriviaAssignments,
@@ -568,6 +570,65 @@ async function fetchTriviaQuestions() {
     } catch (fallbackError) {
       if (!isOptionalColumnError(fallbackError)) throw fallbackError;
       return [];
+    }
+  }
+}
+
+async function fetchInitialTriviaQuestions() {
+  const entries = await Promise.all(["easy", "medium", "hard"].map(async difficulty => {
+    const page = await fetchTriviaQuestionPage({ difficulty, limit: 10, offset: 0 });
+    return [difficulty, page];
+  }));
+  const questions = [];
+  const pages = {};
+  for (const [difficulty, page] of entries) {
+    questions.push(...page.questions);
+    pages[difficulty] = {
+      loaded: page.questions.length,
+      hasMore: page.hasMore
+    };
+  }
+  return { questions, pages };
+}
+
+async function sendTriviaQuestions(req, res) {
+  await requireOrganizer(req.query.userId);
+  const difficulty = normalizeDifficulty(req.query.difficulty);
+  const limit = Math.max(1, Math.min(30, Number(req.query.limit) || 10));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const page = await fetchTriviaQuestionPage({ difficulty, limit, offset });
+  return res.status(200).json(page);
+}
+
+async function fetchTriviaQuestionPage({ difficulty, limit = 10, offset = 0 }) {
+  const normalized = normalizeDifficulty(difficulty);
+  const pageSize = Math.max(1, Math.min(30, Number(limit) || 10));
+  const pageOffset = Math.max(0, Number(offset) || 0);
+  const query = `difficulty=eq.${encodeURIComponent(normalized)}&select=*&order=created_at.desc&limit=${pageSize + 1}&offset=${pageOffset}`;
+  try {
+    const rows = (await supabase(`worldcup2026friends_trivia_questions?${query}`)).map(normalizeTriviaQuestionRow);
+    return {
+      difficulty: normalized,
+      offset: pageOffset,
+      limit: pageSize,
+      questions: rows.slice(0, pageSize),
+      hasMore: rows.length > pageSize
+    };
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    const legacyQuery = `difficulty=eq.${encodeURIComponent(normalized)}&select=id,round_id,question_text,option_a,option_b,option_c,option_d,correct_option,points,is_active,created_at&order=created_at.desc&limit=${pageSize + 1}&offset=${pageOffset}`;
+    try {
+      const rows = (await supabase(`worldcup2026friends_trivia_questions?${legacyQuery}`)).map(normalizeTriviaQuestionRow);
+      return {
+        difficulty: normalized,
+        offset: pageOffset,
+        limit: pageSize,
+        questions: rows.slice(0, pageSize),
+        hasMore: rows.length > pageSize
+      };
+    } catch (fallbackError) {
+      if (!isOptionalColumnError(fallbackError)) throw fallbackError;
+      return { difficulty: normalized, offset: pageOffset, limit: pageSize, questions: [], hasMore: false };
     }
   }
 }

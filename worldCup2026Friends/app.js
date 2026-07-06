@@ -77,6 +77,8 @@ const state = {
   championOptions: [],
   championPicks: [],
   triviaQuestions: [],
+  triviaQuestionPages: {},
+  triviaQuestionsLoadingMore: false,
   triviaAssignments: [],
   allTriviaAssignments: [],
   triviaSettings: [],
@@ -1243,16 +1245,30 @@ function triviaRoundModal() {
 }
 
 function triviaDifficultyQuestionList(difficulty) {
-  const questions = state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === normalizeDifficulty(difficulty));
+  const normalized = normalizeDifficulty(difficulty);
+  const questions = state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === normalized);
+  const page = triviaQuestionPageState(normalized);
+  const loadMore = page.hasMore
+    ? `<div class="trivia-load-more" data-trivia-load-more="${normalized}">${state.triviaQuestionsLoadingMore ? "جاري تحميل المزيد..." : "جاري تحميل المزيد عند النزول..."}</div>`
+    : "";
   return `
     <section class="stack trivia-round-group">
       <div class="section-title">
-        <h2>${difficultyLabel(difficulty)}</h2>
+        <h2>${difficultyLabel(normalized)}</h2>
         <span class="small">${questions.length} سؤال</span>
       </div>
       ${questions.length ? questions.map(triviaQuestionRow).join("") : emptyView("لا توجد أسئلة لهذا المستوى.")}
+      ${loadMore}
     </section>
   `;
+}
+
+function triviaQuestionPageState(difficulty) {
+  const normalized = normalizeDifficulty(difficulty);
+  return state.triviaQuestionPages?.[normalized] || {
+    loaded: state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === normalized).length,
+    hasMore: false
+  };
 }
 
 function triviaQuestionModal() {
@@ -2890,6 +2906,7 @@ function bindApp() {
       render();
     });
   });
+  setupTriviaQuestionAutoLoad();
 
   document.querySelectorAll("[data-trivia-round-open]").forEach(button => {
     button.addEventListener("click", () => {
@@ -3703,6 +3720,63 @@ function closeSwipeRows(exceptRow) {
   });
 }
 
+function setupTriviaQuestionAutoLoad() {
+  const marker = document.querySelector("[data-trivia-load-more]");
+  if (!marker || state.currentUser?.role !== "organizer" || activeTab !== "trivia" || state.organizerTriviaTab === "rounds") return;
+  const difficulty = normalizeDifficulty(marker.dataset.triviaLoadMore);
+  const load = () => loadMoreTriviaQuestions(difficulty);
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        observer.disconnect();
+        load();
+      }
+    }, { rootMargin: "240px" });
+    observer.observe(marker);
+    return;
+  }
+  const onScroll = () => {
+    if (!document.body.contains(marker)) {
+      window.removeEventListener("scroll", onScroll);
+      return;
+    }
+    if (marker.getBoundingClientRect().top < window.innerHeight + 240) {
+      window.removeEventListener("scroll", onScroll);
+      load();
+    }
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+}
+
+async function loadMoreTriviaQuestions(difficulty) {
+  const normalized = normalizeDifficulty(difficulty);
+  const page = triviaQuestionPageState(normalized);
+  if (state.triviaQuestionsLoadingMore || !page.hasMore) return;
+  state.triviaQuestionsLoadingMore = true;
+  render();
+  try {
+    const offset = state.triviaQuestions.filter(item => normalizeDifficulty(item.difficulty) === normalized).length;
+    const payload = await api(`trivia-questions&userId=${encodeURIComponent(state.currentUser.id)}&difficulty=${encodeURIComponent(normalized)}&offset=${offset}&limit=10`);
+    const existing = new Set(state.triviaQuestions.map(item => item.id));
+    const incoming = (payload.questions || []).filter(item => item?.id && !existing.has(item.id));
+    state.triviaQuestions = [...state.triviaQuestions, ...incoming];
+    state.triviaQuestionPages = {
+      ...state.triviaQuestionPages,
+      [normalized]: {
+        loaded: offset + incoming.length,
+        hasMore: !!payload.hasMore
+      }
+    };
+    writeStateCache(stateCachePayload());
+  } catch (error) {
+    state.error = error.message || "تعذر تحميل المزيد من الأسئلة";
+  } finally {
+    state.triviaQuestionsLoadingMore = false;
+    render();
+  }
+}
+
 async function saveResult(matchId, winner, scoreA = null, scoreB = null) {
   try {
     await api("result", {
@@ -3747,6 +3821,8 @@ function applyStatePayload(payload = {}) {
   state.championOptions = payload.championOptions || [];
   state.championPicks = payload.championPicks || [];
   state.triviaQuestions = payload.triviaQuestions || [];
+  state.triviaQuestionPages = payload.triviaQuestionPages || {};
+  state.triviaQuestionsLoadingMore = false;
   state.triviaAssignments = payload.triviaAssignments || [];
   state.allTriviaAssignments = payload.allTriviaAssignments || [];
   state.triviaSettings = payload.triviaSettings || [];
@@ -3779,6 +3855,29 @@ function writeStateCache(payload) {
   } catch {
     localStorage.removeItem(STATE_CACHE_KEY);
   }
+}
+
+function stateCachePayload() {
+  return {
+    user: state.currentUser,
+    matches: state.matches,
+    standings: state.standings,
+    predictions: state.predictions,
+    matchPoints: state.matchPoints,
+    allPredictions: state.allPredictions,
+    allMatchPoints: state.allMatchPoints,
+    allMatchStakes: state.allMatchStakes,
+    championOptions: state.championOptions,
+    championPicks: state.championPicks,
+    triviaQuestions: state.triviaQuestions,
+    triviaQuestionPages: state.triviaQuestionPages,
+    triviaAssignments: state.triviaAssignments,
+    allTriviaAssignments: state.allTriviaAssignments,
+    triviaSettings: state.triviaSettings,
+    participants: state.participants,
+    organizers: state.organizers,
+    serverNow: new Date(Date.now() + state.serverNowOffsetMs).toISOString()
+  };
 }
 
 function hydrateStateFromCache() {

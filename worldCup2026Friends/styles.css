@@ -1463,6 +1463,13 @@ button {
   justify-self: start;
 }
 
+.trivia-load-more {
+  padding: 14px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .trivia-page-tabs,
 .trivia-level-tabs {
   position: static;

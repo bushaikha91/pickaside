@@ -1493,6 +1493,7 @@ button {
 
 .trivia-round-admin-cards .trivia-round-card-top span {
   grid-column: 2;
+  grid-row: 1;
   justify-self: end;
   direction: rtl;
   color: #101828;
@@ -1500,6 +1501,7 @@ button {
 
 .trivia-round-admin-cards .trivia-round-card-top strong {
   grid-column: 1;
+  grid-row: 1;
   justify-self: start;
   direction: rtl;
   color: #2c7a7b;
@@ -1531,10 +1533,11 @@ button {
 
 .trivia-round-admin-cards .trivia-admin-actions {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
   gap: 8px;
   padding: 0 16px 15px;
+  direction: ltr;
 }
 
 .trivia-round-admin-cards .trivia-admin-actions .mini-btn {
@@ -1549,17 +1552,14 @@ button {
 }
 
 .trivia-round-admin-cards .trivia-admin-actions .mini-btn:first-child {
-  justify-self: start;
+  grid-column: 2;
+  justify-self: end;
   color: var(--blue);
 }
 
 .trivia-round-admin-cards .trivia-admin-actions .mini-btn:nth-child(2) {
-  justify-self: center;
-}
-
-.trivia-round-admin-cards .trivia-admin-actions .mini-btn.reject {
-  justify-self: end;
-  color: var(--red);
+  grid-column: 1;
+  justify-self: start;
 }
 
 .trivia-admin-row strong,

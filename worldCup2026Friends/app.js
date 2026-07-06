@@ -1054,7 +1054,6 @@ function triviaRoundListLegacy(roundId) {
             <span class="small">سهل ${triviaSettingPoints(item, "easy")} | متوسط ${triviaSettingPoints(item, "medium")} | صعب ${triviaSettingPoints(item, "hard")}</span>
             <span class="small">${triviaRoundOpenLabel(item)}</span>
           </div>
-          <button class="mini-btn reject" data-trivia-round-delete="${item.id}" type="button">حذف</button>
         </article>
       `).join("")}
     </section>
@@ -1085,7 +1084,6 @@ function triviaRoundList(roundId) {
           <div class="trivia-admin-actions">
             <button class="mini-btn" data-trivia-results="${item.id}" type="button">${triviaRoundCompletionLabel(item)}</button>
             <button class="mini-btn" data-trivia-round-edit="${item.id}" type="button">تعديل</button>
-            <button class="mini-btn reject" data-trivia-round-delete="${item.id}" type="button">حذف</button>
           </div>
         </article>
       `).join("")}
@@ -1249,6 +1247,7 @@ function triviaRoundModal() {
           </div>
           <button class="primary-btn" type="submit">${isEditing ? "حفظ التعديل" : "إضافة الجولة"}</button>
         </form>
+        ${isEditing ? `<button class="danger-btn" data-trivia-round-delete="${editingRound.id}" type="button">حذف الجولة</button>` : ""}
       </section>
     </div>
   `;
@@ -3065,6 +3064,9 @@ function bindApp() {
         });
         state.triviaSettings = state.triviaSettings.filter(item => item.id !== button.dataset.triviaRoundDelete);
         state.notice = "تم حذف الجولة.";
+        state.addTriviaRoundOpen = false;
+        state.editTriviaRoundId = null;
+        state.triviaRoundModalError = "";
         render();
         loadData({ silent: true }).catch(() => {});
       } catch (error) {

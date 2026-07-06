@@ -1065,7 +1065,7 @@ function triviaRoundList(roundId) {
   const items = triviaRoundsFor(roundId);
   if (!items.length) return "";
   return `
-    <section class="stack trivia-round-group">
+    <section class="stack trivia-round-group trivia-round-admin-cards">
       <div class="section-title">
         <h2>${roundName(roundId)}</h2>
         <span class="small">${items.length} جولة</span>

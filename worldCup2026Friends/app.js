@@ -1384,11 +1384,24 @@ function participantTriviaView() {
     </div>
     ${roundTabs()}
     <div class="trivia-question-list">
-      ${assignments.length ? triviaRoundGroups(assignments).map(([roundNumber, roundAssignments]) => `
+      ${assignments.length ? sortParticipantTriviaRoundGroups(triviaRoundGroups(assignments)).map(([roundNumber, roundAssignments]) => `
         ${triviaRoundSummaryCard(roundNumber, roundAssignments)}
       `).join("") : emptyView("لا توجد أسئلة متاحة لهذا الدور حالياً.")}
     </div>
   `;
+}
+
+function sortParticipantTriviaRoundGroups(groups) {
+  return [...groups].sort((a, b) => {
+    const aDone = triviaRoundGroupComplete(a[1]);
+    const bDone = triviaRoundGroupComplete(b[1]);
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return a[0] - b[0];
+  });
+}
+
+function triviaRoundGroupComplete(assignments) {
+  return assignments.length > 0 && assignments.every(triviaAssignmentComplete);
 }
 
 function triviaRoundGroups(assignments) {

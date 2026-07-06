@@ -727,6 +727,7 @@ async function saveTriviaSettings(req, res) {
 async function saveTriviaRound(req, res) {
   const body = await readBody(req);
   await requireOrganizer(body.userId);
+  const roundRecordId = clean(body.roundRecordId);
   const roundId = normalizeRoundId(clean(body.roundId));
   if (!["r16", "qf", "sf", "final"].includes(roundId)) throw httpError(400, "الدور غير صحيح");
   const title = clean(body.title);
@@ -736,11 +737,12 @@ async function saveTriviaRound(req, res) {
   if (Number.isNaN(opensAtDate.getTime())) throw httpError(400, "وقت فتح الجولة غير صحيح");
   if (!title) throw httpError(400, "عنوان الجولة مطلوب");
   const existing = await fetchTriviaSettings();
+  const existingRound = roundRecordId ? existing.find(item => item.id === roundRecordId) : null;
   const nextOrder = Math.max(0, ...existing.filter(item => normalizeRoundId(item.round_id) === roundId).map(item => Number(item.sort_order) || 0)) + 1;
   const payload = {
     round_id: roundId,
     title,
-    sort_order: Math.max(1, Math.min(100, Number(body.sortOrder) || nextOrder)),
+    sort_order: Math.max(1, Math.min(100, Number(body.sortOrder) || Number(existingRound?.sort_order) || nextOrder)),
     easy_points: clampTriviaPoints(body.easyPoints, 10),
     medium_points: clampTriviaPoints(body.mediumPoints, 20),
     hard_points: clampTriviaPoints(body.hardPoints, 30),
@@ -750,15 +752,24 @@ async function saveTriviaRound(req, res) {
   };
   let round;
   try {
-    [round] = await supabase("worldcup2026friends_trivia_rounds", {
-      method: "POST",
-      body: JSON.stringify(payload),
-      prefer: "return=representation"
-    });
+    if (roundRecordId) {
+      [round] = await supabase(`worldcup2026friends_trivia_rounds?id=eq.${encodeURIComponent(roundRecordId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        prefer: "return=representation"
+      });
+    } else {
+      [round] = await supabase("worldcup2026friends_trivia_rounds", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        prefer: "return=representation"
+      });
+    }
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث opens_at لجولات س/ج");
   }
+  if (roundRecordId && !round) throw httpError(404, "الجولة غير موجودة");
   return res.status(200).json({ round });
 }
 

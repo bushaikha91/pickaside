@@ -98,6 +98,7 @@ const state = {
   addTriviaOpen: false,
   addTriviaRoundOpen: false,
   editTriviaQuestionId: null,
+  editTriviaRoundId: null,
   activeTriviaRoundKey: null,
   triviaModalError: "",
   triviaRoundModalError: "",
@@ -1075,6 +1076,7 @@ function triviaRoundList(roundId) {
           </div>
           <div class="trivia-admin-actions">
             <button class="mini-btn" data-trivia-results="${item.id}" type="button">النتائج</button>
+            <button class="mini-btn" data-trivia-round-edit="${item.id}" type="button">تعديل</button>
             <button class="mini-btn reject" data-trivia-round-delete="${item.id}" type="button">حذف</button>
           </div>
         </article>
@@ -1199,29 +1201,39 @@ function triviaResultAnswer(assignment) {
 }
 
 function triviaRoundModal() {
+  const editingRound = state.editTriviaRoundId
+    ? state.triviaSettings.find(item => item.id === state.editTriviaRoundId)
+    : null;
+  const isEditing = !!editingRound;
+  const title = editingRound?.title || "";
+  const roundId = normalizeRoundId(editingRound?.round_id || "r16");
+  const opensAt = datetimeLocalValue(editingRound?.opens_at);
+  const easyPoints = triviaSettingPoints(editingRound || {}, "easy") || 10;
+  const mediumPoints = triviaSettingPoints(editingRound || {}, "medium") || 20;
+  const hardPoints = triviaSettingPoints(editingRound || {}, "hard") || 30;
   return `
     <div class="modal-backdrop" data-trivia-round-modal-close>
       <section class="modal-card stack add-match-modal">
         <div class="section-title">
-          <h2>إضافة جولة</h2>
+          <h2>${isEditing ? "تعديل جولة" : "إضافة جولة"}</h2>
           <button class="icon-close" type="button" data-trivia-round-close>×</button>
         </div>
         <form class="stack trivia-form" id="triviaRoundForm">
           ${state.triviaRoundModalError ? `<div class="inline-error">${escapeHtml(state.triviaRoundModalError)}</div>` : ""}
-          <label class="field"><span>عنوان الجولة</span><input name="title" required placeholder="مثال: جولة معلومات الملاعب" /></label>
+          <label class="field"><span>عنوان الجولة</span><input name="title" required value="${escapeHtml(title)}" placeholder="مثال: جولة معلومات الملاعب" /></label>
           <label class="field">
             <span>تظهر في دور</span>
             <select name="roundId" required>
-              ${visibleRounds().map(round => `<option value="${round.id}">${round.name}</option>`).join("")}
+              ${visibleRounds().map(round => `<option value="${round.id}" ${normalizeRoundId(round.id) === roundId ? "selected" : ""}>${round.name}</option>`).join("")}
             </select>
           </label>
-          <label class="field"><span>وقت فتح الجولة</span><input name="opensAt" required type="datetime-local" /></label>
+          <label class="field"><span>وقت فتح الجولة</span><input name="opensAt" required type="datetime-local" value="${escapeHtml(opensAt)}" /></label>
           <div class="form-grid">
-            <label class="field"><span>نقاط السهل</span><input name="easyPoints" type="number" min="1" max="1000" value="10" /></label>
-            <label class="field"><span>نقاط المتوسط</span><input name="mediumPoints" type="number" min="1" max="1000" value="20" /></label>
-            <label class="field"><span>نقاط الصعب</span><input name="hardPoints" type="number" min="1" max="1000" value="30" /></label>
+            <label class="field"><span>نقاط السهل</span><input name="easyPoints" type="number" min="1" max="1000" value="${easyPoints}" /></label>
+            <label class="field"><span>نقاط المتوسط</span><input name="mediumPoints" type="number" min="1" max="1000" value="${mediumPoints}" /></label>
+            <label class="field"><span>نقاط الصعب</span><input name="hardPoints" type="number" min="1" max="1000" value="${hardPoints}" /></label>
           </div>
-          <button class="primary-btn" type="submit">إضافة الجولة</button>
+          <button class="primary-btn" type="submit">${isEditing ? "حفظ التعديل" : "إضافة الجولة"}</button>
         </form>
       </section>
     </div>
@@ -2790,12 +2802,23 @@ function bindApp() {
 
   document.querySelector("#addTriviaRoundToggle")?.addEventListener("click", () => {
     state.addTriviaRoundOpen = true;
+    state.editTriviaRoundId = null;
     state.triviaRoundModalError = "";
     render();
   });
 
+  document.querySelectorAll("[data-trivia-round-edit]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.addTriviaRoundOpen = true;
+      state.editTriviaRoundId = button.dataset.triviaRoundEdit;
+      state.triviaRoundModalError = "";
+      render();
+    });
+  });
+
   document.querySelector("[data-trivia-round-close]")?.addEventListener("click", () => {
     state.addTriviaRoundOpen = false;
+    state.editTriviaRoundId = null;
     state.triviaRoundModalError = "";
     render();
   });
@@ -2803,6 +2826,7 @@ function bindApp() {
   document.querySelector("[data-trivia-round-modal-close]")?.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.addTriviaRoundOpen = false;
+      state.editTriviaRoundId = null;
       state.triviaRoundModalError = "";
       render();
     }
@@ -2908,10 +2932,12 @@ function bindApp() {
     const button = form.querySelector("button[type='submit']");
     if (button) button.disabled = true;
     try {
+      const wasEditing = !!state.editTriviaRoundId;
       const payload = await api("trivia-round", {
         method: "POST",
         body: JSON.stringify({
           userId: state.currentUser.id,
+          roundRecordId: state.editTriviaRoundId,
           title: form.elements.title.value.trim(),
           roundId: form.elements.roundId.value,
           opensAt: datetimeLocalToIso(form.elements.opensAt.value),
@@ -2920,9 +2946,15 @@ function bindApp() {
           hardPoints: form.elements.hardPoints.value
         })
       });
-      if (payload.round?.id) state.triviaSettings = [...state.triviaSettings, payload.round];
-      state.notice = "تمت إضافة الجولة.";
+      if (payload.round?.id) {
+        const round = payload.round;
+        state.triviaSettings = state.triviaSettings.some(item => item.id === round.id)
+          ? state.triviaSettings.map(item => item.id === round.id ? { ...item, ...round } : item)
+          : [...state.triviaSettings, round];
+      }
+      state.notice = wasEditing ? "تم تعديل الجولة." : "تمت إضافة الجولة.";
       state.addTriviaRoundOpen = false;
+      state.editTriviaRoundId = null;
       state.triviaRoundModalError = "";
       render();
       loadData({ silent: true }).catch(() => {});

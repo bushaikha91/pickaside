@@ -3,14 +3,25 @@
   --muted: #667085;
   --line: #e5e7eb;
   --paper: #ffffff;
-  --surface: #f7f9fc;
-  --red: #d72235;
-  --green: #008c45;
-  --blue: #1f58b8;
-  --gold: #c69a2f;
-  --navy: #091b3f;
-  --header-gradient: linear-gradient(135deg, #071735 0%, #5b1423 42%, #0f6f4e 78%, #c49a35 122%);
-  --shadow: 0 18px 44px rgba(9, 27, 63, 0.16);
+  --surface: #fff9f1;
+  --red: #e10600;
+  --orange: #ff4b00;
+  --maroon: #7a1014;
+  --green: #00a862;
+  --deep-green: #005b4f;
+  --lime: #a8ff00;
+  --blue: #2437ff;
+  --purple: #6130f2;
+  --lavender: #b89cff;
+  --gold: #c79a33;
+  --navy: #08143a;
+  --header-gradient:
+    linear-gradient(135deg, rgba(122, 16, 20, 0.98) 0%, rgba(225, 6, 0, 0.96) 34%, rgba(255, 75, 0, 0.94) 52%, rgba(0, 91, 79, 0.95) 80%, rgba(36, 55, 255, 0.9) 126%),
+    linear-gradient(90deg, transparent 0 15%, rgba(168, 255, 0, 0.28) 15% 29%, transparent 29% 47%, rgba(184, 156, 255, 0.24) 47% 61%, transparent 61% 100%);
+  --action-gradient: linear-gradient(135deg, var(--red), var(--orange) 48%, var(--purple));
+  --success-gradient: linear-gradient(135deg, var(--deep-green), var(--green) 58%, var(--lime));
+  --accent-gradient: linear-gradient(135deg, var(--purple), var(--blue) 56%, var(--green));
+  --shadow: 0 18px 44px rgba(122, 16, 20, 0.15);
 }
 
 * {
@@ -23,9 +34,9 @@ body {
   color: var(--ink);
   font-family: "Segoe UI", Tahoma, Arial, sans-serif;
   background:
-    radial-gradient(circle at 12% 8%, rgba(215, 34, 53, 0.18), transparent 30%),
-    radial-gradient(circle at 88% 18%, rgba(0, 140, 69, 0.2), transparent 32%),
-    linear-gradient(135deg, #06183a 0%, #f6f8fb 42%, #ffffff 100%);
+    linear-gradient(135deg, rgba(225, 6, 0, 0.1) 0%, transparent 25%),
+    linear-gradient(225deg, rgba(168, 255, 0, 0.18) 0%, transparent 28%),
+    linear-gradient(180deg, #fff5ea 0%, #fff7ed 44%, #ffffff 100%);
 }
 
 button,
@@ -54,8 +65,8 @@ button {
   padding: 22px 20px 28px;
   color: #fff;
   background:
-    linear-gradient(145deg, rgba(9, 27, 63, 0.96), rgba(18, 55, 122, 0.9)),
-    conic-gradient(from 210deg, var(--red), var(--blue), var(--green), var(--red));
+    linear-gradient(145deg, rgba(122, 16, 20, 0.94), rgba(225, 6, 0, 0.82) 42%, rgba(0, 91, 79, 0.9)),
+    conic-gradient(from 210deg, var(--red), var(--orange), var(--lime), var(--blue), var(--purple), var(--red));
 }
 
 .hero::after {
@@ -96,8 +107,8 @@ button {
   font-weight: 900;
   line-height: 1;
   background:
-    linear-gradient(135deg, rgba(215, 34, 53, 0.9), rgba(31, 88, 184, 0.82)),
-    linear-gradient(45deg, var(--green), transparent);
+    linear-gradient(135deg, rgba(225, 6, 0, 0.95), rgba(255, 75, 0, 0.86) 45%, rgba(97, 48, 242, 0.82)),
+    linear-gradient(45deg, rgba(168, 255, 0, 0.55), transparent);
 }
 
 .logo-tile,
@@ -253,9 +264,9 @@ button {
 .tab.active,
 .round-tab.active,
 .choice.active {
-  border-color: var(--blue);
+  border-color: var(--green);
   color: #fff;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .primary-btn,
@@ -269,7 +280,7 @@ button {
 
 .primary-btn {
   color: #fff;
-  background: linear-gradient(135deg, var(--red), var(--blue));
+  background: var(--action-gradient);
 }
 
 .ghost-btn {
@@ -292,6 +303,7 @@ button {
   background-image: var(--header-gradient);
   background-size: 100% 210px;
   background-position: center top;
+  box-shadow: 0 12px 28px rgba(122, 16, 20, 0.14);
 }
 
 .topbar .mark {
@@ -349,10 +361,10 @@ button {
 }
 
 .tabs .tab.active {
-  border-color: rgba(255, 255, 255, 0.72);
-  color: #fff;
-  background: linear-gradient(135deg, rgba(199, 154, 47, 0.95), rgba(0, 140, 69, 0.92));
-  box-shadow: 0 8px 18px rgba(7, 23, 53, 0.2);
+  border-color: rgba(255, 255, 255, 0.78);
+  color: var(--navy);
+  background: linear-gradient(135deg, rgba(168, 255, 0, 0.96), rgba(0, 168, 98, 0.95));
+  box-shadow: 0 8px 18px rgba(8, 20, 58, 0.2);
 }
 
 .organizer-tabs {
@@ -390,13 +402,13 @@ button {
   border-radius: 8px;
   color: #fff;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--success-gradient);
 }
 
 .match-form-card {
   margin-bottom: 14px;
-  border-color: rgba(31, 88, 184, 0.28);
-  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  border-color: rgba(0, 168, 98, 0.28);
+  background: linear-gradient(180deg, #ffffff, #fff7ed);
 }
 
 .form-grid {
@@ -549,7 +561,7 @@ button {
 .participant-choice.active {
   border-color: transparent;
   color: #fff;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .participant-choice:disabled {
@@ -608,8 +620,8 @@ button {
   color: #fff;
   font-size: 16px;
   font-weight: 900;
-  background: linear-gradient(135deg, #d21f42, #2167c9 52%, #009368);
-  box-shadow: 0 12px 28px rgba(13, 42, 97, 0.18);
+  background: var(--action-gradient);
+  box-shadow: 0 12px 28px rgba(122, 16, 20, 0.18);
 }
 
 .poster-modal {
@@ -707,7 +719,7 @@ button {
   min-height: 25px;
   padding: 4px 8px;
   border-radius: 999px;
-  color: var(--blue);
+  color: var(--purple);
   font-size: 12px;
   font-weight: 800;
   background: #e8f0ff;
@@ -759,7 +771,7 @@ button {
   border: 1px solid var(--line);
   color: #fff;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .add-match-toggle:disabled {
@@ -957,7 +969,7 @@ button {
   font-weight: 800;
   line-height: 1.2;
   text-align: center;
-  background: linear-gradient(135deg, var(--green), var(--blue));
+  background: var(--success-gradient);
 }
 
 .admin-match-center.has-result {
@@ -1075,7 +1087,7 @@ button {
   font-size: 11px;
   font-weight: 900;
   text-align: center;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .vote-result-table {
@@ -1097,7 +1109,7 @@ button {
   color: #fff;
   font-size: 11px;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .vote-result-head > span,
@@ -1161,7 +1173,7 @@ button {
 }
 
 .vote-result-joker {
-  color: var(--blue);
+  color: var(--purple);
 }
 
 .trivia-result-summary {
@@ -1236,7 +1248,7 @@ button {
   margin-top: 10px;
   border: 1px solid rgba(31, 88, 184, 0.18);
   border-radius: 8px;
-  background: #f8fbff;
+  background: #fff7ed;
 }
 
 .manager-actions {
@@ -1309,7 +1321,7 @@ button {
   font-size: 12px;
   font-weight: 900;
   text-align: center;
-  background: #eef5ff;
+  background: #fff2e6;
 }
 
 .countdown.expired {
@@ -1334,7 +1346,7 @@ button {
 
 .joker-toggle.active {
   border-color: rgba(31, 88, 184, 0.45);
-  color: var(--blue);
+  color: var(--purple);
   background: #e8f1ff;
 }
 
@@ -1524,7 +1536,7 @@ button {
   padding: 8px 12px;
   border-radius: 10px;
   color: #e6fffb;
-  background: linear-gradient(135deg, var(--green), var(--blue));
+  background: var(--success-gradient);
 }
 
 .trivia-round-admin-cards .trivia-admin-row > div:nth-child(2) .small:nth-of-type(2) {
@@ -1558,7 +1570,7 @@ button {
   grid-column: 2;
   grid-row: 1;
   justify-self: end;
-  color: var(--blue);
+  color: var(--purple);
 }
 
 .trivia-round-admin-cards .trivia-admin-actions .mini-btn:nth-child(2) {
@@ -1613,9 +1625,9 @@ button {
 
 .trivia-page-tabs .tab.active,
 .trivia-level-tabs .tab.active {
-  border-color: var(--blue);
+  border-color: var(--green);
   color: #fff;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .trivia-card.correct {
@@ -1781,7 +1793,7 @@ button {
 }
 
 .points {
-  color: var(--blue);
+  color: var(--purple);
   font-size: 20px;
   font-weight: 900;
 }
@@ -1869,7 +1881,7 @@ button {
   white-space: normal;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
   word-break: keep-all;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .rank-head,
@@ -1894,11 +1906,11 @@ button {
 .standings-board .match-round-head,
 .standings-board .summary-head {
   color: #fff;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .standings-board .matrix-head-row .match-score-group {
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .standings-board .matrix-head-row .match-score-group .matrix-cell {
@@ -1915,7 +1927,7 @@ button {
 }
 
 .vote-results-link {
-  color: var(--blue);
+  color: var(--purple);
 }
 
 .matrix-player-row.podium-row .rank-cell,
@@ -2024,7 +2036,7 @@ button {
 }
 
 .summary-cell.percent-total {
-  color: var(--blue);
+  color: var(--purple);
 }
 
 .law-card {
@@ -2044,11 +2056,11 @@ button {
 
 .joker-law-card {
   border-color: rgba(31, 88, 184, 0.22);
-  background: linear-gradient(135deg, #ffffff, #eef5ff);
+  background: linear-gradient(135deg, #ffffff, #fff2e6);
 }
 
 .joker-law-card h3 {
-  color: var(--blue);
+  color: var(--purple);
 }
 
 .summary-grid {
@@ -2121,7 +2133,7 @@ button {
   color: #fff;
   font-size: 12px;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .compact-action {
@@ -2154,7 +2166,7 @@ button {
 .champion-add-card {
   margin-bottom: 14px;
   border-color: rgba(29, 78, 216, 0.18);
-  background: linear-gradient(180deg, #ffffff, #f7fbff);
+  background: linear-gradient(180deg, #ffffff, #fff8ef);
 }
 
 .champion-player {
@@ -2206,7 +2218,7 @@ button {
   color: #fff;
   font-size: 13px;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--blue), var(--green));
+  background: var(--accent-gradient);
 }
 
 .champion-media.flag {
@@ -2371,7 +2383,7 @@ button {
 .forgot-link {
   width: 100%;
   margin-top: 10px;
-  color: var(--blue);
+  color: var(--purple);
   font-size: 13px;
   font-weight: 900;
   background: transparent;
@@ -2533,7 +2545,7 @@ button {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f8fbff;
+  background: #fff7ed;
 }
 
 .participant-detail-head strong {
@@ -2597,7 +2609,7 @@ button {
   padding: 15px;
   border: 1px solid rgba(31, 88, 184, 0.22);
   border-radius: 8px;
-  background: linear-gradient(135deg, #ffffff, #eef5ff);
+  background: linear-gradient(135deg, #ffffff, #fff2e6);
 }
 
 .install-panel h2 {
@@ -2626,7 +2638,7 @@ button {
 
 .android-install {
   color: #fff;
-  background: linear-gradient(135deg, var(--green), var(--blue));
+  background: var(--success-gradient);
 }
 
 .ios-install {

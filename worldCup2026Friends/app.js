@@ -179,19 +179,13 @@ function render() {
 
 function loginTemplate() {
   return `
-    <section class="hero">
-      <div class="brand-row">
-        <div class="logo-tile"><img src="assets/worldcup-icon-192.png" alt="شعار كأس العالم 2026" /></div>
-        <span class="pill">بطولة مباشرة</span>
-      </div>
-      <img class="hero-logo" src="assets/worldcup-logo-wide.jpg" alt="FIFA World Cup 2026" />
-      <h1>كأس العالم 2026</h1>
-      <p>توقعات ونتائج وترتيب مباشر محفوظ على السيرفر لكل المشاركين.</p>
+    <section class="hero login-hero">
+      <img class="login-hero-image" src="assets/worldcup-2026-login-hero.jpg" alt="FIFA World Cup 2026" />
     </section>
-    <section class="content">
-      <form class="panel" id="loginForm">
+    <section class="content auth-content">
+      <form class="panel login-panel" id="loginForm">
         <h2>دخول البطولة</h2>
-        <p class="small" id="authHint">ادخل برقم الهاتف وكلمة المرور. إنشاء الحساب مطلوب أول مرة فقط.</p>
+        <p class="small" id="authHint">ادخل برقم الهاتف وكلمة المرور فقط.</p>
         <div id="loginError" class="notice danger-notice hidden"></div>
         <div class="field">
           <span>نوع العملية</span>

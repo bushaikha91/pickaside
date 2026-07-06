@@ -167,6 +167,23 @@ button {
   line-height: 1.65;
 }
 
+.login-hero {
+  min-height: 0;
+  padding: 0;
+  background: var(--red);
+}
+
+.login-hero::after {
+  content: none;
+}
+
+.login-hero-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -182,6 +199,11 @@ button {
   padding: 18px 16px 96px;
 }
 
+.auth-content {
+  padding: clamp(72px, 10vh, 104px) 18px 96px;
+  background: linear-gradient(180deg, #fff7ef 0%, #ffffff 64%);
+}
+
 .panel,
 .match-card,
 .leader-row,
@@ -194,6 +216,74 @@ button {
 
 .panel {
   padding: 16px;
+}
+
+.login-panel {
+  direction: rtl;
+  padding: 25px 24px 26px;
+  border-color: rgba(8, 20, 58, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 40px rgba(122, 16, 20, 0.08);
+}
+
+.login-panel h2 {
+  margin-bottom: 18px;
+  font-size: 24px;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.login-panel .small {
+  margin: -8px 0 24px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.login-panel .field {
+  gap: 9px;
+  margin-bottom: 20px;
+}
+
+.login-panel .field span {
+  font-size: 15px;
+}
+
+.login-panel .field input,
+.login-panel .field select {
+  min-height: 62px;
+  border-radius: 9px;
+  padding-inline: 18px;
+  font-size: 18px;
+}
+
+.login-panel .role-grid {
+  gap: 12px;
+}
+
+.login-panel .role-option {
+  min-height: 62px;
+  border-radius: 9px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.login-panel .role-option.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 46%, var(--green) 100%);
+  box-shadow: 0 10px 22px rgba(36, 55, 255, 0.14);
+}
+
+.login-panel .primary-btn {
+  min-height: 62px;
+  margin-top: 4px;
+  border-radius: 9px;
+  font-size: 18px;
+}
+
+.login-panel .forgot-link {
+  margin-top: 14px;
+  color: rgba(97, 48, 242, 0.48);
 }
 
 .section-title {

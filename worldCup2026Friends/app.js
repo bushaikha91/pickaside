@@ -273,6 +273,8 @@ function loginTemplate() {
 }
 
 function appTemplate() {
+  const matchAlert = state.currentUser.role === "participant" && hasPendingMatchVotes();
+  const triviaAlert = state.currentUser.role === "participant" && hasPendingTriviaRounds();
   const roleTabs = state.currentUser.role === "organizer"
     ? `
       <button class="tab ${activeTab === "manage" ? "active" : ""}" data-tab="manage">إدارة</button>
@@ -281,8 +283,8 @@ function appTemplate() {
       <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">س/ج</button>
     `
     : `
-      <button class="tab ${activeTab === "matches" ? "active" : ""}" data-tab="matches">المباريات</button>
-      <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">س/ج</button>
+      <button class="tab ${activeTab === "matches" ? "active" : ""} ${matchAlert ? "has-alert" : ""}" data-tab="matches">المباريات</button>
+      <button class="tab ${activeTab === "trivia" ? "active" : ""} ${triviaAlert ? "has-alert" : ""}" data-tab="trivia">س/ج</button>
     `;
 
   return `
@@ -319,6 +321,23 @@ function appTemplate() {
     ${state.addTriviaRoundOpen ? triviaRoundModal() : ""}
     ${state.activeTriviaRoundKey ? triviaParticipantRoundModal() : ""}
   `;
+}
+
+function hasPendingMatchVotes() {
+  return state.matches.some(match =>
+    !isHiddenRound(match.round_id) &&
+    !isVoteClosed(match) &&
+    !normalizePrediction(state.predictions[match.id])
+  );
+}
+
+function hasPendingTriviaRounds() {
+  return triviaRoundGroups(state.triviaAssignments).some(([roundNumber, assignments]) => {
+    if (triviaRoundGroupComplete(assignments)) return false;
+    const roundId = normalizeRoundId(assignments[0]?.round_id);
+    const setting = triviaRoundSetting(roundId, roundNumber);
+    return !triviaRoundOpenState(setting).locked;
+  });
 }
 
 function currentView() {

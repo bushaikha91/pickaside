@@ -1083,7 +1083,7 @@ function triviaRoundList(roundId) {
             <span class="small">${triviaRoundAdminSummary(item)}</span>
           </div>
           <div class="trivia-admin-actions">
-            <button class="mini-btn" data-trivia-results="${item.id}" type="button">النتائج</button>
+            <button class="mini-btn" data-trivia-results="${item.id}" type="button">${triviaRoundCompletionLabel(item)}</button>
             <button class="mini-btn" data-trivia-round-edit="${item.id}" type="button">تعديل</button>
             <button class="mini-btn reject" data-trivia-round-delete="${item.id}" type="button">حذف</button>
           </div>
@@ -1100,6 +1100,12 @@ function triviaRoundAdminSummary(round) {
   const correct = rows.reduce((sum, row) => sum + row.correctCount, 0);
   const points = rows.reduce((sum, row) => sum + row.points, 0);
   return `اكتمل ${completed}/${approvedCount} | صحيح ${correct} | نقاط ${points}`;
+}
+
+function triviaRoundCompletionLabel(round) {
+  const approvedCount = state.participants.filter(user => user.participant_status === "approved").length;
+  const completed = triviaRoundResultRows(round).filter(row => row.completedCount === 3).length;
+  return `اكتمل ${completed}/${approvedCount}`;
 }
 
 function triviaRoundResultRows(round) {

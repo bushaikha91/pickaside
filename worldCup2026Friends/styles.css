@@ -16,8 +16,8 @@
   --gold: #c79a33;
   --navy: #08143a;
   --header-gradient:
-    linear-gradient(135deg, rgba(122, 16, 20, 0.98) 0%, rgba(225, 6, 0, 0.96) 34%, rgba(255, 75, 0, 0.94) 52%, rgba(0, 91, 79, 0.95) 80%, rgba(36, 55, 255, 0.9) 126%),
-    linear-gradient(90deg, transparent 0 15%, rgba(168, 255, 0, 0.28) 15% 29%, transparent 29% 47%, rgba(184, 156, 255, 0.24) 47% 61%, transparent 61% 100%);
+    linear-gradient(180deg, rgba(8, 20, 58, 0.22), rgba(8, 20, 58, 0.18)),
+    url("assets/worldcup-2026-header-bg.jpg");
   --action-gradient: linear-gradient(135deg, var(--red), var(--orange) 48%, var(--purple));
   --success-gradient: linear-gradient(135deg, var(--deep-green), var(--green) 58%, var(--lime));
   --accent-gradient: linear-gradient(135deg, var(--purple), var(--blue) 56%, var(--green));

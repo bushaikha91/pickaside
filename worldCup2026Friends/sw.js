@@ -1,4 +1,4 @@
-const CACHE_NAME = "worldcup2026friends-app-v5";
+const CACHE_NAME = "worldcup2026friends-app-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -59,3 +59,4 @@ self.addEventListener("fetch", event => {
     })
   );
 });
+

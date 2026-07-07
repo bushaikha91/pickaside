@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 
 const ORGANIZER_CODE = process.env.WORLDCUP2026FRIENDS_ORGANIZER_CODE || "WC2026";
+const JOKER_RULE_VERSION = "round-of-8";
 
 const ROUND_RULES = {
   r32: { type: "fixed", total: 200, winnerStake: 150, safetyStake: 50 },

@@ -4,6 +4,7 @@ const ACTIVE_TAB_KEY = "wc2026friends-active-tab-v1";
 const STATE_CACHE_KEY = "wc2026friends-state-cache-v1";
 const APP_TIME_ZONE = "Asia/Dubai";
 const APP_TIME_OFFSET_MINUTES = 4 * 60;
+const JOKER_RULE_VERSION = "round-of-8";
 let deferredInstallPrompt = null;
 
 const rounds = [

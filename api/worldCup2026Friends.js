@@ -11,8 +11,8 @@ const ROUND_RULES = {
 };
 
 const ROUND_ORDER = ["r32", "r16", "qf", "sf", "final"];
-const JOKER_ROUNDS = new Set(["r16", "sf"]);
-const JOKER_LIMITS = { r16: 2, sf: 1 };
+const JOKER_ROUNDS = new Set(["r16", "qf"]);
+const JOKER_LIMITS = { r16: 2, qf: 1 };
 const ROUND_MATCH_LIMITS = {
   r32: 16,
   r16: 8,
@@ -314,7 +314,7 @@ async function savePrediction(req, res) {
 }
 
 async function validateJokerPick(userId, match) {
-  if (!JOKER_ROUNDS.has(match.round_id)) throw httpError(400, "الجوكر متاح في دور 16 ونصف النهائي فقط");
+  if (!JOKER_ROUNDS.has(match.round_id)) throw httpError(400, "الجوكر متاح في دور 16 ودور الـ 8 فقط");
   const predictions = await fetchUserPredictions(userId);
   const jokerMatchIds = predictions
     .filter(item => item.is_joker && item.match_id !== match.id)

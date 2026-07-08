@@ -1,4 +1,4 @@
-const CACHE_NAME = "worldcup2026friends-app-v8";
+const CACHE_NAME = "worldcup2026friends-app-v9";
 const APP_SHELL = [
   "./",
   "./index.html",

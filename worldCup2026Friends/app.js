@@ -2030,7 +2030,7 @@ function roundPosterData(roundId) {
     ...winner,
     roundId: normalizedRoundId,
     roundLabel: posterRoundLabel(normalizedRoundId),
-    title: normalizedRoundId === "final" ? "بطل بطولة التوقعات" : `بطل ${posterRoundLabel(normalizedRoundId)}`,
+    title: normalizedRoundId === "final" ? "بطل بطولة التوقعات" : `متصدر ${posterRoundLabel(normalizedRoundId)}`,
     subtitle: normalizedRoundId === "final" ? "بطولة توقعات العالم 2026" : `متصدر ${posterRoundLabel(normalizedRoundId)} في بطولة توقعات العالم 2026`,
     isFinal: normalizedRoundId === "final",
     accuracy: total ? Math.round((winner.correct / total) * 100) : 0,
@@ -2148,6 +2148,11 @@ function downloadPosterImage(canvas, data) {
 }
 
 async function drawRoundPoster(context, width, height, data) {
+  if (!data.isFinal) {
+    await drawLeaderPoster(context, width, height, data);
+    return;
+  }
+
   const palette = data.palette;
   context.clearRect(0, 0, width, height);
   const background = context.createLinearGradient(0, 0, width, height);
@@ -2175,6 +2180,51 @@ async function drawRoundPoster(context, width, height, data) {
   drawCenteredText(context, "شكراً لمشاركتك وتوقعاتك في بطولة العالم 2026", width / 2, 1670, 29, "rgba(255,255,255,.8)", 700);
 }
 
+async function drawLeaderPoster(context, width, height, data) {
+  const template = await loadPosterImage("assets/leader-poster-template.png");
+  context.clearRect(0, 0, width, height);
+
+  if (!template) {
+    await drawRoundPosterFallback(context, width, height, data);
+    return;
+  }
+
+  const circle = {
+    x: width / 2,
+    y: 610,
+    radius: 262
+  };
+
+  await drawTemplateAvatar(context, data, circle.x, circle.y, circle.radius * 2);
+  context.drawImage(template, 0, 0, width, height);
+
+  drawCenteredText(context, "المتصدر", width / 2, 975, 72, "#ffffff", 900);
+  drawCenteredTextFit(context, data.name, width / 2, 1065, 58, "#f8d46d", 900, 820);
+}
+
+async function drawRoundPosterFallback(context, width, height, data) {
+  const fallbackData = { ...data, isFinal: true };
+  await drawRoundPoster(context, width, height, fallbackData);
+}
+
+async function drawTemplateAvatar(context, data, x, y, size) {
+  context.save();
+  context.beginPath();
+  context.arc(x, y, size / 2, 0, Math.PI * 2);
+  context.clip();
+
+  const image = await loadPosterImage(data.avatar_url);
+  if (image) {
+    drawImageCover(context, image, x - size / 2, y - size / 2, size, size);
+  } else {
+    context.fillStyle = "#08143a";
+    context.fillRect(x - size / 2, y - size / 2, size, size);
+    drawCenteredText(context, initials(data.name), x, y + 8, 132, "rgba(255,255,255,.82)", 900);
+  }
+
+  context.restore();
+}
+
 function drawCenteredText(context, text, x, y, size, color, weight = 700) {
   context.save();
   context.direction = "rtl";
@@ -2182,6 +2232,22 @@ function drawCenteredText(context, text, x, y, size, color, weight = 700) {
   context.textBaseline = "middle";
   context.fillStyle = color;
   context.font = `${weight} ${size}px Tahoma, Arial, sans-serif`;
+  context.fillText(text, x, y);
+  context.restore();
+}
+
+function drawCenteredTextFit(context, text, x, y, size, color, weight = 700, maxWidth = Infinity) {
+  context.save();
+  context.direction = "rtl";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = color;
+  let fontSize = size;
+  do {
+    context.font = `${weight} ${fontSize}px Tahoma, Arial, sans-serif`;
+    if (context.measureText(String(text)).width <= maxWidth || fontSize <= 34) break;
+    fontSize -= 2;
+  } while (fontSize > 34);
   context.fillText(text, x, y);
   context.restore();
 }

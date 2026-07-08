@@ -2238,54 +2238,58 @@ function drawLeaderPosterStats(context, width, data) {
   const triviaAccuracy = triviaTotal ? Math.round((triviaCorrect / triviaTotal) * 100) : 0;
   const totalPoints = roundPoints(Number(data.total_points) || Number(data.points) || 0);
 
-  const cardY = 1160;
-  const cardW = 420;
-  const cardH = 138;
-  const gap = 28;
-  const leftX = width / 2 - cardW - gap / 2;
-  const rightX = width / 2 + gap / 2;
+  const panelX = 118;
+  const panelY = 1150;
+  const panelW = width - panelX * 2;
+  const panelH = 150;
+  const halfW = panelW / 2;
 
-  drawLeaderMetricCard(context, leftX, cardY, cardW, cardH, {
+  drawLeaderGlassPanel(context, panelX, panelY, panelW, panelH);
+  context.save();
+  context.strokeStyle = "rgba(123, 16, 20, 0.26)";
+  context.lineWidth = 3;
+  context.beginPath();
+  context.moveTo(width / 2, panelY + 22);
+  context.lineTo(width / 2, panelY + panelH - 22);
+  context.stroke();
+  context.restore();
+
+  drawLeaderMetricBlock(context, panelX, panelY, halfW, panelH, {
     label: "التوقعات الصحيحة",
     value: `${Number(data.correct) || 0}/${predictionTotal}`,
     detail: `دقة التوقعات ${predictionAccuracy}%`
   });
-  drawLeaderMetricCard(context, rightX, cardY, cardW, cardH, {
+  drawLeaderMetricBlock(context, panelX + halfW, panelY, halfW, panelH, {
     label: "إجابات س/ج الصحيحة",
     value: `${triviaCorrect}/${triviaTotal}`,
     detail: `دقة الإجابات ${triviaAccuracy}%`
   });
 
-  const totalY = 1348;
-  const totalW = 620;
+  const totalY = 1332;
   const totalH = 170;
-  const totalX = width / 2 - totalW / 2;
-  context.save();
-  context.fillStyle = "rgba(123, 16, 20, 0.76)";
-  context.strokeStyle = "#f8d46d";
-  context.lineWidth = 5;
-  roundRectPath(context, totalX, totalY, totalW, totalH, 34);
-  context.fill();
-  context.stroke();
-  context.restore();
+  drawLeaderGlassPanel(context, panelX, totalY, panelW, totalH);
+  drawCenteredText(context, "إجمالي النقاط", width / 2, totalY + 45, 34, "#7a1014", 900);
+  drawCenteredText(context, posterNumber(totalPoints), width / 2, totalY + 113, 74, "#08143a", 900);
 
-  drawCenteredText(context, "إجمالي النقاط", width / 2, totalY + 45, 34, "#ffffff", 900);
-  drawCenteredText(context, posterNumber(totalPoints), width / 2, totalY + 112, 72, "#f8d46d", 900);
+  drawCenteredTextFit(context, "تهانينا للمتصدر، وحظاً أوفر لباقي المتسابقين", width / 2, 1585, 38, "#ffffff", 900, 880);
+  drawCenteredTextFit(context, "المنافسة مستمرة والقادم أقوى", width / 2, 1640, 34, "#f8d46d", 900, 840);
 }
 
-function drawLeaderMetricCard(context, x, y, width, height, metric) {
+function drawLeaderGlassPanel(context, x, y, width, height) {
   context.save();
-  context.fillStyle = "rgba(255, 255, 255, 0.92)";
-  context.strokeStyle = "rgba(248, 212, 109, 0.9)";
+  context.fillStyle = "rgba(255, 255, 255, 0.84)";
+  context.strokeStyle = "rgba(255, 255, 255, 0.72)";
   context.lineWidth = 3;
-  roundRectPath(context, x, y, width, height, 24);
+  roundRectPath(context, x, y, width, height, 36);
   context.fill();
   context.stroke();
   context.restore();
+}
 
-  drawCenteredText(context, metric.label, x + width / 2, y + 35, 27, "#7a1014", 900);
-  drawCenteredText(context, metric.value, x + width / 2, y + 79, 42, "#08143a", 900);
-  drawCenteredText(context, metric.detail, x + width / 2, y + 116, 24, "#005b4f", 800);
+function drawLeaderMetricBlock(context, x, y, width, height, metric) {
+  drawCenteredText(context, metric.label, x + width / 2, y + 35, 25, "#7a1014", 900);
+  drawCenteredText(context, metric.value, x + width / 2, y + 83, 40, "#08143a", 900);
+  drawCenteredText(context, metric.detail, x + width / 2, y + 120, 23, "#005b4f", 800);
 }
 
 function drawCenteredText(context, text, x, y, size, color, weight = 700) {

@@ -5,7 +5,7 @@ const ORGANIZER_CODE = process.env.WORLDCUP2026_ORGANIZER_CODE || "WC2026";
 const ROUND_RULES = {
   r32: { type: "fixed", total: 200, winnerStake: 150, safetyStake: 50 },
   r16: { type: "fixed", total: 300, winnerStake: 250, safetyStake: 50 },
-  qf: { type: "bankroll", matchCount: 4, winnerPercent: 0.9, safetyPercent: 0.1 },
+  qf: { type: "bankroll", matchCount: 4, winnerPercent: 0.8, safetyPercent: 0.2 },
   sf: { type: "bankroll", matchCount: 2, winnerPercent: 0.9, safetyPercent: 0.1 },
   final: { type: "final" }
 };

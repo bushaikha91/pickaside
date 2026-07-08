@@ -2269,7 +2269,7 @@ function drawLeaderPosterStats(context, width, data) {
   const totalH = 170;
   drawLeaderGlassPanel(context, panelX, totalY, panelW, totalH);
   drawCenteredText(context, "إجمالي النقاط", width / 2, totalY + 45, 34, "#7a1014", 900);
-  drawCenteredText(context, posterNumber(totalPoints), width / 2, totalY + 113, 74, "#08143a", 900);
+  drawCenteredText(context, posterNumber(totalPoints), width / 2, totalY + 113, 74, "#f8d46d", 900);
 
   drawCenteredTextFit(context, "تهانينا للمتصدر، وحظاً أوفر لباقي المتسابقين", width / 2, 1585, 38, "#ffffff", 900, 880);
   drawCenteredTextFit(context, "المنافسة مستمرة والقادم أقوى", width / 2, 1640, 34, "#f8d46d", 900, 840);
@@ -2277,8 +2277,8 @@ function drawLeaderPosterStats(context, width, data) {
 
 function drawLeaderGlassPanel(context, x, y, width, height) {
   context.save();
-  context.fillStyle = "rgba(255, 255, 255, 0.84)";
-  context.strokeStyle = "rgba(255, 255, 255, 0.72)";
+  context.fillStyle = "rgba(255, 255, 255, 0.2)";
+  context.strokeStyle = "rgba(255, 255, 255, 0.38)";
   context.lineWidth = 3;
   roundRectPath(context, x, y, width, height, 36);
   context.fill();
@@ -2288,7 +2288,7 @@ function drawLeaderGlassPanel(context, x, y, width, height) {
 
 function drawLeaderMetricBlock(context, x, y, width, height, metric) {
   drawCenteredText(context, metric.label, x + width / 2, y + 35, 25, "#7a1014", 900);
-  drawCenteredText(context, metric.value, x + width / 2, y + 83, 40, "#08143a", 900);
+  drawCenteredText(context, metric.value, x + width / 2, y + 83, 40, "#ffffff", 900);
   drawCenteredText(context, metric.detail, x + width / 2, y + 120, 23, "#005b4f", 800);
 }
 

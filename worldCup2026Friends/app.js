@@ -1801,9 +1801,10 @@ function summaryView() {
 function matchCard(match, prediction) {
   const locked = isVoteClosed(match);
   const selected = prediction?.winner || prediction || "";
-  const isJoker = !!prediction?.is_joker;
+  const fixedJoker = fixedRound8JokerMatch(match);
+  const isJoker = fixedJoker && selected ? true : !!prediction?.is_joker;
   const points = state.matchPoints[match.id];
-  const canUseJoker = shouldShowJokerButton(match, isJoker);
+  const canUseJoker = shouldShowJokerButton(match, isJoker, selected);
   const status = participantMatchStatus(match, selected, points, locked);
   return `
     <article class="match-card participant-match-card ${locked ? "locked-card" : ""}">
@@ -1816,8 +1817,8 @@ function matchCard(match, prediction) {
         ${participantChoiceButton(match, match.team_b, match.team_b_flag, selected, locked, isJoker)}
       </div>
       ${canUseJoker ? `
-        <button class="joker-toggle participant-joker ${isJoker ? "active" : ""}" ${locked ? "disabled" : ""} data-joker="${match.id}" type="button">
-          ${isJoker ? "الجوكر مفعل ×2" : "تفعيل الجوكر ×2"}
+        <button class="joker-toggle participant-joker ${isJoker ? "active" : ""}" ${locked || fixedJoker ? "disabled" : ""} data-joker="${match.id}" type="button">
+          ${fixedJoker ? "\u0627\u0644\u062c\u0648\u0643\u0631 \u062b\u0627\u0628\u062a \u0644\u0647\u0630\u0647 \u0627\u0644\u0645\u0628\u0627\u0631\u0627\u0629 \u00d72" : isJoker ? "\u0627\u0644\u062c\u0648\u0643\u0631 \u0645\u0641\u0639\u0644 \u00d72" : "\u062a\u0641\u0639\u064a\u0644 \u0627\u0644\u062c\u0648\u0643\u0631 \u00d72"}
         </button>
       ` : ""}
       <div class="participant-match-footer">
@@ -1839,12 +1840,33 @@ function participantChoiceButton(match, team, flagUrl, selected, locked, isJoker
   `;
 }
 
-function shouldShowJokerButton(match, isJoker) {
+function shouldShowJokerButton(match, isJoker, selected = "") {
   const roundId = normalizeRoundId(match.round_id);
+  if (roundId === "qf") return fixedRound8JokerMatch(match) && !!selected;
   const limit = jokerLimits[roundId] || 0;
   if (!limit) return false;
   if (isJoker) return true;
   return usedJokersInRound(roundId) < limit;
+}
+
+function fixedRound8JokerMatch(match) {
+  if (normalizeRoundId(match?.round_id) !== "qf") return false;
+  const teams = new Set([normalizedTeamKey(match.team_a), normalizedTeamKey(match.team_b)]);
+  return teams.has("england") && teams.has("norway");
+}
+
+function normalizedTeamKey(value) {
+  const text = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, "ا")
+    .replace(/[ة]/g, "ه")
+    .replace(/[ى]/g, "ي")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+  if (["england", "انجلترا", "انكلترا"].includes(text)) return "england";
+  if (["norway", "النرويج", "نرويج"].includes(text)) return "norway";
+  return text;
 }
 
 function usedJokersInRound(roundId) {

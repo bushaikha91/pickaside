@@ -2198,7 +2198,7 @@ async function drawLeaderPoster(context, width, height, data) {
   await drawTemplateAvatar(context, data, circle.x, circle.y, circle.radius * 2);
   context.drawImage(template, 0, 0, width, height);
 
-  drawCenteredText(context, "المتصدر", width / 2, 975, 72, "#ffffff", 900);
+  drawCenteredTextFit(context, `المتصدر ل${data.roundLabel} من بطولة التوقعات`, width / 2, 975, 48, "#ffffff", 900, 900);
   drawCenteredTextFit(context, data.name, width / 2, 1065, 58, "#f8d46d", 900, 820);
 }
 

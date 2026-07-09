@@ -274,7 +274,7 @@ async function savePrediction(req, res) {
   const userId = clean(body.userId);
   const matchId = clean(body.matchId);
   const winner = clean(body.winner);
-  const isJoker = body.isJoker === true;
+  const requestedJoker = body.isJoker === true;
   if (!userId || !matchId || !winner) throw httpError(400, "بيانات التوقع غير مكتملة");
   await requireApprovedParticipant(userId);
 
@@ -284,6 +284,7 @@ async function savePrediction(req, res) {
   if (match.winner) throw httpError(409, "تم إغلاق التصويت بعد اعتماد نتيجة المباراة");
   if (!match.vote_ends_at || new Date(match.vote_ends_at) <= serverNow) throw httpError(409, "انتهى وقت التصويت لهذه المباراة");
   if (![match.team_a, match.team_b].includes(winner)) throw httpError(400, "الفائز المختار غير صحيح");
+  const isJoker = fixedRound8JokerMatch(match) ? true : normalizeRoundId(match.round_id) === "qf" ? false : requestedJoker;
   if (isJoker) await validateJokerPick(userId, match);
 
   await supabase("worldcup2026_predictions?on_conflict=user_id,match_id", {
@@ -295,16 +296,21 @@ async function savePrediction(req, res) {
 }
 
 async function validateJokerPick(userId, match) {
-  if (!JOKER_ROUNDS.has(match.round_id)) throw httpError(400, "الجوكر متاح في دور 16 ودور الـ 8 فقط");
+  const roundId = normalizeRoundId(match.round_id);
+  if (roundId === "qf" && !fixedRound8JokerMatch(match)) throw httpError(400, "\u062c\u0648\u0643\u0631 \u062f\u0648\u0631 \u0627\u0644\u0640 8 \u062b\u0627\u0628\u062a \u0639\u0644\u0649 \u0645\u0628\u0627\u0631\u0627\u0629 \u0625\u0646\u062c\u0644\u062a\u0631\u0627 \u0648\u0627\u0644\u0646\u0631\u0648\u064a\u062c \u0641\u0642\u0637");
+  if (!JOKER_ROUNDS.has(roundId)) throw httpError(400, "الجوكر متاح في دور 16 ودور الـ 8 فقط");
   const predictions = await fetchUserPredictions(userId);
   const jokerMatchIds = predictions
     .filter(item => item.is_joker && item.match_id !== match.id)
     .map(item => item.match_id);
   if (!jokerMatchIds.length) return;
-  const roundMatches = await supabase(`worldcup2026_matches?round_id=eq.${encodeURIComponent(match.round_id)}&select=id`);
+  const roundQuery = roundId === "qf"
+    ? "worldcup2026_matches?round_id=in.(r8,qf)&select=id"
+    : `worldcup2026_matches?round_id=eq.${encodeURIComponent(roundId)}&select=id`;
+  const roundMatches = await supabase(roundQuery);
   const sameRoundIds = new Set(roundMatches.map(item => item.id));
   const usedInRound = jokerMatchIds.filter(id => sameRoundIds.has(id)).length;
-  const limit = JOKER_LIMITS[match.round_id] || 1;
+  const limit = JOKER_LIMITS[roundId] || 1;
   if (usedInRound >= limit) throw httpError(409, `استخدمت الحد المسموح للجوكر في هذا الدور (${limit})`);
 }
 
@@ -808,6 +814,28 @@ function setCors(res) {
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function fixedRound8JokerMatch(match) {
+  if (normalizeRoundId(match?.round_id) !== "qf") return false;
+  const teamA = normalizedTeamKey(match.team_a);
+  const teamB = normalizedTeamKey(match.team_b);
+  const teams = new Set([teamA, teamB]);
+  return teams.has("england") && teams.has("norway");
+}
+
+function normalizedTeamKey(value) {
+  const text = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\u0623\u0625\u0622]/g, "\u0627")
+    .replace(/[\u0629]/g, "\u0647")
+    .replace(/[\u0649]/g, "\u064a")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+  if (["england", "\u0627\u0646\u062c\u0644\u062a\u0631\u0627", "\u0627\u0646\u0643\u0644\u062a\u0631\u0627"].includes(text)) return "england";
+  if (["norway", "\u0627\u0644\u0646\u0631\u0648\u064a\u062c", "\u0646\u0631\u0648\u064a\u062c"].includes(text)) return "norway";
+  return text;
 }
 
 function roundName(id) {

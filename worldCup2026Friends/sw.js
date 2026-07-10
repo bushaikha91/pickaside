@@ -1,11 +1,11 @@
-const CACHE_NAME = "worldcup2026friends-app-v16";
+const CACHE_NAME = "worldcup2026friends-app-v17";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./assets/final-champion-poster-template.png",
+  "./assets/final-champion-poster-template.jpg",
   "./assets/leader-poster-template.png",
   "./assets/worldcup-2026-header-bg.jpg",
   "./assets/worldcup-2026-login-hero.jpg",

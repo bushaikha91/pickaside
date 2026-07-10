@@ -2180,7 +2180,7 @@ async function drawRoundPoster(context, width, height, data) {
 }
 
 async function drawFinalChampionPoster(context, width, height, data) {
-  const template = await loadPosterImage("assets/final-champion-poster-template.png");
+  const template = await loadPosterImage("assets/final-champion-poster-template.jpg");
   if (!template) {
     await drawGeneratedFinalPoster(context, width, height, data);
     return;

@@ -51,7 +51,7 @@ const laws = {
   r16: "كل مباراة قيمتها 300 نقطة: 250 نقطة لترشيح الفائز و50 نقطة للترشيح الأقل. نقاط التوقعات الخاطئة تتجمع وتتوزع بالتساوي على أصحاب التوقع الصحيح.",
   r8: "كل مباراة في دور الـ 8 قيمتها 450 نقطة: 350 نقطة لترشيح الفائز و100 نقطة للترشيح الأقل. نقاط الخسارة تتوزع على أصحاب التوقع الصحيح.",
   qf: "ربع النهائي يعمل بنفس نظام دور الـ 8: كل مباراة قيمتها 450 نقطة، 350 نقطة لترشيح الفائز و100 نقطة للترشيح الأقل. نقاط الخسارة تتوزع على أصحاب التوقع الصحيح.",
-  sf: "رصيد كل مشارك قبل نصف النهائي ينقسم على مباراتين. في كل مباراة 90% للفائز و10% للترشيح الأقل، وخسائر التوقعات الخاطئة تتوزع على أصحاب التوقع الصحيح.",
+  sf: "رصيد كل مشارك قبل نصف النهائي ينقسم على عدد مباريات الدور. يحدد المتسابق نسبة نقاط الفائز بين 60% و90%، والنظام يحسب المتبقي تلقائياً للفريق الآخر. خسائر التوقعات الخاطئة تتوزع على أصحاب التوقع الصحيح.",
   final: "في النهائي يذهب كامل رصيد المشارك لترشيح الفائز. بعد إدخال النتيجة، أرصدة أصحاب التوقع الخاطئ تتوزع بالتساوي على أصحاب التوقع الصحيح ويحدد البطل."
 };
 
@@ -60,7 +60,7 @@ const displayLaws = {
   r16: "كل مباراة قيمتها 300 نقطة. عند اختيار الفريق المتوقع فوزه يتم وضع 250 نقطة على الفائز و50 نقطة على الفريق الآخر. إذا كان توقعك صحيحاً تحصل على 250 نقطة، وتُلغى الـ 50 نقطة الخاصة بترشيح الخسارة ولا تدخل في بول الخسارة. إذا كان توقعك خطأ تحصل على 50 نقطة فقط، وتذهب الـ 250 نقطة لتوزع على أصحاب التوقع الصحيح. الجوكر متاح في هذا الدور لمباراتين فقط.",
   r8: "كل مباراة في دور الـ 8 قيمتها 450 نقطة. عند اختيار الفريق المتوقع فوزه يتم وضع 350 نقطة على الفائز و100 نقطة على الفريق الآخر. إذا كان توقعك صحيحاً تحصل على 350 نقطة، وتُلغى الـ 100 نقطة الخاصة بترشيح الخسارة ولا تدخل في بول الخسارة. إذا كان توقعك خطأ تحصل على 100 نقطة فقط، وتذهب الـ 350 نقطة إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح في نفس المباراة.",
   qf: "ربع النهائي يعمل بنظام دور الـ 8: كل مباراة قيمتها 450 نقطة. عند اختيار الفريق المتوقع فوزه يتم وضع 350 نقطة على الفائز و100 نقطة على الفريق الآخر. إذا كان توقعك صحيحاً تحصل على 350 نقطة، وتُلغى الـ 100 نقطة الخاصة بترشيح الخسارة ولا تدخل في بول الخسارة. إذا كان توقعك خطأ تحصل على 100 نقطة فقط، وتذهب الـ 350 نقطة إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح بعد اعتماد النتيجة. الجوكر متاح في هذا الدور لمباراة واحدة فقط.",
-  sf: "رصيد كل مشارك قبل نصف النهائي يقسم على مباراتين. في كل مباراة يذهب 90% من حصة المباراة للفريق المتوقع فوزه و10% للفريق الآخر. حصة الخسارة للتوقع الصحيح تُلغى، ونقاط التوقعات الخاطئة فقط توزع على أصحاب التوقع الصحيح.",
+  sf: "رصيد كل مشارك قبل نصف النهائي يقسم على عدد مباريات الدور. عند اختيار الفائز يحدد المتسابق نسبة نقاط الفائز بين 60% و90%، ويحسب النظام النسبة المتبقية للفريق الآخر تلقائياً. إذا كان التوقع صحيحاً يحصل على نقاط نسبة الفائز وتُلغى النسبة المتبقية ولا تدخل في بول الخسارة. إذا كان التوقع خطأ يحصل على النسبة المتبقية فقط، وتذهب نقاط نسبة الفائز إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح.",
   final: "في المباراة النهائية يضع كل مشارك كامل رصيده على الفريق الذي يتوقع فوزه. بعد اعتماد النتيجة، أرصدة أصحاب التوقع الخاطئ توزع بالتساوي على أصحاب التوقع الصحيح، وبناءً على الرصيد النهائي يتحدد بطل البطولة."
 };
 
@@ -823,10 +823,29 @@ function standingsView() {
 function normalizePrediction(prediction) {
   if (!prediction) return null;
   if (typeof prediction === "string") return { winner: prediction, is_joker: false };
-  return { ...prediction, is_joker: !!prediction.is_joker };
+  return { ...prediction, is_joker: !!prediction.is_joker, winner_percent: normalizeWinnerPercent(prediction.winner_percent) };
 }
 
-function setOptimisticPrediction(matchId, winner, isJoker) {
+function normalizeWinnerPercent(value) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return null;
+  const decimal = percent > 1 ? percent / 100 : percent;
+  return Math.min(0.9, Math.max(0.6, decimal));
+}
+
+function predictionWinnerPercent(prediction) {
+  return normalizeWinnerPercent(prediction?.winner_percent) || 0.9;
+}
+
+function winnerPercentValue(prediction) {
+  return Math.round(predictionWinnerPercent(prediction) * 100);
+}
+
+function isCustomPercentMatch(match) {
+  return normalizeRoundId(match?.round_id) === "sf";
+}
+
+function setOptimisticPrediction(matchId, winner, isJoker, winnerPercent = null, pendingPercentSave = false) {
   const previous = normalizePrediction(state.predictions[matchId]);
   const previousPredictions = state.predictions;
   const nextPredictions = { ...state.predictions };
@@ -848,7 +867,9 @@ function setOptimisticPrediction(matchId, winner, isJoker) {
     ...(previous || {}),
     match_id: matchId,
     winner,
-    is_joker: !!isJoker
+    is_joker: !!isJoker,
+    winner_percent: normalizeWinnerPercent(winnerPercent) ?? previous?.winner_percent ?? null,
+    pending_percent_save: !!pendingPercentSave
   };
   state.predictions = nextPredictions;
   return isJoker ? { __snapshot: true, predictions: previousPredictions } : previous;
@@ -1885,7 +1906,11 @@ function matchCard(match, prediction) {
   const isJoker = !!prediction?.is_joker;
   const points = state.matchPoints[match.id];
   const canUseJoker = shouldShowJokerButton(match, isJoker);
+  const percentBox = isCustomPercentMatch(match) && selected ? participantWinnerPercentBox(match, prediction, locked) : "";
   const status = participantMatchStatus(match, selected, points, locked);
+  const pickText = selected
+    ? prediction?.pending_percent_save ? "حدد النسبة ثم اضغط حفظ الترشيح" : `تم حفظ توقعك: ${escapeHtml(selected)}`
+    : "اختر الفائز لحفظ توقعك";
   return `
     <article class="match-card participant-match-card ${locked ? "locked-card" : ""}">
       <div class="participant-match-top">
@@ -1896,6 +1921,7 @@ function matchCard(match, prediction) {
         ${participantChoiceButton(match, match.team_a, match.team_a_flag, selected, locked, isJoker)}
         ${participantChoiceButton(match, match.team_b, match.team_b_flag, selected, locked, isJoker)}
       </div>
+      ${percentBox}
       ${canUseJoker ? `
         <button class="joker-toggle participant-joker ${isJoker ? "active" : ""}" ${locked ? "disabled" : ""} data-joker="${match.id}" type="button">
           ${isJoker ? "الجوكر مفعل ×2" : "تفعيل الجوكر ×2"}
@@ -1903,9 +1929,30 @@ function matchCard(match, prediction) {
       ` : ""}
       <div class="participant-match-footer">
         ${status}
-        <span class="saved-pick">${selected ? `تم حفظ توقعك: ${escapeHtml(selected)}` : "اختر الفائز لحفظ توقعك"}</span>
+        <span class="saved-pick">${pickText}</span>
       </div>
     </article>
+  `;
+}
+
+function participantWinnerPercentBox(match, prediction, locked) {
+  const winnerPercent = winnerPercentValue(prediction);
+  const safetyPercent = 100 - winnerPercent;
+  const selected = prediction?.winner || "";
+  return `
+    <div class="winner-percent-box">
+      <label class="winner-percent-field">
+        <span>نسبة نقاط الفائز</span>
+        <input type="number" min="60" max="90" step="1" value="${winnerPercent}" ${locked ? "disabled" : ""} data-winner-percent="${match.id}" />
+      </label>
+      <div class="winner-percent-preview">
+        <span>${winnerPercent}% للفائز</span>
+        <span>${safetyPercent}% للفريق الآخر</span>
+      </div>
+      <button class="primary-btn winner-percent-save" type="button" ${locked ? "disabled" : ""} data-save-percent-pick="${match.id}" data-team="${escapeHtml(selected)}">
+        حفظ الترشيح
+      </button>
+    </div>
   `;
 }
 
@@ -2706,13 +2753,16 @@ function voteResultTeamView(name, flagUrl) {
 
 function voteResultRow(row, match) {
   const picked = row.prediction?.winner || "لم يصوت";
+  const percentText = row.prediction && isCustomPercentMatch(match)
+    ? ` | ${winnerPercentValue(row.prediction)}%`
+    : "";
   const pickedClass = row.prediction
     ? row.prediction.winner === match.team_a ? "team-a" : "team-b"
     : "missing";
   return `
     <div class="vote-result-row">
       <span class="vote-result-player">${avatarTile(row.user, "vote-avatar")}<strong>${escapeHtml(row.user.name)}</strong></span>
-      <span class="vote-result-pick ${pickedClass}">${escapeHtml(picked)}</span>
+      <span class="vote-result-pick ${pickedClass}">${escapeHtml(picked)}${percentText}</span>
       <span class="vote-result-joker">${row.prediction?.is_joker ? "×2" : "-"}</span>
     </div>
   `;
@@ -3672,6 +3722,14 @@ function bindApp() {
       const matchId = button.dataset.pick;
       const winner = button.dataset.team;
       const isJoker = button.dataset.jokerState === "true";
+      const match = state.matches.find(item => item.id === matchId);
+      if (isCustomPercentMatch(match)) {
+        setOptimisticPrediction(matchId, winner, isJoker, null, true);
+        state.notice = "حدد نسبة نقاط الفائز ثم اضغط حفظ الترشيح.";
+        state.error = "";
+        render();
+        return;
+      }
       const requestSeq = ++predictionSaveSeq;
       const previous = setOptimisticPrediction(matchId, winner, isJoker);
       state.error = "";
@@ -3692,6 +3750,63 @@ function bindApp() {
       } catch (error) {
         if (requestSeq === predictionSaveSeq) restorePrediction(matchId, previous);
         state.error = error.message || "تعذر حفظ التوقع";
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-winner-percent]").forEach(input => {
+    input.addEventListener("change", () => {
+      const matchId = input.dataset.winnerPercent;
+      const prediction = normalizePrediction(state.predictions[matchId]);
+      if (!prediction) return;
+      const value = Math.min(90, Math.max(60, Number(input.value) || 90));
+      const next = { ...state.predictions };
+      next[matchId] = { ...prediction, winner_percent: value / 100 };
+      state.predictions = next;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-save-percent-pick]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const matchId = button.dataset.savePercentPick;
+      const prediction = normalizePrediction(state.predictions[matchId]);
+      const winner = prediction?.winner || button.dataset.team;
+      if (!winner) {
+        state.notice = "اختر الفائز أولاً.";
+        render();
+        return;
+      }
+      const percentInput = document.querySelector(`[data-winner-percent="${matchId}"]`);
+      const winnerPercent = Math.round(Number(percentInput?.value) || winnerPercentValue(prediction));
+      if (winnerPercent < 60 || winnerPercent > 90) {
+        state.error = "نسبة ترشيح الفائز يجب أن تكون بين 60% و90%.";
+        render();
+        return;
+      }
+      const requestSeq = ++predictionSaveSeq;
+      const previous = normalizePrediction(prediction);
+      setOptimisticPrediction(matchId, winner, !!prediction?.is_joker, winnerPercent / 100, false);
+      state.error = "";
+      render();
+      try {
+        await api("prediction", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: state.currentUser.id,
+            matchId,
+            winner,
+            winnerPercent,
+            isJoker: !!prediction?.is_joker
+          })
+        });
+        if (requestSeq !== predictionSaveSeq) return;
+        state.notice = "تم حفظ ترشيحك ونسبة نقاط الفائز.";
+        await loadData({ silent: true });
+      } catch (error) {
+        if (requestSeq === predictionSaveSeq) restorePrediction(matchId, previous);
+        state.error = error.message || "تعذر حفظ الترشيح";
         render();
       }
     });

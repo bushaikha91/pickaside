@@ -83,6 +83,9 @@ create table if not exists public.worldcup2026friends_predictions (
 alter table public.worldcup2026friends_predictions
   add column if not exists is_joker boolean not null default false;
 
+alter table public.worldcup2026friends_predictions
+  add column if not exists winner_percent numeric(5,4);
+
 revoke insert, update, delete on table public.worldcup2026friends_predictions from anon;
 revoke insert, update, delete on table public.worldcup2026friends_predictions from authenticated;
 grant select on table public.worldcup2026friends_predictions to anon;

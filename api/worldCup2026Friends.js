@@ -7,7 +7,7 @@ const ROUND_RULES = {
   r32: { type: "fixed", total: 200, winnerStake: 150, safetyStake: 50 },
   r16: { type: "fixed", total: 300, winnerStake: 250, safetyStake: 50 },
   qf: { type: "fixed", total: 450, winnerStake: 350, safetyStake: 100 },
-  sf: { type: "bankroll", matchCount: 2, winnerPercent: 0.9, safetyPercent: 0.1 },
+  sf: { type: "bankroll", matchCount: 2, winnerPercent: 0.9, safetyPercent: 0.1, customWinnerPercent: true, minWinnerPercent: 0.6, maxWinnerPercent: 0.9 },
   final: { type: "final" }
 };
 
@@ -85,7 +85,7 @@ async function sendState(req, res) {
   return res.status(200).json({
     user,
     matches: isOrganizer ? enrichMatchesForOrganizer(matches, participants, tournament.predictions) : matches,
-    predictions: Object.fromEntries(predictions.map(item => [item.match_id, { winner: item.winner, is_joker: !!item.is_joker }])),
+    predictions: Object.fromEntries(predictions.map(item => [item.match_id, { winner: item.winner, is_joker: !!item.is_joker, winner_percent: item.winner_percent ?? null }])),
     matchPoints: userId ? tournament.matchPoints[userId] || {} : {},
     allPredictions: isOrganizer || isApprovedParticipant ? tournament.predictions : [],
     allMatchPoints: isOrganizer || isApprovedParticipant ? tournament.matchPoints : {},
@@ -171,11 +171,11 @@ async function fetchStandingUsers() {
 async function fetchUserPredictions(userId) {
   const id = encodeURIComponent(userId);
   try {
-    return await supabase(`worldcup2026friends_predictions?select=match_id,winner,is_joker&user_id=eq.${id}`);
+    return await supabase(`worldcup2026friends_predictions?select=match_id,winner,is_joker,winner_percent&user_id=eq.${id}`);
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return (await supabase(`worldcup2026friends_predictions?select=match_id,winner&user_id=eq.${id}`))
-      .map(item => ({ ...item, is_joker: false }));
+      .map(item => ({ ...item, is_joker: false, winner_percent: null }));
   }
 }
 
@@ -319,12 +319,30 @@ async function savePrediction(req, res) {
   if (![match.team_a, match.team_b].includes(winner)) throw httpError(400, "الفائز المختار غير صحيح");
   if (isJoker) await validateJokerPick(userId, match);
 
+  const roundId = normalizeRoundId(match.round_id);
+  const rule = ROUND_RULES[roundId];
+  const winnerPercent = rule?.customWinnerPercent
+    ? parseWinnerPercent(body.winnerPercent ?? body.winner_percent, rule)
+    : null;
+  const payload = { user_id: userId, match_id: matchId, winner, is_joker: isJoker, updated_at: new Date().toISOString() };
+  if (winnerPercent !== null) payload.winner_percent = winnerPercent;
+
   await supabase("worldcup2026friends_predictions?on_conflict=user_id,match_id", {
     method: "POST",
     prefer: "resolution=merge-duplicates,return=representation",
-    body: JSON.stringify({ user_id: userId, match_id: matchId, winner, is_joker: isJoker, updated_at: new Date().toISOString() })
+    body: JSON.stringify(payload)
   });
   return res.status(200).json({ ok: true });
+}
+
+function parseWinnerPercent(value, rule) {
+  const raw = value === undefined || value === null || value === "" ? rule.winnerPercent : Number(value);
+  const percent = raw > 1 ? raw / 100 : raw;
+  if (!Number.isFinite(percent)) throw httpError(400, "نسبة ترشيح الفائز غير صحيحة");
+  if (percent < rule.minWinnerPercent || percent > rule.maxWinnerPercent) {
+    throw httpError(400, "نسبة ترشيح الفائز يجب أن تكون بين 60% و90%");
+  }
+  return Math.round(percent * 10000) / 10000;
 }
 
 async function validateJokerPick(userId, match) {
@@ -1256,11 +1274,11 @@ async function calculateTournament() {
 
 async function fetchAllPredictions() {
   try {
-    return await supabase("worldcup2026friends_predictions?select=user_id,match_id,winner,is_joker");
+    return await supabase("worldcup2026friends_predictions?select=user_id,match_id,winner,is_joker,winner_percent");
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return (await supabase("worldcup2026friends_predictions?select=user_id,match_id,winner"))
-      .map(item => ({ ...item, is_joker: false }));
+      .map(item => ({ ...item, is_joker: false, winner_percent: null }));
   }
 }
 
@@ -1351,11 +1369,13 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, 
         continue;
       }
       const correct = prediction.winner === match.winner;
-      const baseReturn = matchBudget * (correct ? rule.winnerPercent : rule.safetyPercent);
-      matchStakes[user.id][match.id] = stakeRow(match, prediction.winner, matchBudget * rule.winnerPercent, matchBudget * rule.safetyPercent);
+      const winnerPercent = predictionWinnerPercent(prediction, rule);
+      const safetyPercent = 1 - winnerPercent;
+      const baseReturn = matchBudget * (correct ? winnerPercent : safetyPercent);
+      matchStakes[user.id][match.id] = stakeRow(match, prediction.winner, matchBudget * winnerPercent, matchBudget * safetyPercent);
       outcomes.set(user.id, { correct, baseReturn, isJoker: !!prediction.is_joker });
       if (correct) correctUsers.push(user.id);
-      else lostPool += matchBudget * rule.winnerPercent;
+      else lostPool += matchBudget * winnerPercent;
     }
 
     const correctShare = correctUsers.length ? lostPool / correctUsers.length : 0;
@@ -1373,6 +1393,13 @@ function applyBankrollRound(users, stats, predictionByUserMatch, matches, rule, 
   for (const user of users) {
     stats.get(user.id).points = nextPoints.get(user.id) || 0;
   }
+}
+
+function predictionWinnerPercent(prediction, rule) {
+  if (!rule.customWinnerPercent) return rule.winnerPercent;
+  const stored = Number(prediction?.winner_percent);
+  if (!Number.isFinite(stored)) return rule.winnerPercent;
+  return Math.min(rule.maxWinnerPercent, Math.max(rule.minWinnerPercent, stored > 1 ? stored / 100 : stored));
 }
 
 function applyFinalRound(users, stats, predictionByUserMatch, matches, matchPoints, matchStakes) {

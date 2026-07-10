@@ -52,6 +52,8 @@ module.exports = async function handler(req, res) {
     if (action === "trivia-start" && req.method === "POST") return await startTriviaQuestion(req, res);
     if (action === "trivia-answer" && req.method === "POST") return await answerTriviaQuestion(req, res);
     if (action === "trivia-expire" && req.method === "POST") return await expireTriviaQuestion(req, res);
+    if (action === "admin-decision" && req.method === "POST") return await saveAdminDecision(req, res);
+    if (action === "admin-decision-delete" && req.method === "POST") return await deleteAdminDecision(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -67,7 +69,7 @@ async function sendState(req, res) {
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
   const tournament = await calculateTournament();
 
-  const [matches, predictions, participants, organizers, championData, triviaQuestionData, triviaSettings, allTriviaAssignments] = await Promise.all([
+  const [matches, predictions, participants, organizers, championData, triviaQuestionData, triviaSettings, allTriviaAssignments, adminDecisions] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026friends_matches?select=*&order=winner.asc.nullsfirst&order=starts_at.asc") : [],
     userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
     isOrganizer ? fetchParticipants() : [],
@@ -75,7 +77,8 @@ async function sendState(req, res) {
     isOrganizer ? fetchChampionData() : { options: [], picks: [] },
     isOrganizer ? fetchInitialTriviaQuestions() : { questions: [], pages: {} },
     isOrganizer || isApprovedParticipant ? fetchTriviaSettings() : [],
-    isOrganizer ? fetchAllTriviaAssignments() : []
+    isOrganizer ? fetchAllTriviaAssignments() : [],
+    isOrganizer ? fetchAdminDecisions() : []
   ]);
   const triviaAssignments = isApprovedParticipant ? await ensureTriviaAssignments(userId) : [];
 
@@ -97,6 +100,7 @@ async function sendState(req, res) {
     triviaSettings,
     triviaAssignments,
     allTriviaAssignments,
+    adminDecisions,
     serverNow: new Date().toISOString()
   });
 }
@@ -143,6 +147,15 @@ async function fetchChampionData() {
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return { options: [], picks: [] };
+  }
+}
+
+async function fetchAdminDecisions() {
+  try {
+    return await supabase("worldcup2026friends_admin_decisions?select=*&order=created_at.desc");
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return [];
   }
 }
 
@@ -894,6 +907,57 @@ async function deleteTriviaQuestion(req, res) {
   if (!questionId) throw httpError(400, "?????? ?????");
   await supabase(`worldcup2026friends_trivia_questions?id=eq.${encodeURIComponent(questionId)}`, { method: "DELETE", prefer: "return=minimal" });
   return res.status(200).json({ ok: true });
+}
+
+async function saveAdminDecision(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const decisionId = clean(body.decisionId);
+  const title = clean(body.title);
+  const details = clean(body.details);
+  if (!title || !details) throw httpError(400, "عنوان القرار والتفاصيل مطلوبة");
+
+  const payload = {
+    title,
+    details,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const result = decisionId
+      ? await supabase(`worldcup2026friends_admin_decisions?id=eq.${encodeURIComponent(decisionId)}`, {
+          method: "PATCH",
+          prefer: "return=representation",
+          body: JSON.stringify(payload)
+        })
+      : await supabase("worldcup2026friends_admin_decisions", {
+          method: "POST",
+          prefer: "return=representation",
+          body: JSON.stringify({ ...payload, created_at: new Date().toISOString() })
+        });
+    if (decisionId && !result.length) throw httpError(404, "القرار غير موجود");
+    return res.status(200).json({ decision: result[0] });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث جدول القرارات الإدارية");
+  }
+}
+
+async function deleteAdminDecision(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const decisionId = clean(body.decisionId);
+  if (!decisionId) throw httpError(400, "القرار مطلوب");
+  try {
+    await supabase(`worldcup2026friends_admin_decisions?id=eq.${encodeURIComponent(decisionId)}`, {
+      method: "DELETE",
+      prefer: "return=minimal"
+    });
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث جدول القرارات الإدارية");
+  }
 }
 
 async function startTriviaQuestion(req, res) {

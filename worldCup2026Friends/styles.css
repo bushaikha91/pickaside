@@ -320,7 +320,8 @@ button {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   min-height: 46px;
   border: 1px solid #d0d5dd;
@@ -328,6 +329,12 @@ button {
   padding: 10px 12px;
   color: var(--ink);
   background: #fff;
+}
+
+.field textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.7;
 }
 
 .role-grid,
@@ -384,6 +391,23 @@ button {
 .danger-btn {
   color: #fff;
   background: #b42318;
+}
+
+.text-action,
+.danger-text-btn {
+  border: 0;
+  background: transparent;
+  font-weight: 800;
+}
+
+.text-action {
+  color: var(--green);
+}
+
+.danger-text-btn {
+  width: 100%;
+  padding: 12px;
+  color: #b42318;
 }
 
 .topbar {
@@ -511,6 +535,32 @@ button {
 
 .match-card {
   padding: 13px;
+}
+
+.admin-decision-card {
+  display: grid;
+  gap: 10px;
+}
+
+.match-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-decision-details {
+  margin: 0;
+  color: #344054;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.add-decision-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  line-height: 1;
 }
 
 .participant-match-card {

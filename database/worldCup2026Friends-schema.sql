@@ -131,6 +131,20 @@ grant all on table public.worldcup2026friends_predictions to service_role;
 grant all on table public.worldcup2026friends_champion_options to service_role;
 grant all on table public.worldcup2026friends_champion_picks to service_role;
 
+create table if not exists public.worldcup2026friends_admin_decisions (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  details text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.worldcup2026friends_admin_decisions disable row level security;
+
+grant all on table public.worldcup2026friends_admin_decisions to anon;
+grant all on table public.worldcup2026friends_admin_decisions to authenticated;
+grant all on table public.worldcup2026friends_admin_decisions to service_role;
+
 create table if not exists public.worldcup2026friends_trivia_questions (
   id uuid primary key default gen_random_uuid(),
   round_id text not null,

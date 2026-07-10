@@ -83,6 +83,7 @@ const state = {
   triviaAssignments: [],
   allTriviaAssignments: [],
   triviaSettings: [],
+  adminDecisions: [],
   rankMovement: {},
   participants: [],
   organizers: [],
@@ -102,6 +103,9 @@ const state = {
   addMatchOpen: false,
   addTriviaOpen: false,
   addTriviaRoundOpen: false,
+  addAdminDecisionOpen: false,
+  editAdminDecisionId: null,
+  adminDecisionModalError: "",
   editTriviaQuestionId: null,
   editTriviaRoundId: null,
   activeTriviaRoundKey: null,
@@ -300,6 +304,7 @@ function appTemplate() {
     ${state.addMatchOpen ? matchFormModal() : ""}
     ${state.addTriviaOpen ? triviaQuestionModal() : ""}
     ${state.addTriviaRoundOpen ? triviaRoundModal() : ""}
+    ${state.addAdminDecisionOpen ? adminDecisionModal() : ""}
     ${state.activeTriviaRoundKey ? triviaParticipantRoundModal() : ""}
   `;
 }
@@ -340,9 +345,52 @@ function adminDecisionsView() {
     <div class="stack admin-decisions-view">
       <div class="section-title">
         <h2>القرارات الإدارية</h2>
+        <button class="icon-close add-decision-btn" id="addAdminDecisionToggle" type="button" aria-label="إضافة قرار">+</button>
       </div>
-      <section class="panel stack">
-        ${emptyView("لا توجد قرارات إدارية مضافة حتى الآن.")}
+      <div class="match-list">
+        ${state.adminDecisions.length ? state.adminDecisions.map(adminDecisionCard).join("") : emptyView("لا توجد قرارات إدارية مضافة حتى الآن.")}
+      </div>
+    </div>
+  `;
+}
+
+function adminDecisionCard(decision) {
+  return `
+    <article class="match-card admin-decision-card">
+      <div class="match-card-top">
+        <strong>${escapeHtml(decision.title)}</strong>
+        <button class="text-action" type="button" data-admin-decision-edit="${escapeHtml(decision.id)}">تعديل</button>
+      </div>
+      <p class="admin-decision-details">${escapeHtml(decision.details)}</p>
+      <span class="small">${formatDate(decision.updated_at || decision.created_at)}</span>
+    </article>
+  `;
+}
+
+function adminDecisionModal() {
+  const decision = state.editAdminDecisionId
+    ? state.adminDecisions.find(item => item.id === state.editAdminDecisionId)
+    : null;
+  return `
+    <div class="modal-backdrop" data-admin-decision-modal-close>
+      <section class="modal-card stack add-match-modal">
+        <div class="section-title">
+          <h2>${decision ? "تعديل القرار" : "إضافة قرار"}</h2>
+          <button class="icon-close" type="button" data-admin-decision-close>×</button>
+        </div>
+        <div class="notice danger-notice ${state.adminDecisionModalError ? "" : "hidden"}">${escapeHtml(state.adminDecisionModalError)}</div>
+        <form class="stack" id="adminDecisionForm">
+          <label class="field">
+            <span>عنوان القرار</span>
+            <input name="title" required value="${escapeHtml(decision?.title || "")}" placeholder="مثال: اعتماد نتيجة مباراة" />
+          </label>
+          <label class="field">
+            <span>تفاصيل القرار</span>
+            <textarea name="details" required rows="6" placeholder="اكتب تفاصيل القرار الإداري">${escapeHtml(decision?.details || "")}</textarea>
+          </label>
+          <button class="primary-btn" type="submit">حفظ</button>
+          ${decision ? `<button class="danger-text-btn" type="button" data-admin-decision-delete="${escapeHtml(decision.id)}">حذف القرار</button>` : ""}
+        </form>
       </section>
     </div>
   `;
@@ -2914,6 +2962,9 @@ function bindApp() {
       state.posterRound = null;
       state.detailParticipantId = null;
       state.championListOpen = false;
+      state.addAdminDecisionOpen = false;
+      state.editAdminDecisionId = null;
+      state.adminDecisionModalError = "";
       render();
     }
   }));
@@ -3017,6 +3068,95 @@ function bindApp() {
   document.querySelector("[data-champion-list-x]")?.addEventListener("click", () => {
     state.championListOpen = false;
     render();
+  });
+
+  document.querySelector("#addAdminDecisionToggle")?.addEventListener("click", () => {
+    state.addAdminDecisionOpen = true;
+    state.editAdminDecisionId = null;
+    state.adminDecisionModalError = "";
+    render();
+  });
+
+  document.querySelectorAll("[data-admin-decision-edit]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.addAdminDecisionOpen = true;
+      state.editAdminDecisionId = button.dataset.adminDecisionEdit;
+      state.adminDecisionModalError = "";
+      render();
+    });
+  });
+
+  document.querySelector("[data-admin-decision-close]")?.addEventListener("click", () => {
+    state.addAdminDecisionOpen = false;
+    state.editAdminDecisionId = null;
+    state.adminDecisionModalError = "";
+    render();
+  });
+
+  document.querySelector("[data-admin-decision-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.addAdminDecisionOpen = false;
+      state.editAdminDecisionId = null;
+      state.adminDecisionModalError = "";
+      render();
+    }
+  });
+
+  document.querySelector("#adminDecisionForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    if (button) button.disabled = true;
+    try {
+      const wasEditing = !!state.editAdminDecisionId;
+      const payload = await api("admin-decision", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: state.currentUser.id,
+          decisionId: state.editAdminDecisionId,
+          title: form.elements.title.value.trim(),
+          details: form.elements.details.value.trim()
+        })
+      });
+      if (payload.decision?.id) {
+        const decision = payload.decision;
+        state.adminDecisions = state.adminDecisions.some(item => item.id === decision.id)
+          ? state.adminDecisions.map(item => item.id === decision.id ? { ...item, ...decision } : item)
+          : [decision, ...state.adminDecisions];
+      }
+      state.notice = wasEditing ? "تم تعديل القرار الإداري." : "تمت إضافة القرار الإداري.";
+      state.addAdminDecisionOpen = false;
+      state.editAdminDecisionId = null;
+      state.adminDecisionModalError = "";
+      render();
+      loadData({ silent: true }).catch(() => {});
+    } catch (error) {
+      state.adminDecisionModalError = error.message || "تعذر حفظ القرار الإداري";
+      render();
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+
+  document.querySelector("[data-admin-decision-delete]")?.addEventListener("click", async event => {
+    const decisionId = event.currentTarget.dataset.adminDecisionDelete;
+    if (!confirm("حذف القرار الإداري؟")) return;
+    try {
+      await api("admin-decision-delete", {
+        method: "POST",
+        body: JSON.stringify({ userId: state.currentUser.id, decisionId })
+      });
+      state.adminDecisions = state.adminDecisions.filter(item => item.id !== decisionId);
+      state.notice = "تم حذف القرار الإداري.";
+      state.addAdminDecisionOpen = false;
+      state.editAdminDecisionId = null;
+      state.adminDecisionModalError = "";
+      render();
+      loadData({ silent: true }).catch(() => {});
+    } catch (error) {
+      state.adminDecisionModalError = error.message || "تعذر حذف القرار الإداري";
+      render();
+    }
   });
 
   document.querySelector("[data-voter-modal-close]")?.addEventListener("click", event => {
@@ -3885,7 +4025,7 @@ function handleExpiredTriviaQuestions() {
 }
 
 function hasOpenModal() {
-  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.triviaResultsRound || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.activeTriviaRoundKey);
+  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.triviaResultsRound || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.addAdminDecisionOpen || state.activeTriviaRoundKey);
 }
 
 function focusStandingsPredictionSummary() {
@@ -4045,6 +4185,7 @@ function applyStatePayload(payload = {}) {
   state.triviaAssignments = payload.triviaAssignments || [];
   state.allTriviaAssignments = payload.allTriviaAssignments || [];
   state.triviaSettings = payload.triviaSettings || [];
+  state.adminDecisions = payload.adminDecisions || [];
   state.participants = payload.participants || [];
   state.organizers = payload.organizers || [];
   if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();
@@ -4093,6 +4234,7 @@ function stateCachePayload() {
     triviaAssignments: state.triviaAssignments,
     allTriviaAssignments: state.allTriviaAssignments,
     triviaSettings: state.triviaSettings,
+    adminDecisions: state.adminDecisions,
     participants: state.participants,
     organizers: state.organizers,
     serverNow: new Date(Date.now() + state.serverNowOffsetMs).toISOString()

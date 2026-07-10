@@ -261,6 +261,7 @@ function appTemplate() {
       <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
       <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ترشيحات البطل</button>
       <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">س/ج</button>
+      <button class="tab ${activeTab === "admin-decisions" ? "active" : ""}" data-tab="admin-decisions">القرارات الإدارية</button>
     `
     : `
       <button class="tab ${activeTab === "matches" ? "active" : ""} ${matchAlert ? "has-alert" : ""}" data-tab="matches">المباريات</button>
@@ -329,8 +330,22 @@ function currentView() {
   }
   if (activeTab === "participants" && state.currentUser.role === "organizer") return participantsView();
   if (activeTab === "champions" && state.currentUser.role === "organizer") return championPicksView();
+  if (activeTab === "admin-decisions" && state.currentUser.role === "organizer") return adminDecisionsView();
   if (state.currentUser.role === "organizer") return manageView();
   return participantMatchesView();
+}
+
+function adminDecisionsView() {
+  return `
+    <div class="stack admin-decisions-view">
+      <div class="section-title">
+        <h2>القرارات الإدارية</h2>
+      </div>
+      <section class="panel stack">
+        ${emptyView("لا توجد قرارات إدارية مضافة حتى الآن.")}
+      </section>
+    </div>
+  `;
 }
 
 function profileModal() {
@@ -4099,7 +4114,7 @@ function defaultTabForUser(user) {
 
 function allowedTabsForUser(user) {
   const sharedTabs = ["standings", "laws", "trivia"];
-  if (user?.role === "organizer") return ["manage", "participants", "champions", ...sharedTabs];
+  if (user?.role === "organizer") return ["manage", "participants", "champions", "admin-decisions", ...sharedTabs];
   return ["matches", ...sharedTabs];
 }
 

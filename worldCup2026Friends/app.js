@@ -2291,7 +2291,7 @@ async function drawRoundPoster(context, width, height, data) {
 }
 
 async function drawFinalChampionPoster(context, width, height, data) {
-  const template = await loadPosterImage("https://raw.githubusercontent.com/bushaikha91/pickaside/main/worldCup2026Friends/assets/final-champion-poster-template.jpg");
+  const template = await loadPosterImage("assets/final-champion-poster-template.png");
   if (!template) {
     await drawGeneratedFinalPoster(context, width, height, data);
     return;
@@ -2299,15 +2299,15 @@ async function drawFinalChampionPoster(context, width, height, data) {
 
   context.clearRect(0, 0, width, height);
   drawImageCover(context, template, 0, 0, width, height);
-  await drawTemplateAvatar(context, data, width / 2, 700, 570);
+  await drawTemplateAvatar(context, data, width / 2, 644, 540);
 
   context.save();
   context.shadowColor = "rgba(0,0,0,.9)";
   context.shadowBlur = 18;
   context.shadowOffsetY = 4;
-  drawCenteredTextFit(context, posterNumber(data.total_points || data.points), width / 2, 322, 62, "#f9d77a", 900, 700);
-  drawCenteredTextFit(context, "نقطة", width / 2, 374, 30, "rgba(255,255,255,.88)", 900, 420);
-  drawCenteredTextFit(context, data.name, width / 2, 1038, 60, "#ffffff", 900, 820);
+  drawCenteredTextFit(context, posterNumber(data.total_points || data.points), width / 2, 286, 62, "#f9d77a", 900, 700);
+  drawCenteredTextFit(context, "نقطة", width / 2, 336, 30, "rgba(255,255,255,.88)", 900, 420);
+  drawCenteredTextFit(context, data.name, width / 2, 998, 60, "#ffffff", 900, 820);
   context.restore();
 }
 

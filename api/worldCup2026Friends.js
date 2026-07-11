@@ -8,7 +8,7 @@ const ROUND_RULES = {
   r16: { type: "fixed", total: 300, winnerStake: 250, safetyStake: 50 },
   qf: { type: "fixed", total: 450, winnerStake: 350, safetyStake: 100 },
   sf: { type: "bankroll", matchCount: 2, winnerPercent: 0.9, safetyPercent: 0.1, customWinnerPercent: true, minWinnerPercent: 0.6, maxWinnerPercent: 0.9 },
-  final: { type: "final" }
+  final: { type: "bankroll", matchCount: 1, winnerPercent: 0.9, safetyPercent: 0.1, customWinnerPercent: true, minWinnerPercent: 0.6, maxWinnerPercent: 0.9 }
 };
 
 const ROUND_ORDER = ["r32", "r16", "qf", "sf", "final"];

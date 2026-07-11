@@ -549,6 +549,13 @@ button {
   gap: 12px;
 }
 
+.inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
 .admin-decision-details {
   margin: 0;
   color: #344054;

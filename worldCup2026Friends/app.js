@@ -105,6 +105,7 @@ const state = {
   addTriviaRoundOpen: false,
   addAdminDecisionOpen: false,
   editAdminDecisionId: null,
+  adminDecisionPosterId: null,
   adminDecisionModalError: "",
   editTriviaQuestionId: null,
   editTriviaRoundId: null,
@@ -305,6 +306,7 @@ function appTemplate() {
     ${state.addTriviaOpen ? triviaQuestionModal() : ""}
     ${state.addTriviaRoundOpen ? triviaRoundModal() : ""}
     ${state.addAdminDecisionOpen ? adminDecisionModal() : ""}
+    ${state.adminDecisionPosterId ? adminDecisionPosterModal(state.adminDecisionPosterId) : ""}
     ${state.activeTriviaRoundKey ? triviaParticipantRoundModal() : ""}
   `;
 }
@@ -359,7 +361,10 @@ function adminDecisionCard(decision) {
     <article class="match-card admin-decision-card">
       <div class="match-card-top">
         <strong>${escapeHtml(decision.title)}</strong>
-        <button class="text-action" type="button" data-admin-decision-edit="${escapeHtml(decision.id)}">تعديل</button>
+        <div class="inline-actions">
+          <button class="text-action" type="button" data-admin-decision-poster="${escapeHtml(decision.id)}">صورة</button>
+          <button class="text-action" type="button" data-admin-decision-edit="${escapeHtml(decision.id)}">تعديل</button>
+        </div>
       </div>
       <p class="admin-decision-details">${escapeHtml(decision.details)}</p>
       <span class="small">${formatDate(decision.updated_at || decision.created_at)}</span>
@@ -391,6 +396,26 @@ function adminDecisionModal() {
           <button class="primary-btn" type="submit">حفظ</button>
           ${decision ? `<button class="danger-text-btn" type="button" data-admin-decision-delete="${escapeHtml(decision.id)}">حذف القرار</button>` : ""}
         </form>
+      </section>
+    </div>
+  `;
+}
+
+function adminDecisionPosterModal(decisionId) {
+  const decision = state.adminDecisions.find(item => item.id === decisionId);
+  if (!decision) return "";
+  return `
+    <div class="modal-backdrop" data-admin-decision-poster-modal-close>
+      <section class="modal-card stack poster-modal">
+        <div class="section-title">
+          <h2>صورة القرار</h2>
+          <button class="icon-close" type="button" data-admin-decision-poster-close>×</button>
+        </div>
+        <canvas id="adminDecisionPosterCanvas" class="round-poster-canvas" width="1024" height="1280"></canvas>
+        <div class="poster-actions">
+          <button class="primary-btn" id="saveAdminDecisionPosterBtn" type="button">حفظ الصورة</button>
+          <button class="ghost-btn" id="shareAdminDecisionPosterBtn" type="button">مشاركة الصورة</button>
+        </div>
       </section>
     </div>
   `;
@@ -2246,6 +2271,53 @@ async function renderRoundPoster(roundId) {
   });
 }
 
+async function renderAdminDecisionPoster(decisionId) {
+  const canvas = document.querySelector("#adminDecisionPosterCanvas");
+  const decision = state.adminDecisions.find(item => item.id === decisionId);
+  if (!canvas || !decision) return;
+  const context = canvas.getContext("2d");
+  await drawAdminDecisionPoster(context, canvas.width, canvas.height, decision);
+
+  document.querySelector("#saveAdminDecisionPosterBtn")?.addEventListener("click", async () => {
+    const shared = await shareAdminDecisionPosterImage(canvas, decision, "احفظ صورة القرار من خيارات المشاركة");
+    if (!shared) downloadAdminDecisionPosterImage(canvas, decision);
+  });
+
+  document.querySelector("#shareAdminDecisionPosterBtn")?.addEventListener("click", async () => {
+    await shareAdminDecisionPosterImage(canvas, decision);
+  });
+}
+
+async function shareAdminDecisionPosterImage(canvas, decision, text = "") {
+  const file = await adminDecisionPosterCanvasFile(canvas, decision);
+  if (!file || !navigator.canShare || !navigator.share || !navigator.canShare({ files: [file] })) return false;
+  await navigator.share({
+    files: [file],
+    title: decision.title,
+    text: text || decision.title
+  });
+  return true;
+}
+
+function adminDecisionPosterCanvasFile(canvas, decision) {
+  return new Promise(resolve => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        resolve(null);
+        return;
+      }
+      resolve(new File([blob], `worldcup-admin-decision-${decision.id || "poster"}.png`, { type: "image/png" }));
+    }, "image/png");
+  });
+}
+
+function downloadAdminDecisionPosterImage(canvas, decision) {
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png");
+  link.download = `worldcup-admin-decision-${decision.id || "poster"}.png`;
+  link.click();
+}
+
 async function savePosterImage(canvas, data) {
   const shared = await sharePosterImage(canvas, data, "احفظ الصورة من خيارات المشاركة");
   if (!shared) downloadPosterImage(canvas, data);
@@ -2288,6 +2360,48 @@ async function drawRoundPoster(context, width, height, data) {
   }
 
   await drawFinalChampionPoster(context, width, height, data);
+}
+
+async function drawAdminDecisionPoster(context, width, height, decision) {
+  const template = await loadPosterImage("assets/admin-decision-poster-template.jpg");
+  context.clearRect(0, 0, width, height);
+  if (template) {
+    drawImageCover(context, template, 0, 0, width, height);
+  } else {
+    context.fillStyle = "#d90000";
+    context.fillRect(0, 0, width, height);
+  }
+
+  context.save();
+  context.shadowColor = "rgba(0,0,0,.18)";
+  context.shadowBlur = 12;
+  context.shadowOffsetY = 4;
+  drawWrappedRtlText(context, decision.title, {
+    x: 190,
+    y: 275,
+    width: 760,
+    lineHeight: 54,
+    maxLines: 3,
+    size: 46,
+    color: "#ffffff",
+    weight: 900,
+    align: "center"
+  });
+  context.restore();
+
+  drawWrappedRtlText(context, decision.details, {
+    x: 205,
+    y: 620,
+    width: 700,
+    lineHeight: 48,
+    maxLines: 12,
+    size: 34,
+    color: "#101828",
+    weight: 800,
+    align: "right"
+  });
+
+  drawCenteredTextFit(context, formatDate(decision.updated_at || decision.created_at), width / 2, 1138, 28, "rgba(16,24,40,.58)", 700, 620);
 }
 
 async function drawFinalChampionPoster(context, width, height, data) {
@@ -2458,6 +2572,56 @@ function drawCenteredTextFit(context, text, x, y, size, color, weight = 700, max
     fontSize -= 2;
   } while (fontSize > 34);
   context.fillText(text, x, y);
+  context.restore();
+}
+
+function drawWrappedRtlText(context, text, options) {
+  const {
+    x,
+    y,
+    width,
+    lineHeight,
+    maxLines,
+    size,
+    color,
+    weight = 700,
+    align = "right"
+  } = options;
+  const words = String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines = [];
+  let line = "";
+
+  context.save();
+  context.direction = "rtl";
+  context.textAlign = align;
+  context.textBaseline = "top";
+  context.fillStyle = color;
+  context.font = `${weight} ${size}px Tahoma, Arial, sans-serif`;
+
+  words.forEach(word => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (context.measureText(candidate).width <= width || !line) {
+      line = candidate;
+      return;
+    }
+    lines.push(line);
+    line = word;
+  });
+  if (line) lines.push(line);
+
+  const visibleLines = lines.slice(0, maxLines);
+  if (lines.length > maxLines && visibleLines.length) {
+    let last = visibleLines[visibleLines.length - 1];
+    while (last.length > 1 && context.measureText(`${last}...`).width > width) {
+      last = last.slice(0, -1).trim();
+    }
+    visibleLines[visibleLines.length - 1] = `${last}...`;
+  }
+
+  const drawX = align === "center" ? x + width / 2 : align === "left" ? x : x + width;
+  visibleLines.forEach((item, index) => {
+    context.fillText(item, drawX, y + index * lineHeight);
+  });
   context.restore();
 }
 
@@ -3015,6 +3179,7 @@ function bindApp() {
       state.championListOpen = false;
       state.addAdminDecisionOpen = false;
       state.editAdminDecisionId = null;
+      state.adminDecisionPosterId = null;
       state.adminDecisionModalError = "";
       render();
     }
@@ -3032,6 +3197,9 @@ function bindApp() {
 
   if (state.posterRound) {
     requestAnimationFrame(() => renderRoundPoster(state.posterRound));
+  }
+  if (state.adminDecisionPosterId) {
+    requestAnimationFrame(() => renderAdminDecisionPoster(state.adminDecisionPosterId));
   }
 
   document.querySelectorAll("[data-match-edit-open]").forEach(button => {
@@ -3135,6 +3303,25 @@ function bindApp() {
       state.adminDecisionModalError = "";
       render();
     });
+  });
+
+  document.querySelectorAll("[data-admin-decision-poster]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.adminDecisionPosterId = button.dataset.adminDecisionPoster;
+      render();
+    });
+  });
+
+  document.querySelector("[data-admin-decision-poster-close]")?.addEventListener("click", () => {
+    state.adminDecisionPosterId = null;
+    render();
+  });
+
+  document.querySelector("[data-admin-decision-poster-modal-close]")?.addEventListener("click", event => {
+    if (event.target === event.currentTarget) {
+      state.adminDecisionPosterId = null;
+      render();
+    }
   });
 
   document.querySelector("[data-admin-decision-close]")?.addEventListener("click", () => {
@@ -4141,7 +4328,7 @@ function handleExpiredTriviaQuestions() {
 }
 
 function hasOpenModal() {
-  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.triviaResultsRound || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.addAdminDecisionOpen || state.activeTriviaRoundKey);
+  return !!(state.profileOpen || state.voterModalMatch || state.voteResultsModalMatch || state.triviaResultsRound || state.editModalMatch || state.resultModalMatch || state.posterRound || state.detailParticipantId || state.addMatchOpen || state.addTriviaOpen || state.addTriviaRoundOpen || state.addAdminDecisionOpen || state.adminDecisionPosterId || state.activeTriviaRoundKey);
 }
 
 function focusStandingsPredictionSummary() {

@@ -635,6 +635,12 @@ button {
   width: min(100%, 250px);
 }
 
+.participant-trivia-main .trivia-result-btn {
+  color: #fff;
+  background: #00796b;
+  box-shadow: 0 10px 22px rgba(0, 121, 107, 0.22);
+}
+
 .participant-trivia-bottom {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -1668,6 +1668,7 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const allDone = assignments.length > 0 && completed.length === assignments.length;
   const locked = openState.locked && !started && !allDone;
   const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "بدء الجولة";
+  const buttonClass = allDone ? "primary-btn trivia-result-btn" : "primary-btn";
   const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
   const countdownLabel = allDone
     ? "مكتملة"
@@ -1685,7 +1686,7 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
       </div>
       <div class="participant-trivia-main">
         <h2>${escapeHtml(title)}</h2>
-        <button class="primary-btn" ${buttonAttrs} type="button">${buttonText}</button>
+        <button class="${buttonClass}" ${buttonAttrs} type="button">${buttonText}</button>
       </div>
       <div class="participant-trivia-bottom">
         <span><strong>${correct}/${assignments.length || 3}</strong><small>الصحيح</small></span>

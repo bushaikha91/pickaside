@@ -2299,7 +2299,7 @@ async function drawFinalChampionPoster(context, width, height, data) {
 
   context.clearRect(0, 0, width, height);
   drawImageCover(context, template, 0, 0, width, height);
-  await drawTemplateAvatar(context, data, width / 2, 700, 500);
+  await drawTemplateAvatar(context, data, width / 2, 700, 570);
 
   context.save();
   context.shadowColor = "rgba(0,0,0,.9)";
@@ -2307,7 +2307,7 @@ async function drawFinalChampionPoster(context, width, height, data) {
   context.shadowOffsetY = 4;
   drawCenteredTextFit(context, posterNumber(data.total_points || data.points), width / 2, 322, 62, "#f9d77a", 900, 700);
   drawCenteredTextFit(context, "نقطة", width / 2, 374, 30, "rgba(255,255,255,.88)", 900, 420);
-  drawCenteredTextFit(context, data.name, width / 2, 985, 60, "#ffffff", 900, 820);
+  drawCenteredTextFit(context, data.name, width / 2, 1038, 60, "#ffffff", 900, 820);
   context.restore();
 }
 

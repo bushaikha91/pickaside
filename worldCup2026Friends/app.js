@@ -2298,8 +2298,8 @@ async function drawFinalChampionPoster(context, width, height, data) {
   }
 
   context.clearRect(0, 0, width, height);
+  await drawTemplateAvatar(context, data, width / 2, 628, 558);
   drawImageCover(context, template, 0, 0, width, height);
-  await drawTemplateAvatar(context, data, width / 2, 644, 540);
 
   context.save();
   context.shadowColor = "rgba(0,0,0,.9)";

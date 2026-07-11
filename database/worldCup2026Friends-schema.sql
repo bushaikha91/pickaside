@@ -143,6 +143,24 @@ create table if not exists public.worldcup2026friends_admin_decisions (
 );
 
 alter table public.worldcup2026friends_admin_decisions disable row level security;
+alter table public.worldcup2026friends_admin_decisions no force row level security;
+
+drop policy if exists worldcup2026friends_admin_decisions_anon_all on public.worldcup2026friends_admin_decisions;
+drop policy if exists worldcup2026friends_admin_decisions_authenticated_all on public.worldcup2026friends_admin_decisions;
+
+create policy worldcup2026friends_admin_decisions_anon_all
+  on public.worldcup2026friends_admin_decisions
+  for all
+  to anon
+  using (true)
+  with check (true);
+
+create policy worldcup2026friends_admin_decisions_authenticated_all
+  on public.worldcup2026friends_admin_decisions
+  for all
+  to authenticated
+  using (true)
+  with check (true);
 
 grant all on table public.worldcup2026friends_admin_decisions to anon;
 grant all on table public.worldcup2026friends_admin_decisions to authenticated;

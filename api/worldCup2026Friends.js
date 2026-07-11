@@ -956,6 +956,9 @@ async function saveAdminDecision(req, res) {
     if (decisionId && !result.length) throw httpError(404, "القرار غير موجود");
     return res.status(200).json({ decision: result[0] });
   } catch (error) {
+    if (isRlsPolicyError(error)) {
+      throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث صلاحيات جدول القرارات الإدارية. شغل ملف database/worldCup2026Friends-admin-decisions-rls-fix.sql في Supabase مرة واحدة.");
+    }
     if (!isOptionalColumnError(error)) throw error;
     throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث جدول القرارات الإدارية");
   }
@@ -973,6 +976,9 @@ async function deleteAdminDecision(req, res) {
     });
     return res.status(200).json({ ok: true });
   } catch (error) {
+    if (isRlsPolicyError(error)) {
+      throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث صلاحيات جدول القرارات الإدارية. شغل ملف database/worldCup2026Friends-admin-decisions-rls-fix.sql في Supabase مرة واحدة.");
+    }
     if (!isOptionalColumnError(error)) throw error;
     throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث جدول القرارات الإدارية");
   }
@@ -1594,6 +1600,10 @@ function cleanImageDataUrl(value) {
 
 function isOptionalColumnError(error) {
   return error?.status === 503;
+}
+
+function isRlsPolicyError(error) {
+  return /row-level security|violates row-level security policy/i.test(String(error?.message || ""));
 }
 
 function httpError(status, message) {

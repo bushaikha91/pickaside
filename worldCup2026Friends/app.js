@@ -269,6 +269,7 @@ function appTemplate() {
       <button class="tab ${activeTab === "admin-decisions" ? "active" : ""}" data-tab="admin-decisions">القرارات الإدارية</button>
     `
     : `
+      <button class="tab ${activeTab === "home" ? "active" : ""}" data-tab="home">الرئيسية</button>
       <button class="tab ${activeTab === "matches" ? "active" : ""} ${matchAlert ? "has-alert" : ""}" data-tab="matches">المباريات</button>
       <button class="tab ${activeTab === "trivia" ? "active" : ""} ${triviaAlert ? "has-alert" : ""}" data-tab="trivia">س/ج</button>
     `;
@@ -335,11 +336,48 @@ function currentView() {
   if (state.currentUser.role === "participant" && state.currentUser.participant_status !== "approved") {
     return participantStatusView();
   }
+  if (activeTab === "home" && state.currentUser.role === "participant") return participantHomeView();
   if (activeTab === "participants" && state.currentUser.role === "organizer") return participantsView();
   if (activeTab === "champions" && state.currentUser.role === "organizer") return championPicksView();
   if (activeTab === "admin-decisions" && state.currentUser.role === "organizer") return adminDecisionsView();
   if (state.currentUser.role === "organizer") return manageView();
   return participantMatchesView();
+}
+
+function participantHomeView() {
+  const decisions = state.adminDecisions.slice(0, 3);
+  return `
+    <div class="stack participant-home-view">
+      <div class="section-title">
+        <h2>الرئيسية</h2>
+      </div>
+      ${decisions.length ? `
+        <section class="home-decision-carousel" aria-label="آخر القرارات الإدارية">
+          <div class="decision-slides" data-home-decision-slides>
+            ${decisions.map((decision, index) => `
+              <article class="decision-slide" id="decision-slide-${escapeHtml(decision.id)}">
+                <canvas
+                  class="decision-slide-canvas"
+                  width="1024"
+                  height="1280"
+                  data-home-decision-poster="${escapeHtml(decision.id)}"
+                  aria-label="${escapeHtml(decision.title)}"></canvas>
+                <div class="decision-slide-meta">
+                  <strong>${escapeHtml(decision.title)}</strong>
+                  <span>${formatDate(decision.updated_at || decision.created_at)}</span>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+          <div class="decision-slide-dots" aria-label="التنقل بين القرارات">
+            ${decisions.map((decision, index) => `
+              <button class="decision-slide-dot ${index === 0 ? "active" : ""}" type="button" data-home-slide-index="${index}" aria-label="القرار ${index + 1}"></button>
+            `).join("")}
+          </div>
+        </section>
+      ` : emptyView("لا توجد قرارات إدارية حتى الآن.")}
+    </div>
+  `;
 }
 
 function adminDecisionsView() {
@@ -2288,6 +2326,15 @@ async function renderAdminDecisionPoster(decisionId) {
   });
 }
 
+async function renderHomeDecisionPosters() {
+  const canvases = [...document.querySelectorAll("[data-home-decision-poster]")];
+  await Promise.all(canvases.map(canvas => {
+    const decision = state.adminDecisions.find(item => item.id === canvas.dataset.homeDecisionPoster);
+    if (!decision) return Promise.resolve();
+    return drawAdminDecisionPoster(canvas.getContext("2d"), canvas.width, canvas.height, decision);
+  }));
+}
+
 async function shareAdminDecisionPosterImage(canvas, decision, text = "") {
   const file = await adminDecisionPosterCanvasFile(canvas, decision);
   if (!file || !navigator.canShare || !navigator.share || !navigator.canShare({ files: [file] })) return false;
@@ -3201,6 +3248,9 @@ function bindApp() {
   if (state.adminDecisionPosterId) {
     requestAnimationFrame(() => renderAdminDecisionPoster(state.adminDecisionPosterId));
   }
+  if (activeTab === "home" && state.currentUser?.role === "participant") {
+    requestAnimationFrame(() => renderHomeDecisionPosters());
+  }
 
   document.querySelectorAll("[data-match-edit-open]").forEach(button => {
     button.addEventListener("click", () => {
@@ -3309,6 +3359,16 @@ function bindApp() {
     button.addEventListener("click", () => {
       state.adminDecisionPosterId = button.dataset.adminDecisionPoster;
       render();
+    });
+  });
+
+  document.querySelectorAll("[data-home-slide-index]").forEach(button => {
+    button.addEventListener("click", () => {
+      const slides = document.querySelector("[data-home-decision-slides]");
+      const index = Number(button.dataset.homeSlideIndex) || 0;
+      const target = slides?.children[index];
+      target?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      document.querySelectorAll("[data-home-slide-index]").forEach(dot => dot.classList.toggle("active", dot === button));
     });
   });
 
@@ -4554,13 +4614,13 @@ function hydrateStateFromCache() {
 }
 
 function defaultTabForUser(user) {
-  return user?.role === "organizer" ? "manage" : "matches";
+  return user?.role === "organizer" ? "manage" : "home";
 }
 
 function allowedTabsForUser(user) {
   const sharedTabs = ["standings", "laws", "trivia"];
   if (user?.role === "organizer") return ["manage", "participants", "champions", "admin-decisions", ...sharedTabs];
-  return ["matches", ...sharedTabs];
+  return ["home", "matches", ...sharedTabs];
 }
 
 function normalizeActiveTabForUser(user, tab) {

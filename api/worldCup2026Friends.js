@@ -78,7 +78,7 @@ async function sendState(req, res) {
     isOrganizer ? fetchInitialTriviaQuestions() : { questions: [], pages: {} },
     isOrganizer || isApprovedParticipant ? fetchTriviaSettings() : [],
     isOrganizer ? fetchAllTriviaAssignments() : [],
-    isOrganizer ? fetchAdminDecisions() : []
+    isOrganizer || isApprovedParticipant ? fetchAdminDecisions() : []
   ]);
   const triviaAssignments = isApprovedParticipant ? await ensureTriviaAssignments(userId) : [];
 

@@ -2425,7 +2425,7 @@ async function drawAdminDecisionPoster(context, width, height, decision) {
   context.shadowOffsetY = 4;
   drawWrappedRtlText(context, decision.title, {
     x: 165,
-    y: 262,
+    y: 286,
     width: 830,
     height: 170,
     size: 58,
@@ -2438,20 +2438,23 @@ async function drawAdminDecisionPoster(context, width, height, decision) {
   context.restore();
 
   drawWrappedRtlText(context, decision.details, {
-    x: 178,
-    y: 510,
-    width: 740,
-    height: 570,
+    x: 205,
+    y: 575,
+    width: 690,
+    height: 592,
     size: 36,
-    minSize: 23,
+    minSize: 16,
     color: "#101828",
     weight: 800,
     align: "center",
     verticalAlign: "middle",
-    preserveBlankLines: true
+    preserveBlankLines: true,
+    clip: true,
+    lineHeightRatio: 1.28,
+    blankLineRatio: 0.52
   });
 
-  drawCenteredTextFit(context, formatDate(decision.updated_at || decision.created_at), width / 2, 1142, 28, "rgba(16,24,40,.58)", 700, 620);
+  drawCenteredTextFit(context, formatDate(decision.updated_at || decision.created_at), width / 2, 1238, 27, "rgba(255,255,255,.9)", 700, 620);
 }
 
 async function drawFinalChampionPoster(context, width, height, data) {
@@ -2638,6 +2641,7 @@ function drawWrappedRtlText(context, text, options) {
     align = "right",
     verticalAlign = "top",
     preserveBlankLines = false,
+    clip = false,
     lineHeightRatio = 1.42,
     blankLineRatio = 0.62
   } = options;
@@ -2647,6 +2651,11 @@ function drawWrappedRtlText(context, text, options) {
   context.textAlign = align;
   context.textBaseline = "top";
   context.fillStyle = color;
+  if (clip && Number.isFinite(height)) {
+    context.beginPath();
+    context.rect(x, y, width, height);
+    context.clip();
+  }
 
   let fontSize = size;
   let lines = [];

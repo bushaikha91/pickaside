@@ -2424,31 +2424,34 @@ async function drawAdminDecisionPoster(context, width, height, decision) {
   context.shadowBlur = 12;
   context.shadowOffsetY = 4;
   drawWrappedRtlText(context, decision.title, {
-    x: 190,
-    y: 275,
-    width: 760,
-    lineHeight: 54,
-    maxLines: 3,
-    size: 46,
+    x: 165,
+    y: 262,
+    width: 830,
+    height: 170,
+    size: 58,
+    minSize: 36,
     color: "#ffffff",
     weight: 900,
-    align: "center"
+    align: "center",
+    verticalAlign: "middle"
   });
   context.restore();
 
   drawWrappedRtlText(context, decision.details, {
-    x: 205,
-    y: 620,
-    width: 700,
-    lineHeight: 48,
-    maxLines: 12,
-    size: 34,
+    x: 178,
+    y: 510,
+    width: 740,
+    height: 570,
+    size: 36,
+    minSize: 23,
     color: "#101828",
     weight: 800,
-    align: "right"
+    align: "center",
+    verticalAlign: "middle",
+    preserveBlankLines: true
   });
 
-  drawCenteredTextFit(context, formatDate(decision.updated_at || decision.created_at), width / 2, 1138, 28, "rgba(16,24,40,.58)", 700, 620);
+  drawCenteredTextFit(context, formatDate(decision.updated_at || decision.created_at), width / 2, 1142, 28, "rgba(16,24,40,.58)", 700, 620);
 }
 
 async function drawFinalChampionPoster(context, width, height, data) {
@@ -2627,49 +2630,84 @@ function drawWrappedRtlText(context, text, options) {
     x,
     y,
     width,
-    lineHeight,
-    maxLines,
+    height = Infinity,
     size,
+    minSize = 22,
     color,
     weight = 700,
-    align = "right"
+    align = "right",
+    verticalAlign = "top",
+    preserveBlankLines = false,
+    lineHeightRatio = 1.42,
+    blankLineRatio = 0.62
   } = options;
-  const words = String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  const lines = [];
-  let line = "";
 
   context.save();
   context.direction = "rtl";
   context.textAlign = align;
   context.textBaseline = "top";
   context.fillStyle = color;
-  context.font = `${weight} ${size}px Tahoma, Arial, sans-serif`;
 
-  words.forEach(word => {
-    const candidate = line ? `${line} ${word}` : word;
-    if (context.measureText(candidate).width <= width || !line) {
-      line = candidate;
-      return;
-    }
-    lines.push(line);
-    line = word;
-  });
-  if (line) lines.push(line);
+  let fontSize = size;
+  let lines = [];
+  let lineHeight = Math.round(fontSize * lineHeightRatio);
+  let blankLineHeight = Math.round(fontSize * blankLineRatio);
+  let totalHeight = 0;
 
-  const visibleLines = lines.slice(0, maxLines);
-  if (lines.length > maxLines && visibleLines.length) {
-    let last = visibleLines[visibleLines.length - 1];
-    while (last.length > 1 && context.measureText(`${last}...`).width > width) {
-      last = last.slice(0, -1).trim();
-    }
-    visibleLines[visibleLines.length - 1] = `${last}...`;
+  do {
+    context.font = `${weight} ${fontSize}px Tahoma, Arial, sans-serif`;
+    lineHeight = Math.round(fontSize * lineHeightRatio);
+    blankLineHeight = Math.round(fontSize * blankLineRatio);
+    lines = wrapRtlTextLines(context, text, width, preserveBlankLines);
+    totalHeight = lines.reduce((sum, line) => sum + (line.blank ? blankLineHeight : lineHeight), 0);
+    if (totalHeight <= height || fontSize <= minSize) break;
+    fontSize -= 1;
+  } while (fontSize >= minSize);
+
+  context.font = `${weight} ${fontSize}px Tahoma, Arial, sans-serif`;
+  const drawX = align === "center" ? x + width / 2 : align === "left" ? x : x + width;
+  let cursorY = y;
+  if (verticalAlign === "middle" && Number.isFinite(height) && totalHeight < height) {
+    cursorY = y + (height - totalHeight) / 2;
   }
 
-  const drawX = align === "center" ? x + width / 2 : align === "left" ? x : x + width;
-  visibleLines.forEach((item, index) => {
-    context.fillText(item, drawX, y + index * lineHeight);
+  lines.forEach(line => {
+    if (line.blank) {
+      cursorY += blankLineHeight;
+      return;
+    }
+    context.fillText(line.text, drawX, cursorY);
+    cursorY += lineHeight;
   });
   context.restore();
+}
+
+function wrapRtlTextLines(context, text, width, preserveBlankLines) {
+  const rawText = String(text || "");
+  const paragraphs = preserveBlankLines ? rawText.split(/\r?\n/) : [rawText.replace(/\s+/g, " ").trim()];
+  const lines = [];
+
+  paragraphs.forEach((paragraph, paragraphIndex) => {
+    const cleanParagraph = String(paragraph || "").replace(/[ \t]+/g, " ").trim();
+    if (!cleanParagraph) {
+      if (preserveBlankLines && paragraphIndex > 0) lines.push({ blank: true });
+      return;
+    }
+
+    let current = "";
+    cleanParagraph.split(" ").filter(Boolean).forEach(word => {
+      const candidate = current ? `${current} ${word}` : word;
+      if (context.measureText(candidate).width <= width || !current) {
+        current = candidate;
+        return;
+      }
+      lines.push({ text: current });
+      current = word;
+    });
+    if (current) lines.push({ text: current });
+  });
+
+  return lines;
 }
 
 function drawConfetti(context, width, height, palette) {

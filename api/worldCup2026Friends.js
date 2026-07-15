@@ -8,7 +8,7 @@ const ROUND_RULES = {
   r16: { type: "fixed", total: 300, winnerStake: 250, safetyStake: 50 },
   qf: { type: "fixed", total: 450, winnerStake: 350, safetyStake: 100 },
   sf: { type: "bankroll", matchCount: 2, winnerPercent: 0.9, safetyPercent: 0.1, customWinnerPercent: true, minWinnerPercent: 0.6, maxWinnerPercent: 0.9 },
-  final: { type: "bankroll", matchCount: 1, winnerPercent: 0.9, safetyPercent: 0.1, customWinnerPercent: true, minWinnerPercent: 0.6, maxWinnerPercent: 0.9 }
+  final: { type: "bankroll", matchCount: 1, winnerPercent: 0.9, safetyPercent: 0.1, customWinnerPercent: true, minWinnerPercent: 0.6, maxWinnerPercent: 1 }
 };
 
 const ROUND_ORDER = ["r32", "r16", "qf", "sf", "final"];
@@ -344,7 +344,7 @@ function parseWinnerPercent(value, rule) {
   const percent = raw > 1 ? raw / 100 : raw;
   if (!Number.isFinite(percent)) throw httpError(400, "نسبة ترشيح الفائز غير صحيحة");
   if (percent < rule.minWinnerPercent || percent > rule.maxWinnerPercent) {
-    throw httpError(400, "نسبة ترشيح الفائز يجب أن تكون بين 60% و90%");
+    throw httpError(400, `نسبة ترشيح الفائز يجب أن تكون بين ${Math.round(rule.minWinnerPercent * 100)}% و${Math.round(rule.maxWinnerPercent * 100)}%`);
   }
   return Math.round(percent * 10000) / 10000;
 }

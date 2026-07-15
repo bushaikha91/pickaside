@@ -53,7 +53,7 @@ const laws = {
   r8: "كل مباراة في دور الـ 8 قيمتها 450 نقطة: 350 نقطة لترشيح الفائز و100 نقطة للترشيح الأقل. نقاط الخسارة تتوزع على أصحاب التوقع الصحيح.",
   qf: "ربع النهائي يعمل بنفس نظام دور الـ 8: كل مباراة قيمتها 450 نقطة، 350 نقطة لترشيح الفائز و100 نقطة للترشيح الأقل. نقاط الخسارة تتوزع على أصحاب التوقع الصحيح.",
   sf: "رصيد كل مشارك قبل نصف النهائي ينقسم على عدد مباريات الدور. يحدد المتسابق نسبة نقاط الفائز بين 60% و90%، والنظام يحسب المتبقي تلقائياً للفريق الآخر. خسائر التوقعات الخاطئة تتوزع على أصحاب التوقع الصحيح.",
-  final: "في النهائي يستخدم المتسابق رصيده على مباراة واحدة. يحدد نسبة نقاط الفائز بين 60% و90%، والنظام يحسب المتبقي تلقائياً للفريق الآخر. خسائر التوقعات الخاطئة تتوزع على أصحاب التوقع الصحيح."
+  final: "في النهائي يستخدم المتسابق رصيده على مباراة واحدة. يحدد نسبة نقاط الفائز بين 60% و100%، والنظام يحسب المتبقي تلقائياً للفريق الآخر. خسائر التوقعات الخاطئة تتوزع على أصحاب التوقع الصحيح."
 };
 
 const displayLaws = {
@@ -62,7 +62,7 @@ const displayLaws = {
   r8: "كل مباراة في دور الـ 8 قيمتها 450 نقطة. عند اختيار الفريق المتوقع فوزه يتم وضع 350 نقطة على الفائز و100 نقطة على الفريق الآخر. إذا كان توقعك صحيحاً تحصل على 350 نقطة، وتُلغى الـ 100 نقطة الخاصة بترشيح الخسارة ولا تدخل في بول الخسارة. إذا كان توقعك خطأ تحصل على 100 نقطة فقط، وتذهب الـ 350 نقطة إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح في نفس المباراة.",
   qf: "ربع النهائي يعمل بنظام دور الـ 8: كل مباراة قيمتها 450 نقطة. عند اختيار الفريق المتوقع فوزه يتم وضع 350 نقطة على الفائز و100 نقطة على الفريق الآخر. إذا كان توقعك صحيحاً تحصل على 350 نقطة، وتُلغى الـ 100 نقطة الخاصة بترشيح الخسارة ولا تدخل في بول الخسارة. إذا كان توقعك خطأ تحصل على 100 نقطة فقط، وتذهب الـ 350 نقطة إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح بعد اعتماد النتيجة. الجوكر متاح في هذا الدور لمباراة واحدة فقط.",
   sf: "رصيد كل مشارك قبل نصف النهائي يقسم على عدد مباريات الدور. عند اختيار الفائز يحدد المتسابق نسبة نقاط الفائز بين 60% و90%، ويحسب النظام النسبة المتبقية للفريق الآخر تلقائياً. إذا كان التوقع صحيحاً يحصل على نقاط نسبة الفائز وتُلغى النسبة المتبقية ولا تدخل في بول الخسارة. إذا كان التوقع خطأ يحصل على النسبة المتبقية فقط، وتذهب نقاط نسبة الفائز إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح.",
-  final: "في المباراة النهائية يستخدم كل مشارك رصيده على مباراة واحدة. عند اختيار الفائز يحدد نسبة نقاط الفائز بين 60% و90%، ويحسب النظام النسبة المتبقية للفريق الآخر تلقائياً. إذا كان التوقع صحيحاً يحصل على نقاط نسبة الفائز وتُلغى النسبة المتبقية ولا تدخل في بول الخسارة. إذا كان التوقع خطأ يحصل على النسبة المتبقية فقط، وتذهب نقاط نسبة الفائز إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح."
+  final: "في المباراة النهائية يستخدم كل مشارك رصيده على مباراة واحدة. عند اختيار الفائز يحدد نسبة نقاط الفائز بين 60% و100%، ويحسب النظام النسبة المتبقية للفريق الآخر تلقائياً. إذا كان التوقع صحيحاً يحصل على نقاط نسبة الفائز وتُلغى النسبة المتبقية ولا تدخل في بول الخسارة. إذا كان التوقع خطأ يحصل على النسبة المتبقية فقط، وتذهب نقاط نسبة الفائز إلى مجموع نقاط الخاسرين لتوزع على أصحاب التوقع الصحيح."
 };
 
 const jokerLaw = "الجوكر متاح في دور الـ 16 ودور الـ 8 فقط. في دور الـ 16 يملك كل مشارك جوكرين يمكن تفعيلهما على مباراتين مختلفتين، وفي دور الـ 8 يملك جوكراً واحداً فقط. يجب تفعيل الجوكر قبل إغلاق التصويت للمباراة. إذا كان توقع الجوكر صحيحاً، يتم مضاعفة نقاط هذه المباراة ×2. إذا كان التوقع خطأ، تبقى خسارة النقاط حسب قانون الدور ولا يعطي الجوكر نقاطاً إضافية.";
@@ -893,19 +893,23 @@ function normalizePrediction(prediction) {
   return { ...prediction, is_joker: !!prediction.is_joker, winner_percent: normalizeWinnerPercent(prediction.winner_percent) };
 }
 
-function normalizeWinnerPercent(value) {
+function maxWinnerPercentForMatch(match) {
+  return normalizeRoundId(match?.round_id) === "final" ? 1 : 0.9;
+}
+
+function normalizeWinnerPercent(value, maxPercent = 1) {
   const percent = Number(value);
   if (!Number.isFinite(percent)) return null;
   const decimal = percent > 1 ? percent / 100 : percent;
-  return Math.min(0.9, Math.max(0.6, decimal));
+  return Math.min(maxPercent, Math.max(0.6, decimal));
 }
 
-function predictionWinnerPercent(prediction) {
-  return normalizeWinnerPercent(prediction?.winner_percent) || 0.9;
+function predictionWinnerPercent(prediction, match = null) {
+  return normalizeWinnerPercent(prediction?.winner_percent, maxWinnerPercentForMatch(match)) || 0.9;
 }
 
-function winnerPercentValue(prediction) {
-  return Math.round(predictionWinnerPercent(prediction) * 100);
+function winnerPercentValue(prediction, match = null) {
+  return Math.round(predictionWinnerPercent(prediction, match) * 100);
 }
 
 function isCustomPercentMatch(match) {
@@ -935,7 +939,7 @@ function setOptimisticPrediction(matchId, winner, isJoker, winnerPercent = null,
     match_id: matchId,
     winner,
     is_joker: !!isJoker,
-    winner_percent: normalizeWinnerPercent(winnerPercent) ?? previous?.winner_percent ?? null,
+    winner_percent: normalizeWinnerPercent(winnerPercent, maxWinnerPercentForMatch(state.matches.find(item => item.id === matchId))) ?? previous?.winner_percent ?? null,
     pending_percent_save: !!pendingPercentSave
   };
   state.predictions = nextPredictions;
@@ -2060,14 +2064,15 @@ function matchCard(match, prediction) {
 }
 
 function participantWinnerPercentBox(match, prediction, locked) {
-  const winnerPercent = winnerPercentValue(prediction);
+  const winnerPercent = winnerPercentValue(prediction, match);
   const safetyPercent = 100 - winnerPercent;
+  const maxPercent = Math.round(maxWinnerPercentForMatch(match) * 100);
   const selected = prediction?.winner || "";
   return `
     <div class="winner-percent-box">
       <label class="winner-percent-field">
         <span>نسبة نقاط الفائز</span>
-        <input type="number" min="60" max="90" step="1" value="${winnerPercent}" ${locked ? "disabled" : ""} data-winner-percent="${match.id}" />
+        <input type="number" min="60" max="${maxPercent}" step="1" value="${winnerPercent}" ${locked ? "disabled" : ""} data-winner-percent="${match.id}" />
       </label>
       <div class="winner-percent-preview">
         <span>${winnerPercent}% للفائز</span>
@@ -4126,7 +4131,9 @@ function bindApp() {
       const matchId = input.dataset.winnerPercent;
       const prediction = normalizePrediction(state.predictions[matchId]);
       if (!prediction) return;
-      const value = Math.min(90, Math.max(60, Number(input.value) || 90));
+      const match = state.matches.find(item => item.id === matchId);
+      const maxPercent = Math.round(maxWinnerPercentForMatch(match) * 100);
+      const value = Math.min(maxPercent, Math.max(60, Number(input.value) || maxPercent));
       const next = { ...state.predictions };
       next[matchId] = { ...prediction, winner_percent: value / 100 };
       state.predictions = next;
@@ -4150,9 +4157,11 @@ function bindApp() {
         return;
       }
       const percentInput = document.querySelector(`[data-winner-percent="${matchId}"]`);
-      const winnerPercent = Math.round(Number(percentInput?.value) || winnerPercentValue(prediction));
-      if (winnerPercent < 60 || winnerPercent > 90) {
-        state.error = "نسبة ترشيح الفائز يجب أن تكون بين 60% و90%.";
+      const match = state.matches.find(item => item.id === matchId);
+      const maxPercent = Math.round(maxWinnerPercentForMatch(match) * 100);
+      const winnerPercent = Math.round(Number(percentInput?.value) || winnerPercentValue(prediction, match));
+      if (winnerPercent < 60 || winnerPercent > maxPercent) {
+        state.error = `نسبة ترشيح الفائز يجب أن تكون بين 60% و${maxPercent}%.`;
         render();
         return;
       }

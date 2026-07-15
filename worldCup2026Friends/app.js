@@ -1531,6 +1531,16 @@ function triviaRoundSetting(roundId, questionRound = 1) {
 }
 
 function triviaRoundOpenState(setting) {
+  const closedValue = setting?.closed_at || setting?.closedAt || "";
+  if (closedValue) {
+    const closedDate = new Date(closedValue);
+    return {
+      locked: true,
+      closed: true,
+      label: Number.isNaN(closedDate.getTime()) ? "بعد اعتماد آخر مباراة في الدور" : formatDate(closedValue),
+      value: Number.isNaN(closedDate.getTime()) ? "" : closedDate.toISOString()
+    };
+  }
   const value = setting?.opens_at || setting?.opensAt || "";
   if (!value) return { locked: false, label: "الآن", value: "" };
   const date = new Date(value);
@@ -1544,6 +1554,7 @@ function triviaRoundOpenState(setting) {
 
 function triviaRoundOpenLabel(setting) {
   const openState = triviaRoundOpenState(setting);
+  if (openState.closed) return `مغلقة منذ ${openState.label}`;
   if (!openState.value) return "مفتوحة الآن";
   return `${openState.locked ? "تفتح في" : "مفتوحة من"} ${openState.label}`;
 }
@@ -1554,7 +1565,9 @@ function triviaRoundAdminDateLabel(setting) {
 }
 
 function triviaRoundStatusLabel(setting) {
-  return triviaRoundOpenState(setting).locked ? "لم تفتح" : "مفتوحة";
+  const openState = triviaRoundOpenState(setting);
+  if (openState.closed) return "مغلقة";
+  return openState.locked ? "لم تفتح" : "مفتوحة";
 }
 
 function triviaSettingPoints(setting, difficulty) {
@@ -1740,12 +1753,14 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
   const countdownLabel = allDone
     ? "مكتملة"
-    : locked
-      ? `تفتح بعد: ${countdownText(openState.value)}`
-      : started
-        ? "قيد اللعب"
-        : "مفتوحة الآن";
-  const countdownAttribute = locked ? countdownAttrs(openState.value, "تفتح بعد: ", "مفتوحة الآن") : "";
+    : openState.closed
+      ? "مغلقة"
+      : locked
+        ? `تفتح بعد: ${countdownText(openState.value)}`
+        : started
+          ? "قيد اللعب"
+          : "مفتوحة الآن";
+  const countdownAttribute = locked && !openState.closed ? countdownAttrs(openState.value, "تفتح بعد: ", "مفتوحة الآن") : "";
   return `
     <article class="match-card participant-match-card participant-trivia-card ${allDone ? "correct" : ""} ${locked ? "locked-card" : ""}">
       <div class="participant-match-top">
@@ -1795,6 +1810,14 @@ function triviaRoundCard(roundNumber, assignments, displayRoundId = activeRound)
 }
 
 function triviaRoundLockedView(openState) {
+  if (openState.closed) {
+    return `
+      <div class="trivia-round-lock">
+        <strong>الجولة مغلقة</strong>
+        <span class="small">تم إغلاقها بعد اعتماد آخر مباراة في هذا الدور.</span>
+      </div>
+    `;
+  }
   return `
     <div class="trivia-round-lock">
       <strong>الجولة مقفلة حالياً</strong>

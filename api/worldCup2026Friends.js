@@ -438,6 +438,7 @@ async function saveResult(req, res) {
       updated_at: new Date().toISOString()
     })
   });
+  if (winner) await closeTriviaRoundsForCompletedMatchRound(match.round_id);
   return res.status(200).json({ ok: true });
 }
 
@@ -922,6 +923,27 @@ async function deleteTriviaRound(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+async function closeTriviaRoundsForCompletedMatchRound(roundId) {
+  const normalizedRoundId = normalizeRoundId(roundId);
+  if (!normalizedRoundId || normalizedRoundId === "r32") return;
+  const roundQuery = normalizedRoundId === "qf"
+    ? "round_id=in.(r8,qf)"
+    : `round_id=eq.${encodeURIComponent(normalizedRoundId)}`;
+  const matches = await supabase(`worldcup2026friends_matches?${roundQuery}&select=id,winner`);
+  if (!matches.length || matches.some(match => !match.winner)) return;
+  const closedAt = new Date().toISOString();
+  try {
+    await supabase(`worldcup2026friends_trivia_rounds?round_id=eq.${encodeURIComponent(normalizedRoundId)}&is_active=eq.true&closed_at=is.null`, {
+      method: "PATCH",
+      body: JSON.stringify({ closed_at: closedAt, updated_at: closedAt }),
+      prefer: "return=minimal"
+    });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return;
+  }
+}
+
 async function deleteTriviaQuestion(req, res) {
   const body = await readBody(req);
   await requireOrganizer(body.userId);
@@ -1020,6 +1042,7 @@ async function answerTriviaQuestion(req, res) {
   const correctOption = normalizeTriviaOption(question.correct_option);
   const isCorrect = !expired && selected === correctOption;
   const setting = await fetchTriviaRoundForAssignment(assignment);
+  enforceTriviaRoundOpen(setting);
   const awardedPoints = isCorrect ? triviaPointsForDifficulty(setting, assignment.difficulty || question.difficulty) : 0;
   const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, {
     method: "PATCH",
@@ -1094,6 +1117,7 @@ async function fetchTriviaRoundForAssignment(assignment) {
 }
 
 function enforceTriviaRoundOpen(setting) {
+  if (setting?.closed_at) throw httpError(403, "تم إغلاق جولة س/ج لهذا الدور بعد اعتماد آخر مباراة.");
   if (!setting?.opens_at) return;
   const opensAt = new Date(setting.opens_at);
   if (Number.isNaN(opensAt.getTime()) || opensAt.getTime() <= Date.now()) return;

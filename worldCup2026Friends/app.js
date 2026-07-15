@@ -5,6 +5,7 @@ const STATE_CACHE_KEY = "wc2026friends-state-cache-v1";
 const APP_TIME_ZONE = "Asia/Dubai";
 const APP_TIME_OFFSET_MINUTES = 4 * 60;
 const JOKER_RULE_VERSION = "round-of-8";
+const ELIMINATED_PARTICIPANT_MESSAGE = "\u0648\u0635\u0644 \u0631\u0635\u064a\u062f\u0643 \u0625\u0644\u0649 0 \u0646\u0642\u0637\u0629\u060c \u0644\u0630\u0644\u0643 \u062a\u0645 \u0625\u0642\u0635\u0627\u0624\u0643 \u0645\u0646 \u0627\u0644\u0645\u0633\u0627\u0628\u0642\u0629 \u0648\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0627\u0644\u062a\u0635\u0648\u064a\u062a \u0623\u0648 \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0629 \u0641\u064a \u0646\u0633\u062e\u0629 \u0627\u0644\u0631\u0628\u0639.";
 let deferredInstallPrompt = null;
 
 const rounds = [
@@ -84,6 +85,8 @@ const state = {
   allTriviaAssignments: [],
   triviaSettings: [],
   adminDecisions: [],
+  eliminated: false,
+  eliminationMessage: ELIMINATED_PARTICIPANT_MESSAGE,
   rankMovement: {},
   participants: [],
   organizers: [],
@@ -816,6 +819,7 @@ function participantMatchesView() {
   const matches = sortMatches(state.matches.filter(match => roundMatchesActiveTab(match, activeRound)));
   return `
     ${summaryView()}
+    ${eliminationNoticeView()}
     <div class="section-title">
       <h2>قائمة المباريات</h2>
       <span class="small">التوقعات محفوظة على السيرفر</span>
@@ -1595,6 +1599,7 @@ function participantTriviaView() {
       <div class="summary-card"><span class="small">إجابات صحيحة</span><strong>${correctAnswers}/${answeredAssignments.length}</strong></div>
       <div class="summary-card"><span class="small">نسبة الذكاء</span><strong>${intelligencePercent}%</strong></div>
     </div>
+    ${eliminationNoticeView()}
     ${roundTabs()}
     <div class="trivia-question-list">
       ${assignments.length ? sortParticipantTriviaRoundGroups(triviaRoundGroups(assignments)).map(([roundNumber, roundAssignments]) => `
@@ -1859,6 +1864,7 @@ function triviaAssignmentCard(assignment, roundAssignments = []) {
   const answered = !!assignment.answered_at;
   const deadline = assignment.started_at ? new Date(new Date(assignment.started_at).getTime() + triviaTimeLimitSeconds(assignment) * 1000).toISOString() : "";
   const expired = triviaAssignmentExpired(assignment);
+  const eliminated = isCurrentUserEliminated();
   const options = [
     ["a", question.option_a],
     ["b", question.option_b],
@@ -1878,10 +1884,10 @@ function triviaAssignmentCard(assignment, roundAssignments = []) {
       ${started && !answered && !expired ? `<span class="countdown" ${countdownAttrs(deadline, "الوقت: ")} data-trivia-expire="${assignment.id}">${countdownText(deadline)}</span>` : ""}
       ${expired && autoStart ? `<span class="small" data-trivia-autostart="${autoStart.id}" data-trivia-expire-first="${assignment.id}">انتهى الوقت. جاري فتح السؤال التالي...</span>` : ""}
       ${expired && !autoStart ? `<span class="small" data-trivia-expire-only="${assignment.id}">انتهى الوقت. جاري عرض النتيجة...</span>` : ""}
-      ${!started ? `<button class="primary-btn" data-trivia-start="${assignment.id}" type="button">ابدأ السؤال</button>` : `
+      ${!started ? `<button class="primary-btn" data-trivia-start="${assignment.id}" type="button" ${eliminated ? "disabled" : ""}>ابدأ السؤال</button>` : `
         <div class="trivia-options">
           ${options.map(([key, value]) => `
-            <button class="choice ${assignment.selected_option === key ? "active" : ""}" data-trivia-answer="${assignment.id}" data-option="${key}" type="button" ${answered || expired || assignment._pendingAnswer ? "disabled" : ""}>
+            <button class="choice ${assignment.selected_option === key ? "active" : ""}" data-trivia-answer="${assignment.id}" data-option="${key}" type="button" ${answered || expired || assignment._pendingAnswer || eliminated ? "disabled" : ""}>
               <span>${key.toUpperCase()}</span>
               ${escapeHtml(value || "-")}
             </button>
@@ -1908,6 +1914,11 @@ const pendingTriviaExpires = new Set();
 
 async function startTriviaAssignment(assignmentId) {
   if (!assignmentId || pendingTriviaStarts.has(assignmentId)) return;
+  if (isCurrentUserEliminated()) {
+    state.error = state.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE;
+    render();
+    return;
+  }
   pendingTriviaStarts.add(assignmentId);
   const previous = state.triviaAssignments.find(item => item.id === assignmentId);
   try {
@@ -1964,14 +1975,40 @@ function summaryView() {
   `;
 }
 
+function currentUserStanding() {
+  return state.standings.find(row => row.id === state.currentUser?.id);
+}
+
+function isCurrentUserEliminated() {
+  if (state.currentUser?.role !== "participant") return false;
+  if (state.eliminated) return true;
+  const mine = currentUserStanding();
+  if (!mine) return false;
+  const points = Number(mine.points);
+  if (!Number.isFinite(points) || points > 0) return false;
+  return standingActivityCount(mine) > 0;
+}
+
+function standingActivityCount(row) {
+  return ["correct_predictions", "wrong_predictions", "trivia_correct", "trivia_wrong"]
+    .reduce((sum, key) => sum + (Number(row?.[key]) || 0), 0);
+}
+
+function eliminationNoticeView() {
+  return isCurrentUserEliminated()
+    ? `<div class="notice danger-notice elimination-notice">${escapeHtml(state.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE)}</div>`
+    : "";
+}
+
 function matchCard(match, prediction) {
-  const locked = isVoteClosed(match);
+  const eliminated = isCurrentUserEliminated();
+  const locked = isVoteClosed(match) || eliminated;
   const selected = prediction?.winner || prediction || "";
   const isJoker = !!prediction?.is_joker;
   const points = state.matchPoints[match.id];
   const canUseJoker = shouldShowJokerButton(match, isJoker);
   const percentBox = isCustomPercentMatch(match) && selected ? participantWinnerPercentBox(match, prediction, locked) : "";
-  const status = participantMatchStatus(match, selected, points, locked);
+  const status = participantMatchStatus(match, selected, points, locked, eliminated);
   const pickText = selected
     ? prediction?.pending_percent_save ? "حدد النسبة ثم اضغط حفظ الترشيح" : `تم حفظ توقعك: ${escapeHtml(selected)}`
     : "اختر الفائز لحفظ توقعك";
@@ -1993,7 +2030,7 @@ function matchCard(match, prediction) {
       ` : ""}
       <div class="participant-match-footer">
         ${status}
-        <span class="saved-pick">${pickText}</span>
+        <span class="saved-pick">${eliminated && !match.winner ? escapeHtml(state.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE) : pickText}</span>
       </div>
     </article>
   `;
@@ -2049,7 +2086,8 @@ function usedJokersInRound(roundId) {
   }).length;
 }
 
-function participantMatchStatus(match, selected, points, locked) {
+function participantMatchStatus(match, selected, points, locked, eliminated = false) {
+  if (eliminated && !match.winner) return `<span class="participant-status wrong"><span></span>\u0645\u0642\u0635\u064a</span>`;
   if (match.winner && points) {
     return `<span class="participant-status ${points.correct ? "correct" : "wrong"}"><span></span>${points.correct ? "توقع صحيح" : "توقع خاطئ"}: ${points.points} نقطة${points.is_joker ? " ×2" : ""}</span>`;
   }
@@ -3790,6 +3828,11 @@ function bindApp() {
 
   document.querySelectorAll("[data-trivia-answer]").forEach(button => {
     button.addEventListener("click", async () => {
+      if (isCurrentUserEliminated()) {
+        state.error = state.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE;
+        render();
+        return;
+      }
       const assignmentId = button.dataset.triviaAnswer;
       const selectedOption = button.dataset.option;
       const previous = state.triviaAssignments.find(item => item.id === assignmentId);
@@ -4014,6 +4057,11 @@ function bindApp() {
 
   document.querySelectorAll("[data-pick]").forEach(button => {
     button.addEventListener("click", async () => {
+      if (isCurrentUserEliminated()) {
+        state.error = state.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE;
+        render();
+        return;
+      }
       const matchId = button.dataset.pick;
       const winner = button.dataset.team;
       const isJoker = button.dataset.jokerState === "true";
@@ -4065,6 +4113,11 @@ function bindApp() {
 
   document.querySelectorAll("[data-save-percent-pick]").forEach(button => {
     button.addEventListener("click", async () => {
+      if (isCurrentUserEliminated()) {
+        state.error = state.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE;
+        render();
+        return;
+      }
       const matchId = button.dataset.savePercentPick;
       const prediction = normalizePrediction(state.predictions[matchId]);
       const winner = prediction?.winner || button.dataset.team;
@@ -4109,6 +4162,11 @@ function bindApp() {
 
   document.querySelectorAll("[data-joker]").forEach(button => {
     button.addEventListener("click", async () => {
+      if (isCurrentUserEliminated()) {
+        state.error = state.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE;
+        render();
+        return;
+      }
       const matchId = button.dataset.joker;
       const prediction = state.predictions[matchId];
       const winner = prediction?.winner || prediction;
@@ -4596,6 +4654,8 @@ function applyStatePayload(payload = {}) {
   state.allTriviaAssignments = payload.allTriviaAssignments || [];
   state.triviaSettings = payload.triviaSettings || [];
   state.adminDecisions = payload.adminDecisions || [];
+  state.eliminated = !!payload.eliminated;
+  state.eliminationMessage = payload.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE;
   state.participants = payload.participants || [];
   state.organizers = payload.organizers || [];
   if (payload.serverNow) state.serverNowOffsetMs = new Date(payload.serverNow).getTime() - Date.now();

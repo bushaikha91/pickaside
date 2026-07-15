@@ -14,6 +14,7 @@ const ROUND_RULES = {
 const ROUND_ORDER = ["r32", "r16", "qf", "sf", "final"];
 const JOKER_ROUNDS = new Set(["r16", "qf"]);
 const JOKER_LIMITS = { r16: 2, qf: 1 };
+const ELIMINATED_PARTICIPANT_MESSAGE = "\u0648\u0635\u0644 \u0631\u0635\u064a\u062f\u0643 \u0625\u0644\u0649 0 \u0646\u0642\u0637\u0629\u060c \u0644\u0630\u0644\u0643 \u062a\u0645 \u0625\u0642\u0635\u0627\u0624\u0643 \u0645\u0646 \u0627\u0644\u0645\u0633\u0627\u0628\u0642\u0629 \u0648\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0627\u0644\u062a\u0635\u0648\u064a\u062a \u0623\u0648 \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0629 \u0641\u064a \u0646\u0633\u062e\u0629 \u0627\u0644\u0631\u0628\u0639.";
 const ROUND_MATCH_LIMITS = {
   r32: 16,
   r16: 8,
@@ -84,6 +85,8 @@ async function sendState(req, res) {
 
   return res.status(200).json({
     user,
+    eliminated: isEliminatedStanding(tournament.standings.find(row => row.id === userId)),
+    eliminationMessage: ELIMINATED_PARTICIPANT_MESSAGE,
     matches: isOrganizer ? enrichMatchesForOrganizer(matches, participants, tournament.predictions) : matches,
     predictions: Object.fromEntries(predictions.map(item => [item.match_id, { winner: item.winner, is_joker: !!item.is_joker, winner_percent: item.winner_percent ?? null }])),
     matchPoints: userId ? tournament.matchPoints[userId] || {} : {},
@@ -310,6 +313,7 @@ async function savePrediction(req, res) {
   const isJoker = body.isJoker === true;
   if (!userId || !matchId || !winner) throw httpError(400, "بيانات التوقع غير مكتملة");
   await requireApprovedParticipant(userId);
+  await ensureParticipantCanCompete(userId);
 
   const [match] = await supabase(`worldcup2026friends_matches?id=eq.${encodeURIComponent(matchId)}&limit=1`);
   if (!match) throw httpError(404, "المباراة غير موجودة");
@@ -987,6 +991,7 @@ async function deleteAdminDecision(req, res) {
 async function startTriviaQuestion(req, res) {
   const body = await readBody(req);
   const user = await requireApprovedParticipant(body.userId);
+  await ensureParticipantCanCompete(user.id);
   const assignmentId = clean(body.assignmentId);
   const [assignment] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}&participant_id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if (!assignment) throw httpError(404, "?????? ??? ?????");
@@ -1000,6 +1005,7 @@ async function startTriviaQuestion(req, res) {
 async function answerTriviaQuestion(req, res) {
   const body = await readBody(req);
   const user = await requireApprovedParticipant(body.userId);
+  await ensureParticipantCanCompete(user.id);
   const assignmentId = clean(body.assignmentId);
   const selected = clean(body.selectedOption).toLowerCase();
   if (!["a", "b", "c", "d"].includes(selected)) throw httpError(400, "???????? ??? ????");
@@ -1314,6 +1320,24 @@ function triviaActiveSlotSet(rounds) {
 
 async function buildStandings() {
   return (await calculateTournament()).standings;
+}
+
+async function ensureParticipantCanCompete(userId) {
+  const standings = await buildStandings();
+  const standing = standings.find(row => row.id === userId);
+  if (isEliminatedStanding(standing)) throw httpError(403, ELIMINATED_PARTICIPANT_MESSAGE);
+}
+
+function isEliminatedStanding(standing) {
+  if (!standing) return false;
+  const points = Number(standing.points);
+  if (!Number.isFinite(points) || points > 0) return false;
+  return standingActivityCount(standing) > 0;
+}
+
+function standingActivityCount(standing) {
+  return ["correct_predictions", "wrong_predictions", "trivia_correct", "trivia_wrong"]
+    .reduce((sum, key) => sum + (Number(standing?.[key]) || 0), 0);
 }
 
 function applyFixedRound(users, stats, predictionByUserMatch, matches, rule, matchPoints, matchStakes) {

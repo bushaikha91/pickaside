@@ -890,7 +890,6 @@ document.body.addEventListener("click", (event) => {
 
   const routeButton = closestElement(event.target, "[data-route]");
   if (routeButton) {
-    if (routeButton.tagName === "A" && routeButton.getAttribute("href")?.startsWith("#/")) return;
     event.preventDefault();
     navigate(routeButton.dataset.route);
     return;
@@ -1238,6 +1237,10 @@ function render() {
   stopCountdownTimer();
   stopLiveAutoRefresh();
   closeModal();
+  if (state.backend.loading) {
+    updateBottomNav(state.route);
+    return renderAuthLoading();
+  }
   const route = normalizeAuthRoute(state.route);
   state.route = route;
   syncRouteHash(route);
@@ -1263,7 +1266,6 @@ function render() {
 }
 
 function normalizeAuthRoute(route = state.route) {
-  if (state.backend.loading) return route;
   if (!state.backend.configured) return route;
   if (state.backend.session?.user?.id) {
     return route === "/login" || route === "/signup" ? "/" : route;
@@ -1273,6 +1275,18 @@ function normalizeAuthRoute(route = state.route) {
 
 function isPublicAuthRoute(route = state.route) {
   return route === "/login" || route === "/signup";
+}
+
+function renderAuthLoading() {
+  document.body.classList.add("auth-screen");
+  app.innerHTML = `
+    <section class="auth-layout">
+      <div class="card auth-card stack auth-loading-card">
+        ${appLogoHtml("auth-logo")}
+        <p class="muted">جاري التحقق من الجلسة...</p>
+      </div>
+    </section>
+  `;
 }
 
 function syncRouteHash(route) {
@@ -1328,7 +1342,14 @@ async function initializeBackend() {
       state.backend.error = "Supabase is not configured";
       return;
     }
-    state.backend.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+    state.backend.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage
+      }
+    });
     state.backend.configured = true;
     const { data } = await state.backend.client.auth.getSession();
     state.backend.session = data.session || null;

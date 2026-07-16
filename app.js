@@ -4106,6 +4106,9 @@ function renderTournament(id, options = {}) {
   document.querySelectorAll("[data-inline-edit]").forEach((button) => {
     button.addEventListener("click", () => startInlinePredictionEdit(tournament, selectedRound, button.dataset.inlineEdit));
   });
+  document.querySelectorAll("[data-inline-detail-save]").forEach((button) => {
+    button.addEventListener("click", () => saveInlinePredictionDetails(tournament, selectedRound, button.dataset.inlineDetailSave));
+  });
   document.querySelectorAll("[data-quick-pick]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.disabled) return;
@@ -4158,12 +4161,16 @@ function saveInlinePredictionAuto(tournament, round, matchId, outcome, button = 
   const match = matches.find((item) => item.id === matchId);
   if (!match || isPredictionLockedForMatch(round, match, matches)) return;
   const rule = getPointRuleForRound(tournament, round);
-  if (!supportsInlinePrediction(rule)) {
-    predictionModal(tournament, round, matchId);
-    return;
-  }
   const key = `${tournament.id}:${round}:${match.id}`;
   if (isPredictionComplete(tournament.id, round, match.id) && !isPredictionEditing(key)) return;
+  state.quickPicks[key] = outcome;
+  delete state.predictionErrors[key];
+
+  if (requiresInlinePredictionDetails(rule, outcome)) {
+    if (button) markInlinePredictionSelection(button);
+    renderTournament(tournament.id);
+    return;
+  }
 
   const next = {
     outcome,
@@ -4182,6 +4189,59 @@ function saveInlinePredictionAuto(tournament, round, matchId, outcome, button = 
   delete state.editingPredictions[key];
   delete state.predictionErrors[key];
   if (button) markInlinePredictionSelection(button);
+  queueTournamentPersist(tournament);
+  renderTournament(tournament.id);
+}
+
+function saveInlinePredictionDetails(tournament, round, matchId) {
+  const matches = getTournamentPredictionMatches(tournament, round);
+  const match = matches.find((item) => item.id === matchId);
+  if (!match || isPredictionLockedForMatch(round, match, matches)) return;
+  const key = `${tournament.id}:${round}:${match.id}`;
+  if (isPredictionComplete(tournament.id, round, match.id) && !isPredictionEditing(key)) return;
+
+  const rule = getPointRuleForRound(tournament, round);
+  const outcome = state.quickPicks[key] || getPredictionOutcome(state.predictions[key] || {});
+  if (!outcome) {
+    state.predictionErrors[key] = "اختر الفائز من البطاقة أولاً.";
+    renderTournament(tournament.id);
+    return;
+  }
+
+  let next = { outcome, points: getAutoPredictionPoints(tournament, round, match, outcome, rule), pointEntry: "auto" };
+
+  if (requiresManualPredictionPoints(rule)) {
+    const input = document.querySelector(`[data-inline-points="${CSS.escape(match.id)}"]`);
+    next = { outcome, points: Number(input?.value || 0), pointEntry: "manual" };
+  } else if (requiresVariablePercentInput(rule, outcome)) {
+    const input = document.querySelector(`[data-inline-percent="${CSS.escape(match.id)}"]`);
+    const winnerPercent = Number(input?.value || 0);
+    const minPercent = Number(rule.minPercent || 20);
+    if (winnerPercent < minPercent || winnerPercent > 100 - minPercent) {
+      state.predictionErrors[key] = `النسبة يجب أن تكون بين ${minPercent}% و ${100 - minPercent}%.`;
+      renderTournament(tournament.id);
+      return;
+    }
+    next = {
+      outcome,
+      points: getAutoPredictionPoints(tournament, round, match, outcome, rule, { winnerPercent }),
+      pointEntry: "auto",
+      winnerPercent,
+      loserPercent: 100 - winnerPercent
+    };
+  }
+
+  const validation = validatePrediction(tournament, round, key, next);
+  if (validation) {
+    state.predictionErrors[key] = validation;
+    renderTournament(tournament.id);
+    return;
+  }
+
+  state.predictions[key] = next;
+  state.quickPicks[key] = outcome;
+  delete state.editingPredictions[key];
+  delete state.predictionErrors[key];
   queueTournamentPersist(tournament);
   renderTournament(tournament.id);
 }
@@ -7679,14 +7739,17 @@ function predictionMatchGroups(tournament, round, matches, locked) {
   `).join("");
 }
 
+function getMatchLockTimestamp(match) {
+  const kickoff = new Date(match?.kickoff).getTime();
+  return Number.isFinite(kickoff) ? kickoff - PREDICTION_LOCK_MINUTES * 60 * 1000 : 0;
+}
+
 function pickBoardCard(tournament, round, match, locked) {
   const matchLocked = isPredictionLockedForMatch(round, match, getTournamentPredictionMatches(tournament, round));
   const key = `${tournament.id}:${round}:${match.id}`;
   const picked = state.quickPicks[key];
   const prediction = state.predictions[key] || {};
   const rule = getPointRuleForRound(tournament, round);
-  const manualPoints = requiresManualPredictionPoints(rule);
-  const inlinePick = supportsInlinePrediction(rule);
   const allocated = getPredictionPoints(prediction);
   const completed = isPredictionComplete(tournament.id, round, match.id);
   const editing = isPredictionEditing(key);
@@ -7699,30 +7762,40 @@ function pickBoardCard(tournament, round, match, locked) {
   const statusClass = resultState?.className || (completed ? "done" : missed ? "missed" : "todo");
   const selectedOutcome = editing || !completed ? picked || getPredictionOutcome(prediction) : getPredictionOutcome(prediction) || picked;
   const selectedLabel = selectedOutcome ? outcomeText(selectedOutcome, match) : "لم يتم الاختيار";
-  const actionLabel = matchLocked ? "مقفل" : completed && !editing ? "تعديل" : completed && editing ? "اختر من البطاقة" : "تصويت";
   const errorText = state.predictionErrors[key] || "";
-  const showAction = !inlinePick || matchLocked || (completed && !editing);
-  const actionAttrs = inlinePick ? `data-inline-edit="${match.id}"` : `data-predict="${match.id}"`;
+  const needsDetails = requiresInlinePredictionDetails(rule, selectedOutcome);
+  const showDetails = !pickLocked && selectedOutcome && needsDetails;
+  const parsedScore = parseMatchScore(match.score);
+  const scoreText = isMatchFinal(match)
+    ? parsedScore
+      ? `${parsedScore.home} - ${parsedScore.away}`
+      : `${Number(match.scoreA ?? match.goalsA ?? 0)} - ${Number(match.scoreB ?? match.goalsB ?? 0)}`
+    : "";
+  const pickText = selectedOutcome
+    ? showDetails ? "أكمل تفاصيل التوقع ثم اضغط حفظ التوقع" : `تم حفظ توقعك: ${escapeHtml(selectedLabel)}`
+    : "اختر الفائز لحفظ توقعك";
 
   return `
-    <article class="prediction-row-card ${completed ? "completed" : "pending"} ${inlinePick ? "inline-pick inline-autosave" : "manual-points"} ${showAction ? "" : "no-controls"}">
-      ${showAction ? `
-        <div class="prediction-controls">
-          <button class="btn accent compact-btn prediction-confirm-btn" ${actionAttrs} ${matchLocked ? "disabled" : ""}>${actionLabel}</button>
-        </div>
-      ` : ""}
-      <div class="prediction-row-main">
-        <div class="prediction-teams">
-          ${predictionTeamButton(tournament, round, match, match.a, selectedOutcome, pickLocked, inlinePick)}
-          ${isDrawAllowed(round) && inlinePick ? predictionDrawButton(tournament, round, match, selectedOutcome, pickLocked) : `<b>VS</b>`}
-          ${predictionTeamButton(tournament, round, match, match.b, selectedOutcome, pickLocked, inlinePick)}
-        </div>
-        <div class="prediction-row-info">
-          <span class="prediction-status ${statusClass}">${statusText}</span>
-          ${matchRoundMetaHtml(match)}
-          ${selectedOutcome ? `<span>التوقع: <strong>${selectedLabel}</strong></span>` : ""}
-          ${allocated ? `<span>النقاط: <strong>${allocated}</strong></span>` : ""}
-        </div>
+    <article class="prediction-row-card participant-style-card ${completed ? "completed" : "pending"} ${matchLocked ? "locked-card" : ""}">
+      <div class="prediction-card-top">
+        <span>${formatUaeDate(match.kickoff, { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+        <span class="prediction-card-countdown match-countdown" data-match-countdown data-countdown-mode="match" data-kickoff="${new Date(match.kickoff).toISOString()}" data-lock-at="${getMatchLockTimestamp(match)}" data-score="${scoreText}">
+          <small data-countdown-label>يتم حساب الوقت</small>
+          <b data-countdown-value>--:--:--</b>
+          <small data-countdown-lock></small>
+        </span>
+      </div>
+      <div class="prediction-choice-grid ${isDrawAllowed(round) ? "has-draw" : ""}">
+        ${predictionTeamButton(tournament, round, match, match.a, selectedOutcome, pickLocked)}
+        ${isDrawAllowed(round) ? predictionDrawButton(tournament, round, match, selectedOutcome, pickLocked) : `<span class="prediction-vs-chip">VS</span>`}
+        ${predictionTeamButton(tournament, round, match, match.b, selectedOutcome, pickLocked)}
+      </div>
+      ${showDetails ? predictionInlineDetailBox(tournament, round, match, rule, selectedOutcome, prediction) : ""}
+      <div class="prediction-match-footer">
+        <span class="prediction-status ${statusClass}">${statusText}</span>
+        <span class="prediction-saved-pick">${pickText}</span>
+        ${allocated ? `<span class="prediction-card-points">${allocated} نقطة</span>` : ""}
+        ${completed && !matchLocked && !editing ? `<button class="prediction-edit-link" type="button" data-inline-edit="${match.id}">تعديل</button>` : ""}
       </div>
       ${errorText ? `<div class="prediction-inline-error">${errorText}</div>` : ""}
     </article>
@@ -7730,20 +7803,55 @@ function pickBoardCard(tournament, round, match, locked) {
 }
 
 function supportsInlinePrediction(rule) {
-  if (rule.pointSource === "league") return false;
-  if (rule.nominationType === "points") return rule.pointsMode === "fixed";
-  return rule.percentMode === "fixed";
+  return true;
 }
 
-function predictionTeamButton(tournament, round, match, team, selectedOutcome, locked, inlinePick) {
+function requiresVariablePercentInput(rule, outcome = "") {
+  return rule.nominationType === "percent" && rule.percentMode === "minimum" && outcome !== "draw";
+}
+
+function requiresInlinePredictionDetails(rule, outcome = "") {
+  return requiresManualPredictionPoints(rule) || requiresVariablePercentInput(rule, outcome);
+}
+
+function predictionTeamButton(tournament, round, match, team, selectedOutcome, locked) {
   const logoUrl = team === match.a ? match.logoA : match.logoB;
-  if (!inlinePick) return `<span>${teamIdentityHtml(team, "", logoUrl || "")}</span>`;
   const selected = selectedOutcome === team ? "selected" : "";
   return `
     <button class="prediction-team-pick ${selected}" type="button" data-inline-pick="${match.id}" data-outcome="${team}" ${locked ? "disabled" : ""}>
       ${teamIdentityHtml(team, "", logoUrl || "")}
     </button>
   `;
+}
+
+function predictionInlineDetailBox(tournament, round, match, rule, outcome, prediction = {}) {
+  if (requiresManualPredictionPoints(rule)) {
+    const value = getPredictionPoints(prediction) || Number(rule.minPoints || tournament.minPoints || 1);
+    return `
+      <div class="prediction-detail-box">
+        <label>
+          <span>نقاط هذا التوقع</span>
+          <input class="input" type="number" min="${rule.minPoints || tournament.minPoints || 1}" data-inline-points="${match.id}" value="${value}">
+        </label>
+        <button class="btn accent compact-btn" type="button" data-inline-detail-save="${match.id}">حفظ التوقع</button>
+      </div>
+    `;
+  }
+  if (requiresVariablePercentInput(rule, outcome)) {
+    const minPercent = Number(rule.minPercent || 20);
+    const value = Number(prediction.winnerPercent || Math.max(minPercent, 60));
+    return `
+      <div class="prediction-detail-box percent-detail-box">
+        <label>
+          <span>نسبة ترجيح الفائز</span>
+          <input class="input" type="number" min="${minPercent}" max="${100 - minPercent}" data-inline-percent="${match.id}" value="${value}">
+        </label>
+        <p>${value}% للفائز · ${100 - value}% للطرف الآخر</p>
+        <button class="btn accent compact-btn" type="button" data-inline-detail-save="${match.id}">حفظ التوقع</button>
+      </div>
+    `;
+  }
+  return "";
 }
 
 function predictionDrawButton(tournament, round, match, selectedOutcome, locked) {
@@ -8156,7 +8264,7 @@ function requiresManualPredictionPoints(rule) {
   return rule.pointSource !== "league" && rule.nominationType === "points" && rule.pointsMode !== "fixed";
 }
 
-function getAutoPredictionPoints(tournament, round, match, outcome, rule) {
+function getAutoPredictionPoints(tournament, round, match, outcome, rule, options = {}) {
   if (rule.pointSource === "league") return Math.max(1, Number(rule.correctPoints) || 10);
   if (rule.nominationType === "points" && rule.pointsMode === "fixed") {
     if (outcome && outcome !== "draw") return getFixedMatchWinnerPoints(rule);
@@ -8173,7 +8281,8 @@ function getAutoPredictionPoints(tournament, round, match, outcome, rule) {
       const share = outcome === "draw" ? 50 : getFixedPercentWinnerShare(rule);
       return Math.max(1, Math.round(perMatch * (share / 100)));
     }
-    return Math.max(1, Math.round(perMatch));
+    const share = outcome === "draw" ? 50 : Number(options.winnerPercent || 0);
+    return Math.max(1, Math.round(perMatch * ((share || 100) / 100)));
   }
 
   return Math.max(1, Number(rule.minPoints || tournament.minPoints || 1));

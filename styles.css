@@ -4325,6 +4325,167 @@ h1.section-title {
   font-weight: 700;
 }
 
+.prediction-row-card.participant-style-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 9px;
+  direction: rtl;
+  border-radius: 17px;
+}
+
+.prediction-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.prediction-card-countdown {
+  min-width: 112px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(213, 255, 64, .13);
+  color: var(--lime);
+  border: 1px solid rgba(213, 255, 64, .25);
+}
+
+.prediction-card-countdown small {
+  display: none;
+}
+
+.prediction-card-countdown b {
+  color: inherit;
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+.prediction-card-countdown.locked,
+.prediction-card-countdown.finished {
+  background: var(--soft-bg);
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.prediction-card-countdown.live {
+  background: rgba(98, 255, 142, .14);
+  border-color: rgba(98, 255, 142, .4);
+  color: #62ff8e;
+}
+
+.prediction-choice-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+}
+
+.prediction-choice-grid.has-draw {
+  grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr);
+}
+
+.participant-style-card .prediction-team-pick,
+.participant-style-card .prediction-draw-pick {
+  min-height: 48px;
+  border-radius: 13px;
+  background: rgba(255,255,255,.035);
+}
+
+.participant-style-card .prediction-team-pick .team-identity {
+  justify-content: center;
+}
+
+.participant-style-card .prediction-team-pick .team-name {
+  font-size: 13px;
+  line-height: 1.15;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.prediction-vs-chip {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--soft-bg);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.prediction-detail-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 8px;
+  border: 1px solid rgba(213, 255, 64, .22);
+  border-radius: 14px;
+  background: rgba(213, 255, 64, .06);
+}
+
+.prediction-detail-box label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.prediction-detail-box .input {
+  min-height: 36px;
+  padding: 7px 9px;
+}
+
+.prediction-detail-box p {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.prediction-match-footer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.prediction-saved-pick {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prediction-card-points {
+  color: var(--accent-text);
+  font-weight: 800;
+}
+
+.prediction-edit-link {
+  border: 0;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--soft-bg);
+  color: var(--lime);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .prediction-countdown {
   margin-top: 0;
   padding: 8px 10px;
@@ -6101,6 +6262,41 @@ body.auth-screen .bottom-nav {
 .prediction-draw-pick {
     min-height: 32px;
     padding: 4px 5px;
+  }
+
+  .prediction-choice-grid {
+    grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .prediction-choice-grid.has-draw {
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+  }
+
+  .participant-style-card .prediction-team-pick,
+  .participant-style-card .prediction-draw-pick {
+    min-height: 42px;
+  }
+
+  .participant-style-card .prediction-team-pick .team-name {
+    font-size: 11.5px;
+  }
+
+  .prediction-card-top {
+    font-size: 9.5px;
+  }
+
+  .prediction-card-countdown {
+    min-width: 96px;
+    padding: 4px 6px;
+  }
+
+  .prediction-detail-box {
+    grid-template-columns: 1fr;
+  }
+
+  .prediction-detail-box .btn {
+    width: 100%;
   }
 }
 

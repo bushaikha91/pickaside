@@ -1572,6 +1572,7 @@ function loadLocalAppState() {
 function saveLocalAppState() {
   try {
     localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify(localStateSnapshot()));
+    if (state.backend.error === "تعذر حفظ البيانات محلياً على هذا الجهاز.") state.backend.error = "";
   } catch {
     state.backend.error = "تعذر حفظ البيانات محلياً على هذا الجهاز.";
   }
@@ -5019,6 +5020,7 @@ function ownerManualTeamsPage(tournament) {
           <input class="input" id="manual-team-logo-file" type="file" accept="image/*">
         </label>
         <button class="btn accent" type="submit">إضافة الفريق</button>
+        <div class="error-text" id="manual-team-error"></div>
       </form>
       <div class="manual-team-list">
         ${teams.length ? teams.map((team) => `
@@ -5092,7 +5094,12 @@ function manualTeamOptionsHtml(teams) {
   return teams.map((team) => `<option value="${team.id}">${team.name}</option>`).join("");
 }
 
-function addManualTournamentTeam(tournament) {
+function setManualTeamError(message = "") {
+  const error = document.querySelector("#manual-team-error");
+  if (error) error.textContent = message;
+}
+
+async function addManualTournamentTeam(tournament) {
   const name = document.querySelector("#manual-team-name")?.value.trim();
   const logoInput = document.querySelector("#manual-team-logo");
   const fileInput = document.querySelector("#manual-team-logo-file");
@@ -5107,9 +5114,12 @@ function addManualTournamentTeam(tournament) {
   };
   const file = fileInput?.files?.[0];
   if (file && file.type.startsWith("image/")) {
-    const reader = new FileReader();
-    reader.onload = () => finish(String(reader.result || ""));
-    reader.readAsDataURL(file);
+    try {
+      setManualTeamError("");
+      finish(await readImageFileAsCompactDataUrl(file, 256, 0.82));
+    } catch {
+      setManualTeamError("تعذر تجهيز الشعار. جرّب صورة أخرى أو استخدم رابط الشعار.");
+    }
     return;
   }
   finish(logoInput?.value.trim() || "");
@@ -6007,6 +6017,36 @@ function cropPostImageToDataUrl(image, zoom = 1.2, offsetX = 0, offsetY = 0) {
   const y = (canvas.height - drawHeight) / 2 + (offsetY / 100) * canvas.height;
   ctx.drawImage(image, x, y, drawWidth, drawHeight);
   return canvas.toDataURL("image/jpeg", 0.88);
+}
+
+function readImageFileAsCompactDataUrl(file, maxSize = 256, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type?.startsWith("image/")) {
+      resolve("");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read-failed"));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("image-failed"));
+      image.onload = () => {
+        const sourceWidth = image.naturalWidth || image.width || maxSize;
+        const sourceHeight = image.naturalHeight || image.height || maxSize;
+        const scale = Math.min(1, maxSize / Math.max(sourceWidth, sourceHeight));
+        const width = Math.max(1, Math.round(sourceWidth * scale));
+        const height = Math.max(1, Math.round(sourceHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/webp", quality));
+      };
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function getTournamentPrizes(tournament) {

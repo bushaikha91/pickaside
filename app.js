@@ -5,6 +5,7 @@ let liveAutoRefreshTimer = null;
 let localStateLoaded = false;
 
 const LOCAL_STATE_KEY = "pickaside_local_state_v1";
+const LOCAL_TOURNAMENT_KEY_PREFIX = "pickaside_tournament_v1:";
 
 const state = {
   selectedChampionshipsTab: "active",
@@ -1510,6 +1511,40 @@ function mergeTournamentSnapshots(primary = [], secondary = []) {
   return Array.from(byId.values());
 }
 
+function tournamentBackupKey(tournamentId) {
+  return `${LOCAL_TOURNAMENT_KEY_PREFIX}${tournamentId}`;
+}
+
+function saveTournamentLocalBackup(tournament) {
+  if (!tournament?.id) return true;
+  try {
+    localStorage.setItem(tournamentBackupKey(tournament.id), JSON.stringify({
+      savedAt: new Date().toISOString(),
+      tournament
+    }));
+    return true;
+  } catch {
+    state.backend.error = "تعذر حفظ البطولة محلياً على هذا الجهاز.";
+    return false;
+  }
+}
+
+function loadTournamentLocalBackups() {
+  const backups = [];
+  try {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(LOCAL_TOURNAMENT_KEY_PREFIX)) continue;
+      const saved = safeJsonParse(localStorage.getItem(key), null);
+      const tournament = saved?.tournament;
+      if (tournament?.id && !tournament.cancelled) backups.push(tournament);
+    }
+  } catch {
+    return backups;
+  }
+  return backups;
+}
+
 function localStateSnapshot() {
   return {
     version: 1,
@@ -1535,17 +1570,23 @@ function loadLocalAppState() {
   if (localStateLoaded) return;
   localStateLoaded = true;
   let saved = null;
+  const tournamentBackups = loadTournamentLocalBackups();
   try {
     saved = safeJsonParse(localStorage.getItem(LOCAL_STATE_KEY), null);
   } catch {
     saved = null;
   }
-  if (!saved || typeof saved !== "object") return;
+  if (!saved || typeof saved !== "object") {
+    if (tournamentBackups.length) {
+      state.tournaments = mergeTournamentSnapshots(tournamentBackups, state.tournaments);
+    }
+    return;
+  }
   if (saved.language) state.language = saved.language;
   if (saved.theme) state.theme = saved.theme;
   if (saved.currentUser) state.currentUser = { ...state.currentUser, ...saved.currentUser };
-  if (Array.isArray(saved.tournaments)) {
-    state.tournaments = mergeTournamentSnapshots(saved.tournaments, state.tournaments);
+  if (Array.isArray(saved.tournaments) || tournamentBackups.length) {
+    state.tournaments = mergeTournamentSnapshots([...(saved.tournaments || []), ...tournamentBackups], state.tournaments);
   }
   if (saved.predictions && typeof saved.predictions === "object") state.predictions = { ...state.predictions, ...saved.predictions };
   if (saved.quickPicks && typeof saved.quickPicks === "object") state.quickPicks = { ...state.quickPicks, ...saved.quickPicks };
@@ -1813,6 +1854,7 @@ async function persistTournamentToBackend(tournament) {
   if (participantError) throw participantError;
   tournament.backendSynced = true;
   tournament.backendSyncError = "";
+  saveTournamentLocalBackup(tournament);
   saveLocalAppState();
   return true;
 }
@@ -1821,6 +1863,7 @@ function queueTournamentPersist(tournament) {
   if (!tournament) return;
   tournament.backendSynced = false;
   tournament.localUpdatedAt = new Date().toISOString();
+  saveTournamentLocalBackup(tournament);
   saveLocalAppState();
   if (!isBackendReady()) return;
   persistTournamentToBackend(tournament).catch((error) => {
@@ -1836,6 +1879,11 @@ async function deleteTournamentFromBackend(tournamentId) {
   await client.from("tournament_participants").delete().eq("tournament_id", tournamentId);
   const { error } = await client.from("tournaments").delete().eq("id", tournamentId);
   if (error) throw error;
+  try {
+    localStorage.removeItem(tournamentBackupKey(tournamentId));
+  } catch {
+    // Ignore local cleanup failures.
+  }
   return true;
 }
 
@@ -3943,13 +3991,21 @@ async function saveTournament(draft = false) {
     backendSynced: false
   };
   state.tournaments.unshift(tournament);
+  const localBackupSaved = saveTournamentLocalBackup(tournament);
   saveLocalAppState();
+  let backendSaved = false;
   try {
-    await persistTournamentToBackend(tournament);
+    backendSaved = Boolean(await persistTournamentToBackend(tournament));
   } catch (error) {
     tournament.backendSyncError = error.message || "تعذر حفظ البطولة في قاعدة البيانات.";
     state.backend.error = tournament.backendSyncError;
     saveLocalAppState();
+  }
+  if (!localBackupSaved && !backendSaved) {
+    state.tournaments = state.tournaments.filter((item) => item.id !== id);
+    const errorBox = document.querySelector("#create-error");
+    if (errorBox) errorBox.textContent = tournament.backendSyncError || state.backend.error || "تعذر حفظ البطولة. جرّب تحديث الصفحة وتسجيل الدخول مرة أخرى.";
+    return "";
   }
   state.pendingCreateCoverImage = null;
   state.createFormDraft = {};
@@ -9034,6 +9090,11 @@ function confirmDeleteDraft(tournamentId) {
   document.querySelector("#cancel-delete-draft").addEventListener("click", closeModal);
   document.querySelector("#confirm-delete-draft").addEventListener("click", async () => {
     state.tournaments = state.tournaments.filter((tournament) => tournament.id !== tournamentId);
+    try {
+      localStorage.removeItem(tournamentBackupKey(tournamentId));
+    } catch {
+      // Ignore local cleanup failures.
+    }
     saveLocalAppState();
     try {
       await deleteTournamentFromBackend(tournamentId);

@@ -4100,15 +4100,11 @@ function renderTournament(id, options = {}) {
   document.querySelectorAll("[data-inline-pick]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.disabled) return;
-      const key = `${tournament.id}:${selectedRound}:${button.dataset.inlinePick}`;
-      if (isPredictionComplete(tournament.id, selectedRound, button.dataset.inlinePick) && !isPredictionEditing(key)) return;
-      state.quickPicks[key] = button.dataset.outcome;
-      delete state.predictionErrors[key];
-      markInlinePredictionSelection(button);
+      saveInlinePredictionAuto(tournament, selectedRound, button.dataset.inlinePick, button.dataset.outcome, button);
     });
   });
-  document.querySelectorAll("[data-inline-confirm]").forEach((button) => {
-    button.addEventListener("click", () => confirmInlinePrediction(tournament, selectedRound, button.dataset.inlineConfirm));
+  document.querySelectorAll("[data-inline-edit]").forEach((button) => {
+    button.addEventListener("click", () => startInlinePredictionEdit(tournament, selectedRound, button.dataset.inlineEdit));
   });
   document.querySelectorAll("[data-quick-pick]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -4144,6 +4140,50 @@ function markInlinePredictionSelection(button) {
   });
   const error = card.querySelector(".prediction-inline-error");
   if (error) error.remove();
+}
+
+function startInlinePredictionEdit(tournament, round, matchId) {
+  const matches = getTournamentPredictionMatches(tournament, round);
+  const match = matches.find((item) => item.id === matchId);
+  if (!match || isPredictionLockedForMatch(round, match, matches)) return;
+  const key = `${tournament.id}:${round}:${match.id}`;
+  state.editingPredictions[key] = true;
+  state.quickPicks[key] = getPredictionOutcome(state.predictions[key] || {});
+  delete state.predictionErrors[key];
+  renderTournament(tournament.id);
+}
+
+function saveInlinePredictionAuto(tournament, round, matchId, outcome, button = null) {
+  const matches = getTournamentPredictionMatches(tournament, round);
+  const match = matches.find((item) => item.id === matchId);
+  if (!match || isPredictionLockedForMatch(round, match, matches)) return;
+  const rule = getPointRuleForRound(tournament, round);
+  if (!supportsInlinePrediction(rule)) {
+    predictionModal(tournament, round, matchId);
+    return;
+  }
+  const key = `${tournament.id}:${round}:${match.id}`;
+  if (isPredictionComplete(tournament.id, round, match.id) && !isPredictionEditing(key)) return;
+
+  const next = {
+    outcome,
+    points: getAutoPredictionPoints(tournament, round, match, outcome, rule),
+    pointEntry: "auto"
+  };
+  const validation = validatePrediction(tournament, round, key, next);
+  if (validation) {
+    state.predictionErrors[key] = validation;
+    renderTournament(tournament.id);
+    return;
+  }
+
+  state.predictions[key] = next;
+  state.quickPicks[key] = outcome;
+  delete state.editingPredictions[key];
+  delete state.predictionErrors[key];
+  if (button) markInlinePredictionSelection(button);
+  queueTournamentPersist(tournament);
+  renderTournament(tournament.id);
 }
 
 function playerTournamentSummaryCard(tournament, activeRound) {
@@ -7659,14 +7699,18 @@ function pickBoardCard(tournament, round, match, locked) {
   const statusClass = resultState?.className || (completed ? "done" : missed ? "missed" : "todo");
   const selectedOutcome = editing || !completed ? picked || getPredictionOutcome(prediction) : getPredictionOutcome(prediction) || picked;
   const selectedLabel = selectedOutcome ? outcomeText(selectedOutcome, match) : "لم يتم الاختيار";
-  const actionLabel = matchLocked ? "مقفل" : completed && !editing ? "تعديل" : completed && editing ? "حفظ" : "تصويت";
+  const actionLabel = matchLocked ? "مقفل" : completed && !editing ? "تعديل" : completed && editing ? "اختر من البطاقة" : "تصويت";
   const errorText = state.predictionErrors[key] || "";
+  const showAction = !inlinePick || matchLocked || (completed && !editing);
+  const actionAttrs = inlinePick ? `data-inline-edit="${match.id}"` : `data-predict="${match.id}"`;
 
   return `
-    <article class="prediction-row-card ${completed ? "completed" : "pending"} ${inlinePick ? "inline-pick" : "manual-points"}">
-      <div class="prediction-controls">
-        <button class="btn accent compact-btn prediction-confirm-btn" ${inlinePick ? `data-inline-confirm="${match.id}"` : `data-predict="${match.id}"`} ${matchLocked ? "disabled" : ""}>${actionLabel}</button>
-      </div>
+    <article class="prediction-row-card ${completed ? "completed" : "pending"} ${inlinePick ? "inline-pick inline-autosave" : "manual-points"} ${showAction ? "" : "no-controls"}">
+      ${showAction ? `
+        <div class="prediction-controls">
+          <button class="btn accent compact-btn prediction-confirm-btn" ${actionAttrs} ${matchLocked ? "disabled" : ""}>${actionLabel}</button>
+        </div>
+      ` : ""}
       <div class="prediction-row-main">
         <div class="prediction-teams">
           ${predictionTeamButton(tournament, round, match, match.a, selectedOutcome, pickLocked, inlinePick)}

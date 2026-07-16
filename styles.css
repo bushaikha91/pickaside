@@ -4143,6 +4143,14 @@ h1.section-title {
   grid-template-columns: auto minmax(0, 1fr);
 }
 
+.prediction-row-card.no-controls {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.prediction-row-card.inline-autosave {
+  padding: 7px 8px;
+}
+
 .prediction-row-card.completed {
   border-color: rgba(213, 255, 64, .28);
   background: rgba(213, 255, 64, .055);
@@ -4183,8 +4191,8 @@ h1.section-title {
 .prediction-team-pick,
 .prediction-draw-pick {
   min-width: 0;
-  min-height: 34px;
-  padding: 4px 6px;
+  min-height: 40px;
+  padding: 5px 7px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-2);
@@ -4201,8 +4209,8 @@ h1.section-title {
 .prediction-team-pick.selected,
 .prediction-draw-pick.selected {
   border-color: var(--lime);
-  background: rgba(213, 255, 64, .18);
-  box-shadow: inset 0 -2px 0 var(--lime), 0 0 0 1px rgba(213, 255, 64, .08);
+  background: rgba(213, 255, 64, .20);
+  box-shadow: inset 0 -2px 0 var(--lime), 0 0 0 1px rgba(213, 255, 64, .1);
   color: var(--text);
 }
 
@@ -4230,6 +4238,11 @@ h1.section-title {
 
 .prediction-team-pick .team-identity {
   width: 100%;
+}
+
+.prediction-team-pick .team-name {
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .prediction-draw-pick {

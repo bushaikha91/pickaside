@@ -84,6 +84,9 @@ const state = {
   selectedCompetitionMatchesByRound: null,
   selectedCompetitionFixtureStatus: "",
   selectedCompetitionFixtureError: "",
+  createSourceMode: "official",
+  manualTeams: [],
+  manualMatches: [],
   liveApi: {
     endpoint: "/api/live-results",
     lastFetchAt: 0,
@@ -1666,6 +1669,9 @@ function dbTournamentToApp(row, participation, ownerProfile) {
   return {
     id: row.id,
     name: row.name,
+    sourceMode: settings.sourceMode || (settings.manual ? "manual" : "official"),
+    manual: Boolean(settings.manual || settings.sourceMode === "manual"),
+    manualTeams: settings.manualTeams || [],
     officialCompetitionId: row.official_competition_api_id ? `api-${row.official_competition_api_id}-${row.official_competition_season || ""}` : "",
     officialCompetitionApiId: row.official_competition_api_id || "",
     officialCompetitionSeason: row.official_competition_season || "",
@@ -1746,6 +1752,9 @@ function appTournamentToDb(tournament) {
     prizes: tournament.prizes || [],
     award_categories: tournament.awardCategories || [],
     settings: {
+      sourceMode: tournament.sourceMode || (tournament.manual ? "manual" : "official"),
+      manual: Boolean(tournament.manual || tournament.sourceMode === "manual"),
+      manualTeams: tournament.manualTeams || [],
       officialCompetitionCode: tournament.officialCompetitionCode || "",
       fixturesStatus: tournament.fixturesStatus || "",
       logoFileName: tournament.logoFileName || "",
@@ -2602,8 +2611,13 @@ function selectedCompetitionSummary() {
 }
 
 function refreshCreateSubmitState() {
-  const createButton = document.querySelector("#create-tournament-form button[type=\"submit\"]");
+  const createButton = document.querySelector("#create-form button[type=\"submit\"]");
   if (!createButton) return;
+  if (state.createSourceMode === "manual") {
+    createButton.disabled = false;
+    createButton.textContent = "إنشاء البطولة";
+    return;
+  }
   const hasCompetition = Boolean(state.selectedCompetitionId);
   const isLoading = state.selectedCompetitionFixtureStatus === "loading";
   const hasPredictableMatches = countPredictableMatchesByRound(state.selectedCompetitionMatchesByRound) > 0;
@@ -2648,6 +2662,7 @@ function selectOfficialCompetition(competitionId) {
 }
 
 function validateCompetitionSelection() {
+  if (state.createSourceMode === "manual") return true;
   if (state.selectedCompetitionId) return true;
   const error = document.querySelector("#create-error");
   if (error) error.textContent = "اختر بطولة رسمية من القائمة أولاً حتى يتم ربط المباريات وقوائم اللاعبين.";
@@ -3010,6 +3025,10 @@ function isApiCompetitionTournament(tournament) {
     || Boolean(tournament?.officialCompetitionApiId);
 }
 
+function isManualTournament(tournament) {
+  return Boolean(tournament?.manual || tournament?.sourceMode === "manual" || tournament?.fixturesStatus === "manual");
+}
+
 function getTournamentMatches(tournament, round) {
   if (tournament?.matchesByRound) return tournament.matchesByRound[round] || [];
   if (isApiCompetitionTournament(tournament)) return [];
@@ -3025,7 +3044,7 @@ function emptyRoundMatchesMessage(tournament, isLocked = false) {
 }
 
 function setTournamentMatches(tournament, round, matches) {
-  if (!tournament || !isApiCompetitionTournament(tournament)) return;
+  if (!tournament || !(isApiCompetitionTournament(tournament) || isManualTournament(tournament))) return;
   tournament.matchesByRound = tournament.matchesByRound || emptyMatchesByRound();
   tournament.matchesByRound[round] = matches;
 }
@@ -3578,9 +3597,10 @@ function joinTournamentSilently(tournamentId) {
 }
 
 function renderCreateTournament() {
+  const sourceMode = state.createSourceMode || "official";
   const selectedCompetition = getSelectedCompetition();
   const startingRoundOptions = createStartingRoundOptions();
-  const initialRoundId = normalizeStartingRoundValue(selectedCompetition?.defaultStart || "group", startingRoundOptions);
+  const initialRoundId = normalizeStartingRoundValue(sourceMode === "manual" ? "group" : selectedCompetition?.defaultStart || "group", startingRoundOptions);
   const initialRoundLabel = rounds.find((round) => round.id === initialRoundId)?.label || "دور المجموعات";
   const today = new Date().toISOString().slice(0, 10);
   const draft = state.createFormDraft || {};
@@ -3593,7 +3613,16 @@ function renderCreateTournament() {
         <p class="muted">أدخل البيانات الأساسية فقط. القوانين، الجوائز وقواعد النقاط تستكمل من إدارة البطولة.</p>
       </div>
       <div class="grid form-grid">
-        <div class="field wide official-competition-picker">
+        <div class="field wide">
+          <label>طريقة إنشاء البطولة</label>
+          <div class="championship-segment create-source-segment" role="tablist" aria-label="طريقة إنشاء البطولة" style="--tab-count:2; --active-index:${sourceMode === "manual" ? 1 : 0}">
+            <button class="championship-segment-btn create-source-btn ${sourceMode === "official" ? "active" : ""}" type="button" data-create-source="official" role="tab" aria-selected="${sourceMode === "official"}">من الربط الرياضي</button>
+            <button class="championship-segment-btn create-source-btn ${sourceMode === "manual" ? "active" : ""}" type="button" data-create-source="manual" role="tab" aria-selected="${sourceMode === "manual"}">يدوي</button>
+            <span class="championship-segment-indicator" aria-hidden="true"></span>
+          </div>
+          <small class="muted">${sourceMode === "manual" ? "ستضيف الفرق والمباريات لاحقاً من صفحة إدارة البطولة." : "اختر بطولة رسمية ليتم جلب أدوارها ومبارياتها من المصدر الرياضي."}</small>
+        </div>
+        <div class="field wide official-competition-picker ${sourceMode === "manual" ? "hidden" : ""}">
           <label>اختر البطولة الرسمية</label>
           <input class="input" id="competition-search" autocomplete="off" value="${state.competitionSearchQuery}" placeholder="ابحث باسم البطولة أو الكود من المصدر الرسمي">
           <input type="hidden" id="competition-id" value="${state.selectedCompetitionId}">
@@ -3606,7 +3635,7 @@ function renderCreateTournament() {
         </div>
         <div class="field wide">
           <label>اسم البطولة</label>
-          <input class="input" id="tournament-name" required maxlength="40" value="${draft.name || selectedCompetition?.name || ""}" placeholder="مثال: بطولة الأصدقاء">
+          <input class="input" id="tournament-name" required maxlength="40" value="${draft.name || (sourceMode === "official" ? selectedCompetition?.name || "" : "")}" placeholder="مثال: بطولة الأصدقاء">
         </div>
         <div class="field wide">
           <label>صورة بوست البطولة</label>
@@ -3653,7 +3682,7 @@ function renderCreateTournament() {
           <button type="button" class="switch" id="prizes-switch" aria-pressed="false"><span></span></button>
         </div>
       </div>
-      <div class="notice" id="api-preview">مرحلة البداية: سيتم جلب مباريات ${initialRoundLabel}، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.</div>
+      <div class="notice" id="api-preview">${sourceMode === "manual" ? `مرحلة البداية: ستبدأ البطولة من ${initialRoundLabel}. أضف الفرق والمباريات من إدارة البطولة قبل التفعيل.` : `مرحلة البداية: سيتم جلب مباريات ${initialRoundLabel}، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.`}</div>
       <div class="error-text" id="create-error"></div>
       <div class="topbar">
         <button class="btn warn" type="button" id="save-draft">حفظ كمسودة</button>
@@ -3668,7 +3697,21 @@ function renderCreateTournament() {
   privacy.setAttribute("aria-pressed", String(Boolean(draft.isPrivate)));
   prizesSwitch.classList.toggle("on", Boolean(draft.hasPrizes));
   prizesSwitch.setAttribute("aria-pressed", String(Boolean(draft.hasPrizes)));
-  document.querySelector("#competition-search").addEventListener("input", (event) => {
+  document.querySelectorAll("[data-create-source]").forEach((button) => {
+    button.addEventListener("click", () => {
+      captureCreateFormDraft();
+      state.createSourceMode = button.dataset.createSource;
+      if (state.createSourceMode === "manual") {
+        state.selectedCompetitionId = "";
+        state.selectedCompetitionMatchesByRound = null;
+        state.selectedCompetitionFixtureStatus = "";
+        state.selectedCompetitionFixtureError = "";
+      }
+      renderCreateTournament();
+    });
+  });
+  const competitionSearch = document.querySelector("#competition-search");
+  if (competitionSearch) competitionSearch.addEventListener("input", (event) => {
     state.competitionSearchQuery = event.target.value;
     state.selectedCompetitionId = "";
     state.selectedCompetitionMatchesByRound = null;
@@ -3709,7 +3752,9 @@ function renderCreateTournament() {
   }
   document.querySelector("#starting-round").addEventListener("change", (event) => {
     const label = rounds.find((round) => round.id === event.target.value).label;
-    document.querySelector("#api-preview").textContent = `مرحلة البداية: سيتم جلب مباريات ${label}، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.`;
+    document.querySelector("#api-preview").textContent = state.createSourceMode === "manual"
+      ? `مرحلة البداية: ستبدأ البطولة من ${label}. أضف الفرق والمباريات من إدارة البطولة قبل التفعيل.`
+      : `مرحلة البداية: سيتم جلب مباريات ${label}، وبعد اعتماد نتائجها تفتح المرحلة التالية تلقائياً.`;
   });
   document.querySelector("#save-draft").addEventListener("click", async () => {
     const id = await saveTournament(true);
@@ -3729,6 +3774,7 @@ function captureCreateFormDraft() {
   const nameInput = document.querySelector("#tournament-name");
   if (!nameInput) return;
   state.createFormDraft = {
+    sourceMode: state.createSourceMode || "official",
     name: nameInput.value,
     maxPlayers: document.querySelector("#max-players")?.value || "16",
     startingRound: document.querySelector("#starting-round")?.value || "",
@@ -3818,6 +3864,8 @@ function createTournamentPostImageCropModal(imageUrl, fileName) {
 
 async function saveTournament(draft = false) {
   if (!validateCompetitionSelection()) return "";
+  const sourceMode = state.createSourceMode || "official";
+  const isManual = sourceMode === "manual";
   const tournamentName = document.querySelector("#tournament-name").value.trim();
   if (!tournamentName) {
     document.querySelector("#create-error").textContent = "اكتب اسم البطولة أولاً.";
@@ -3832,14 +3880,14 @@ async function saveTournament(draft = false) {
   const selectedCompetition = getSelectedCompetition();
   const isPrivate = document.querySelector("#privacy-switch").classList.contains("on");
   const hasPrizes = document.querySelector("#prizes-switch").classList.contains("on");
-  const competitionMatchesByRound = selectedCompetition.apiId
+  const competitionMatchesByRound = !isManual && selectedCompetition?.apiId
     ? (state.selectedCompetitionMatchesByRound || emptyMatchesByRound())
-    : null;
-  if (selectedCompetition.apiId && state.selectedCompetitionFixtureStatus === "loading") {
+    : emptyMatchesByRound();
+  if (!isManual && selectedCompetition?.apiId && state.selectedCompetitionFixtureStatus === "loading") {
     document.querySelector("#create-error").textContent = "انتظر حتى يكتمل جلب مباريات البطولة من الربط الرياضي.";
     return "";
   }
-  if (selectedCompetition.apiId && !countPredictableMatchesByRound(competitionMatchesByRound)) {
+  if (!isManual && selectedCompetition?.apiId && !countPredictableMatchesByRound(competitionMatchesByRound)) {
     document.querySelector("#create-error").textContent = state.selectedCompetitionFixtureError || "لم يتم جلب مباريات قادمة لم تبدأ بعد لهذه البطولة، لذلك لا يمكن إنشاء بطولة توقعات واقعية منها حالياً.";
     return "";
   }
@@ -3848,19 +3896,22 @@ async function saveTournament(draft = false) {
   const tournament = {
     id,
     name: tournamentName,
-    officialCompetitionId: selectedCompetition.id,
-    officialCompetitionApiId: selectedCompetition.apiId || "",
-    officialCompetitionSeason: selectedCompetition.season || "",
-    officialCompetitionLogoUrl: selectedCompetition.logoUrl || "",
-    officialCompetitionCode: selectedCompetition.code,
-    officialCompetitionName: selectedCompetition.name,
+    sourceMode,
+    manual: isManual,
+    manualTeams: [],
+    officialCompetitionId: isManual ? "" : selectedCompetition.id,
+    officialCompetitionApiId: isManual ? "" : selectedCompetition.apiId || "",
+    officialCompetitionSeason: isManual ? "" : selectedCompetition.season || "",
+    officialCompetitionLogoUrl: isManual ? "" : selectedCompetition.logoUrl || "",
+    officialCompetitionCode: isManual ? "MANUAL" : selectedCompetition.code,
+    officialCompetitionName: isManual ? tournamentName : selectedCompetition.name,
     matchesByRound: competitionMatchesByRound,
-    fixturesStatus: state.selectedCompetitionFixtureStatus || (competitionMatchesByRound ? "pending" : ""),
+    fixturesStatus: isManual ? "manual" : state.selectedCompetitionFixtureStatus || (competitionMatchesByRound ? "pending" : ""),
     logoFileName: "",
     coverImageUrl: state.pendingCreateCoverImage?.url || "",
     postImageFileName: state.pendingCreateCoverImage?.fileName || "",
     public: !isPrivate,
-    publicCode: isPrivate ? "" : selectedCompetition.code,
+    publicCode: isPrivate ? "" : (isManual ? "MANUAL" : selectedCompetition.code),
     active: false,
     draft,
     setupIncomplete: true,
@@ -3901,6 +3952,7 @@ async function saveTournament(draft = false) {
   }
   state.pendingCreateCoverImage = null;
   state.createFormDraft = {};
+  state.createSourceMode = "official";
   saveLocalAppState();
   return id;
 }
@@ -4224,6 +4276,8 @@ function renderOwnerTournament(tournament) {
       ${!tournament.active ? ownerActivationPanel(tournament) : ""}
 
       <section class="owner-action-list">
+        ${isManualTournament(tournament) ? ownerTournamentActionRow("manual-teams", "إضافة الفرق", "bars", `/tournament/${tournament.id}/manage/manual-teams`, isSectionIncomplete(tournament, "manual-teams")) : ""}
+        ${isManualTournament(tournament) ? ownerTournamentActionRow("manual-matches", "إدارة المباريات", "ball", `/tournament/${tournament.id}/manage/manual-matches`, isSectionIncomplete(tournament, "manual-matches")) : ""}
         ${ownerTournamentActionRow("voting", "حالة التصويت", "check", `/tournament/${tournament.id}/manage/voting`, isSectionIncomplete(tournament, "voting"))}
         ${ownerTournamentActionRow("results", "نتائج المباريات", "ball", `/tournament/${tournament.id}/manage/results`, isSectionIncomplete(tournament, "results"))}
         ${ownerTournamentActionRow("prediction-results", "نتائج التوقعات", "bars", `/tournament/${tournament.id}/manage/prediction-results`, isSectionIncomplete(tournament, "prediction-results"))}
@@ -4302,7 +4356,9 @@ function ownerActionDescription(action) {
     "admin-team": "تعيين مساعدين وصلاحياتهم",
     settings: "تعديل بيانات البطولة الأساسية",
     awards: "إدارة ترشيحات اللاعبين والفرق",
-    points: "تحديد آلية النقاط لكل دور"
+    points: "تحديد آلية النقاط لكل دور",
+    "manual-teams": "إضافة الفرق وشعاراتها مرة واحدة",
+    "manual-matches": "إنشاء مباريات البطولة من قائمة الفرق"
   };
   return descriptions[action] || "إدارة هذا القسم";
 }
@@ -4525,6 +4581,8 @@ function renderTournamentManage(id, section) {
       </section>
 
       <section class="owner-action-list">
+        ${isManualTournament(tournament) ? ownerManageRow(tournament, "manual-teams", "إضافة الفرق", "bars", getManualTeams(tournament).length, isSectionIncomplete(tournament, "manual-teams")) : ""}
+        ${isManualTournament(tournament) ? ownerManageRow(tournament, "manual-matches", "إدارة المباريات", "ball", countMatchesByRound(tournament.matchesByRound), isSectionIncomplete(tournament, "manual-matches")) : ""}
         ${ownerManageRow(tournament, "voting", "حالة التصويت", "check", getVotingSummary(tournament), isSectionIncomplete(tournament, "voting"))}
         ${ownerManageRow(tournament, "results", "نتائج المباريات", "ball", tournament.currentRound || tournament.startingRound || "-", isSectionIncomplete(tournament, "results"))}
         ${ownerManageRow(tournament, "prediction-results", "نتائج التوقعات", "bars", `${tournament.correct || 0}/${tournament.wrong || 0}`, isSectionIncomplete(tournament, "prediction-results"))}
@@ -4559,7 +4617,12 @@ function ownerActivationPanel(tournament) {
 function getTournamentReadiness(tournament) {
   const missing = [];
   if (!tournament.name) missing.push("اسم البطولة");
-  if (!tournament.officialCompetitionId) missing.push("البطولة الرسمية");
+  if (isManualTournament(tournament)) {
+    if (!getManualTeams(tournament).length) missing.push("الفرق");
+    if (!countMatchesByRound(tournament.matchesByRound)) missing.push("المباريات");
+  } else if (!tournament.officialCompetitionId) {
+    missing.push("البطولة الرسمية");
+  }
   if (!tournament.startDate) missing.push("تاريخ البداية");
   if (!tournament.startingRound) missing.push("نقطة الانطلاق");
   if (!tournament.maxPlayers) missing.push("عدد المشاركين");
@@ -4626,6 +4689,8 @@ function isSectionIncomplete(tournament, section) {
     leaderboard: !participants.length,
     rules: !(areAllPointRulesSaved(tournament) && tournament.startingRound),
     prizes: Boolean(tournament.hasPrizes) && !hasConfiguredPrizes(tournament),
+    "manual-teams": isManualTournament(tournament) && !getManualTeams(tournament).length,
+    "manual-matches": isManualTournament(tournament) && !countMatchesByRound(tournament.matchesByRound),
     notify: false,
     "admin-team": false
   };
@@ -4648,7 +4713,9 @@ function renderTournamentManageSection(tournament, section) {
     awards: "الجوائز والترشيحات",
     points: "قواعد النقاط",
     danger: "منطقة الخطر",
-    "admin-team": "إدارة البطولة"
+    "admin-team": "إدارة البطولة",
+    "manual-teams": "إضافة الفرق",
+    "manual-matches": "إدارة المباريات"
   };
   const title = titles[section] || "إدارة البطولة";
   const topbarAction = section === "prizes" && tournament.hasPrizes
@@ -4869,6 +4936,33 @@ function renderTournamentManageSection(tournament, section) {
   if (leaderboardPdfButton) {
     leaderboardPdfButton.addEventListener("click", () => exportLeaderboardPdf(tournament));
   }
+  const manualTeamForm = document.querySelector("#manual-team-form");
+  if (manualTeamForm) {
+    manualTeamForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      addManualTournamentTeam(tournament);
+    });
+  }
+  document.querySelectorAll("[data-delete-manual-team]").forEach((button) => {
+    button.addEventListener("click", () => deleteManualTournamentTeam(tournament, button.dataset.deleteManualTeam));
+  });
+  const manualMatchRound = document.querySelector("#manual-match-round");
+  if (manualMatchRound) {
+    manualMatchRound.addEventListener("change", () => {
+      state.selectedManualMatchRound = manualMatchRound.value;
+      renderTournamentManageSection(tournament, "manual-matches");
+    });
+  }
+  const manualMatchForm = document.querySelector("#manual-match-form");
+  if (manualMatchForm) {
+    manualMatchForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      addManualTournamentMatch(tournament);
+    });
+  }
+  document.querySelectorAll("[data-delete-manual-match]").forEach((button) => {
+    button.addEventListener("click", () => deleteManualTournamentMatch(tournament, button.dataset.manualMatchRound, button.dataset.deleteManualMatch));
+  });
 }
 
 function currentManageSection() {
@@ -4892,9 +4986,201 @@ function ownerManageSectionContent(tournament, section) {
     awards: ownerAwardsPage(tournament),
     points: ownerPointsPage(tournament),
     danger: ownerDangerPage(tournament),
-    "admin-team": ownerAdminTeamPage(tournament)
+    "admin-team": ownerAdminTeamPage(tournament),
+    "manual-teams": ownerManualTeamsPage(tournament),
+    "manual-matches": ownerManualMatchesPage(tournament)
   };
   return content[section] || ownerSettingsPage(tournament);
+}
+
+function getManualTeams(tournament) {
+  return Array.isArray(tournament?.manualTeams) ? tournament.manualTeams : [];
+}
+
+function ownerManualTeamsPage(tournament) {
+  const teams = getManualTeams(tournament);
+  return `
+    <section class="card panel stack manage-detail-card">
+      <div>
+        <h2 class="section-title">إضافة الفرق</h2>
+        <p class="muted">أضف الفرق وشعاراتها مرة واحدة. بعد ذلك ستظهر هذه الفرق كقائمة اختيار عند إنشاء المباريات.</p>
+      </div>
+      <form class="manual-team-form" id="manual-team-form">
+        <label class="field">
+          <span>اسم الفريق</span>
+          <input class="input" id="manual-team-name" maxlength="42" placeholder="مثال: الإمارات" required>
+        </label>
+        <label class="field">
+          <span>رابط الشعار</span>
+          <input class="input" id="manual-team-logo" placeholder="اختياري: https://...">
+        </label>
+        <label class="field">
+          <span>أو رفع شعار من الجهاز</span>
+          <input class="input" id="manual-team-logo-file" type="file" accept="image/*">
+        </label>
+        <button class="btn accent" type="submit">إضافة الفريق</button>
+      </form>
+      <div class="manual-team-list">
+        ${teams.length ? teams.map((team) => `
+          <div class="manual-team-row">
+            ${teamIdentityHtml(team.name, "", team.logoUrl || "")}
+            <button class="btn ghost compact-btn" type="button" data-delete-manual-team="${team.id}">حذف</button>
+          </div>
+        `).join("") : `<p class="muted">لا توجد فرق مضافة بعد.</p>`}
+      </div>
+    </section>
+  `;
+}
+
+function ownerManualMatchesPage(tournament) {
+  const teams = getManualTeams(tournament);
+  const tournamentRounds = getTournamentRounds(tournament);
+  const selectedRound = state.selectedManualMatchRound && tournamentRounds.some((round) => round.id === state.selectedManualMatchRound)
+    ? state.selectedManualMatchRound
+    : (tournament.startingRound || tournamentRounds[0]?.id || "group");
+  state.selectedManualMatchRound = selectedRound;
+  const selectedRoundLabel = rounds.find((round) => round.id === selectedRound)?.label || "الدور";
+  const matches = getTournamentMatches(tournament, selectedRound);
+  return `
+    <section class="card panel stack manage-detail-card">
+      <div>
+        <h2 class="section-title">إدارة المباريات</h2>
+        <p class="muted">اختر الفريقين من قائمة الفرق المضافة، ثم حدد توقيت المباراة. التوقيت يحفظ ويظهر للمشاركين في صفحة التصويت.</p>
+      </div>
+      <label class="field">
+        <span>الدور</span>
+        <select class="select" id="manual-match-round">
+          ${tournamentRounds.map((round) => `<option value="${round.id}" ${round.id === selectedRound ? "selected" : ""}>${round.label}</option>`).join("")}
+        </select>
+      </label>
+      ${teams.length < 2 ? `<div class="notice danger-notice">أضف فريقين على الأقل قبل إنشاء المباريات.</div>` : `
+        <form class="manual-match-form" id="manual-match-form">
+          <div class="grid form-grid">
+            <label class="field">
+              <span>الفريق الأول</span>
+              <select class="select" id="manual-match-team-a" required>${manualTeamOptionsHtml(teams)}</select>
+            </label>
+            <label class="field">
+              <span>الفريق الثاني</span>
+              <select class="select" id="manual-match-team-b" required>${manualTeamOptionsHtml(teams)}</select>
+            </label>
+            <label class="field wide">
+              <span>تاريخ ووقت المباراة</span>
+              <input class="input" id="manual-match-kickoff" type="datetime-local" required>
+            </label>
+          </div>
+          <button class="btn accent" type="submit">إضافة مباراة</button>
+        </form>
+      `}
+      <div class="manual-match-list">
+        <h3 class="section-title small-title">${selectedRoundLabel}</h3>
+        ${matches.length ? matches.map((match) => `
+          <div class="manual-match-row">
+            <div>
+              <strong>${formatDate(match.kickoff)}</strong>
+              <span>${teamIdentityHtml(match.a, "", match.logoA || "")} <small>ضد</small> ${teamIdentityHtml(match.b, "", match.logoB || "")}</span>
+            </div>
+            <button class="btn ghost compact-btn" type="button" data-manual-match-round="${selectedRound}" data-delete-manual-match="${match.id}">حذف</button>
+          </div>
+        `).join("") : `<p class="muted">لا توجد مباريات في ${selectedRoundLabel} بعد.</p>`}
+      </div>
+    </section>
+  `;
+}
+
+function manualTeamOptionsHtml(teams) {
+  return teams.map((team) => `<option value="${team.id}">${team.name}</option>`).join("");
+}
+
+function addManualTournamentTeam(tournament) {
+  const name = document.querySelector("#manual-team-name")?.value.trim();
+  const logoInput = document.querySelector("#manual-team-logo");
+  const fileInput = document.querySelector("#manual-team-logo-file");
+  if (!name) return;
+  const finish = (logoUrl = "") => {
+    tournament.manualTeams = [
+      ...getManualTeams(tournament),
+      { id: `manual-team-${Date.now()}`, name, logoUrl }
+    ];
+    queueTournamentPersist(tournament);
+    renderTournamentManageSection(tournament, "manual-teams");
+  };
+  const file = fileInput?.files?.[0];
+  if (file && file.type.startsWith("image/")) {
+    const reader = new FileReader();
+    reader.onload = () => finish(String(reader.result || ""));
+    reader.readAsDataURL(file);
+    return;
+  }
+  finish(logoInput?.value.trim() || "");
+}
+
+function deleteManualTournamentTeam(tournament, teamId) {
+  const isUsed = Object.values(tournament.matchesByRound || {}).some((matches) => (matches || []).some((match) => match.teamAId === teamId || match.teamBId === teamId));
+  if (isUsed) {
+    openModal(`
+      <section class="card modal stack">
+        <div class="topbar">
+          <h2 class="section-title">لا يمكن حذف الفريق</h2>
+          ${modalCloseButton()}
+        </div>
+        <p class="muted">هذا الفريق مستخدم في مباراة. احذف المباراة أولاً ثم احذف الفريق.</p>
+      </section>
+    `);
+    document.querySelector("#close-modal")?.addEventListener("click", closeModal);
+    return;
+  }
+  tournament.manualTeams = getManualTeams(tournament).filter((team) => team.id !== teamId);
+  queueTournamentPersist(tournament);
+  renderTournamentManageSection(tournament, "manual-teams");
+}
+
+function addManualTournamentMatch(tournament) {
+  const round = document.querySelector("#manual-match-round")?.value || state.selectedManualMatchRound || tournament.startingRound || "group";
+  const teamA = getManualTeams(tournament).find((team) => team.id === document.querySelector("#manual-match-team-a")?.value);
+  const teamB = getManualTeams(tournament).find((team) => team.id === document.querySelector("#manual-match-team-b")?.value);
+  const kickoffValue = document.querySelector("#manual-match-kickoff")?.value;
+  if (!teamA || !teamB || !kickoffValue || teamA.id === teamB.id) {
+    openModal(`
+      <section class="card modal stack">
+        <div class="topbar">
+          <h2 class="section-title">بيانات غير مكتملة</h2>
+          ${modalCloseButton()}
+        </div>
+        <p class="muted">اختر فريقين مختلفين وحدد وقت المباراة.</p>
+      </section>
+    `);
+    document.querySelector("#close-modal")?.addEventListener("click", closeModal);
+    return;
+  }
+  const roundLabel = rounds.find((item) => item.id === round)?.label || "الدور";
+  const nextMatches = [
+    ...getTournamentMatches(tournament, round),
+    {
+      id: `manual-match-${Date.now()}`,
+      teamAId: teamA.id,
+      teamBId: teamB.id,
+      a: teamA.name,
+      b: teamB.name,
+      logoA: teamA.logoUrl || "",
+      logoB: teamB.logoUrl || "",
+      kickoff: new Date(kickoffValue).toISOString(),
+      statusShort: "NS",
+      score: "",
+      roundLabel,
+      stageLabel: roundLabel,
+      manual: true
+    }
+  ].sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
+  setTournamentMatches(tournament, round, nextMatches);
+  queueTournamentPersist(tournament);
+  renderTournamentManageSection(tournament, "manual-matches");
+}
+
+function deleteManualTournamentMatch(tournament, round, matchId) {
+  setTournamentMatches(tournament, round, getTournamentMatches(tournament, round).filter((match) => match.id !== matchId));
+  queueTournamentPersist(tournament);
+  renderTournamentManageSection(tournament, "manual-matches");
 }
 
 function getJoinRequestCount(tournament) {

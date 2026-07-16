@@ -6071,8 +6071,63 @@ body.auth-screen .bottom-nav {
   }
 
   .prediction-team-pick,
-  .prediction-draw-pick {
+.prediction-draw-pick {
     min-height: 32px;
     padding: 4px 5px;
   }
+}
+
+.hidden {
+  display: none !important;
+}
+
+.create-source-segment {
+  margin-top: 8px;
+}
+
+.manual-team-form,
+.manual-match-form {
+  display: grid;
+  gap: 12px;
+}
+
+.manual-team-list,
+.manual-match-list {
+  display: grid;
+  gap: 10px;
+}
+
+.manual-team-row,
+.manual-match-row {
+  align-items: center;
+  background: var(--card-soft);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.manual-match-row > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manual-match-row strong {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.manual-match-row span {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.small-title {
+  font-size: 15px;
 }

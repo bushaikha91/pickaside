@@ -4104,7 +4104,7 @@ function renderTournament(id, options = {}) {
       if (isPredictionComplete(tournament.id, selectedRound, button.dataset.inlinePick) && !isPredictionEditing(key)) return;
       state.quickPicks[key] = button.dataset.outcome;
       delete state.predictionErrors[key];
-      renderTournament(tournament.id);
+      markInlinePredictionSelection(button);
     });
   });
   document.querySelectorAll("[data-inline-confirm]").forEach((button) => {
@@ -4134,6 +4134,16 @@ function renderTournament(id, options = {}) {
     });
   });
   startMatchCountdowns();
+}
+
+function markInlinePredictionSelection(button) {
+  const card = button.closest(".prediction-row-card");
+  if (!card) return;
+  card.querySelectorAll("[data-inline-pick]").forEach((item) => {
+    item.classList.toggle("selected", item === button);
+  });
+  const error = card.querySelector(".prediction-inline-error");
+  if (error) error.remove();
 }
 
 function playerTournamentSummaryCard(tournament, activeRound) {

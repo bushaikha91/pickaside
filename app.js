@@ -3443,7 +3443,7 @@ function ownerManagementCard(tournament) {
   const participants = getTournamentParticipants(tournament);
   const participantCount = tournament.friends || participants.length || 0;
   const requestCount = getJoinRequestCount(tournament);
-  const activeRound = forcePlayerView ? getTournamentPlayerActiveRound(tournament) : (tournament.currentRound || tournament.startingRound || "round16");
+  const activeRound = tournament.currentRound || tournament.startingRound || "round16";
   const roundLabel = rounds.find((item) => item.id === activeRound)?.label || "الدور الحالي";
   const incompleteSections = ["voting", "prediction-results", "leaderboard", "rules", "prizes"].filter((section) => isSectionIncomplete(tournament, section));
   const isIncomplete = Boolean(tournament.setupIncomplete || incompleteSections.length);

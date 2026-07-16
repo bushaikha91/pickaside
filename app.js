@@ -7771,12 +7771,18 @@ function pickBoardCard(tournament, round, match, locked) {
       ? `${parsedScore.home} - ${parsedScore.away}`
       : `${Number(match.scoreA ?? match.goalsA ?? 0)} - ${Number(match.scoreB ?? match.goalsB ?? 0)}`
     : "";
-  const pickText = selectedOutcome
-    ? showDetails ? "أكمل تفاصيل التوقع ثم اضغط حفظ التوقع" : `تم حفظ توقعك: ${escapeHtml(selectedLabel)}`
-    : "اختر الفائز لحفظ توقعك";
+  const pickText = editing
+    ? selectedOutcome
+      ? showDetails
+        ? "أكمل تفاصيل التعديل ثم اضغط حفظ التوقع"
+        : `الاختيار الحالي: ${escapeHtml(selectedLabel)} · اختر فريقاً لحفظ التعديل`
+      : "اختر الفائز لحفظ التعديل"
+    : selectedOutcome
+      ? showDetails ? "أكمل تفاصيل التوقع ثم اضغط حفظ التوقع" : `تم حفظ توقعك: ${escapeHtml(selectedLabel)}`
+      : "اختر الفائز لحفظ توقعك";
 
   return `
-    <article class="prediction-row-card participant-style-card ${completed ? "completed" : "pending"} ${matchLocked ? "locked-card" : ""}">
+    <article class="prediction-row-card participant-style-card ${completed && !editing ? "completed" : "pending"} ${editing ? "editing" : ""} ${matchLocked ? "locked-card" : ""}">
       <div class="prediction-card-top">
         <span>${formatUaeDate(match.kickoff, { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
         <span class="prediction-card-countdown match-countdown" data-match-countdown data-countdown-mode="match" data-kickoff="${new Date(match.kickoff).toISOString()}" data-lock-at="${getMatchLockTimestamp(match)}" data-score="${scoreText}">

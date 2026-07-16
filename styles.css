@@ -4334,6 +4334,11 @@ h1.section-title {
   border-radius: 17px;
 }
 
+.prediction-row-card.participant-style-card.editing {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--card) 92%, var(--accent));
+}
+
 .prediction-card-top {
   display: flex;
   align-items: center;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260716-manual-voting1";
+const CACHE_NAME = "pick-a-side-20260717-manual-open1";
 const APP_SHELL = [
   "./",
   "./index.html",

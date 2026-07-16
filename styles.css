@@ -5306,6 +5306,23 @@ h1.section-title {
   gap: 1px;
 }
 
+.championship-title-open {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.championship-title-open:focus-visible {
+  outline: 1px solid rgba(213, 255, 64, .72);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
 .championship-title-stack small {
   min-width: 0;
   overflow: hidden;

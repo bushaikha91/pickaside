@@ -3324,14 +3324,16 @@ function setupChampionshipsSwipe() {
     isDragging = false;
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
-    if (Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12 && pressedCardRoute) {
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    if (absX < 30 && absY < 30 && pressedCardRoute) {
       event.preventDefault();
       navigate(pressedCardRoute);
       pressedCardRoute = "";
       return;
     }
     pressedCardRoute = "";
-    if (Math.abs(deltaX) < 54 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (absX < 54 || absX < absY) return;
     const direction = deltaX < 0 ? 1 : -1;
     setChampionshipsTab(getAdjacentChampionshipTab(direction));
   });
@@ -3526,7 +3528,7 @@ function championshipLiveCard(tournament, source) {
       <div class="championship-live-content">
         <div class="championship-live-head">
           <span class="championship-title-stack">
-            <strong>${tournament.name}</strong>
+            <button class="championship-title-open" type="button" data-route="${participantRoute}"><strong>${tournament.name}</strong></button>
             <small>منشئ البطولة <button class="inline-profile-link" type="button" data-route="/user/${ownerUsername}">@${ownerUsername}</button></small>
           </span>
           <span class="championship-status-text">${hasStarted ? "بدأت" : "لم تبدأ"}</span>

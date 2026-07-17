@@ -4,6 +4,7 @@ let mainChromeScrollHandler = null;
 let liveAutoRefreshTimer = null;
 let localStateLoaded = false;
 let cardTouchStart = null;
+let cardPointerStart = null;
 let lastTouchCardNavigationAt = 0;
 
 const LOCAL_STATE_KEY = "pickaside_local_state_v1";
@@ -658,6 +659,19 @@ function navigate(path) {
   render();
 }
 
+function tournamentPath(tournamentOrId, suffix = "") {
+  const id = typeof tournamentOrId === "object" ? tournamentOrId.id : tournamentOrId;
+  return `/tournament/${encodeURIComponent(String(id))}${suffix}`;
+}
+
+function readRoutePart(value = "") {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function tr(text) {
   const dictionary = translations[state.language] || {};
   return dictionary[text] || text;
@@ -940,6 +954,37 @@ document.body.addEventListener("touchend", (event) => {
   lastTouchCardNavigationAt = Date.now();
   navigate(route);
 }, { passive: false });
+
+document.body.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "mouse") return;
+  const cardRoute = closestElement(event.target, "[data-card-route]");
+  if (!cardRoute || isInteractiveTarget(event.target)) {
+    cardPointerStart = null;
+    return;
+  }
+  cardPointerStart = {
+    x: event.clientX,
+    y: event.clientY,
+    route: cardRoute.dataset.cardRoute,
+    pointerId: event.pointerId
+  };
+}, true);
+
+document.body.addEventListener("pointerup", (event) => {
+  if (!cardPointerStart || cardPointerStart.pointerId !== event.pointerId) return;
+  const absX = Math.abs(event.clientX - cardPointerStart.x);
+  const absY = Math.abs(event.clientY - cardPointerStart.y);
+  const route = cardPointerStart.route;
+  cardPointerStart = null;
+  if (!route || absX > 34 || absY > 34) return;
+  event.preventDefault();
+  lastTouchCardNavigationAt = Date.now();
+  navigate(route);
+}, true);
+
+document.body.addEventListener("pointercancel", () => {
+  cardPointerStart = null;
+}, true);
 
 document.body.addEventListener("keydown", (event) => {
   if (!["Enter", " "].includes(event.key)) return;
@@ -1292,10 +1337,12 @@ function render() {
   if (route === "/create-tournament/new") return renderCreateTournament();
   if (route === "/live") return renderLive();
   if (route.startsWith("/tournament/")) {
-    const parts = route.split("/").filter(Boolean);
-    if (parts[2] === "player") return renderTournament(parts[1], { forcePlayer: true });
-    if (parts[2] === "manage") return renderTournamentManage(parts[1], parts[3] || "");
-    return renderTournament(parts[1]);
+    const manageMatch = route.match(/^\/tournament\/(.+)\/manage(?:\/([^/]+))?$/);
+    if (manageMatch) return renderTournamentManage(readRoutePart(manageMatch[1]), manageMatch[2] || "");
+    const playerMatch = route.match(/^\/tournament\/(.+)\/player$/);
+    if (playerMatch) return renderTournament(readRoutePart(playerMatch[1]), { forcePlayer: true });
+    const tournamentMatch = route.match(/^\/tournament\/(.+)$/);
+    if (tournamentMatch) return renderTournament(readRoutePart(tournamentMatch[1]));
   }
   if (route.startsWith("/user/")) return renderUser(route.split("/").pop());
   if (route.startsWith("/challenges/")) return renderChallenges(route.split("/").pop());
@@ -3423,6 +3470,7 @@ function activeChampionshipCard(tournament) {
 }
 
 function activeVoteTaskCard(tournament) {
+  const playerRoute = tournamentPath(tournament, "/player");
   const round = getTournamentPlayerActiveRound(tournament);
   const roundMatches = getTournamentPredictionSourceMatches(tournament, round);
   const visibleRoundMatches = getVisiblePredictionMatchesForRound(tournament, round, roundMatches);
@@ -3435,7 +3483,7 @@ function activeVoteTaskCard(tournament) {
   const lockAt = nextPendingMatch ? String(getMatchPredictionLockAt(nextPendingMatch)) : getRoundPredictionLockAtForTournament(tournament, round);
   const taskLabel = round === "group" && nextPendingMatch ? `${roundLabel} · ${getGroupMatchdayLabel(nextPendingMatch, matches)}` : roundLabel;
   return `
-    <article class="active-vote-card" data-card-route="/tournament/${tournament.id}/player" role="button" tabindex="0" aria-label="فتح تصويت ${tournament.name}">
+    <article class="active-vote-card" data-card-route="${playerRoute}" role="button" tabindex="0" aria-label="فتح تصويت ${tournament.name}">
       <div class="active-vote-main">
         <span class="active-vote-kicker">تحتاج تصويتك</span>
         <strong>${tournament.name}</strong>
@@ -3451,7 +3499,7 @@ function activeVoteTaskCard(tournament) {
           <b data-countdown-value>--:--:--</b>
           <small data-countdown-lock></small>
         </span>
-        <button class="btn accent compact-btn" type="button" data-route="/tournament/${tournament.id}/player">صوّت الآن</button>
+        <button class="btn accent compact-btn" type="button" data-route="${playerRoute}">صوّت الآن</button>
       </div>
     </article>
   `;
@@ -3490,7 +3538,7 @@ function ownerManagementCard(tournament) {
   const phaseLabel = tournament.active && !isIncomplete ? roundLabel : "مرحلة إدخال التفاصيل";
   const statusLabel = isIncomplete ? "غير مكتملة" : tournament.active ? "مفعلة" : "جاهزة للتفعيل";
   return `
-    <article class="owner-management-card" data-card-route="/tournament/${tournament.id}" role="button" tabindex="0" aria-label="إدارة بطولة ${tournament.name}">
+    <article class="owner-management-card" data-card-route="${tournamentPath(tournament)}" role="button" tabindex="0" aria-label="إدارة بطولة ${tournament.name}">
       <div class="owner-management-head">
         <span class="owner-management-title">
           <strong>${tournament.name}</strong>
@@ -3560,7 +3608,7 @@ function championshipLiveCard(tournament, source) {
   const ownerUsername = getTournamentOwnerUsername(tournament);
   const prizesLabel = tournamentPrizeStatusLabel(tournament);
   const coverClass = tournament.coverImageUrl ? "has-cover-image" : "has-default-cover";
-  const participantRoute = `/tournament/${tournament.id}/player`;
+  const participantRoute = tournamentPath(tournament, "/player");
   return `
     <article class="live-tournament-tab championship-live-card ${coverClass} ${canJoin ? "can-join" : ""}"${tournamentCoverStyle(tournament)} data-card-route="${participantRoute}" role="button" tabindex="0" aria-label="فتح بطولة ${tournament.name}">
       <div class="championship-live-content">
@@ -4138,6 +4186,7 @@ function renderTournament(id, options = {}) {
   const canAdvanceRound = isTournamentOwner(tournament) && !forcePlayerView;
   const tournamentFinished = isTournamentFinished(tournament);
   const selectedRule = getTournamentPointRules(tournament)[selectedRound] || {};
+  const rerenderCurrentTournamentView = () => renderTournament(tournament.id, { forcePlayer: forcePlayerView });
 
   app.innerHTML = `
     ${templateTopbar(tournament.name)}
@@ -4175,14 +4224,14 @@ function renderTournament(id, options = {}) {
   document.querySelectorAll("[data-round]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedRound = button.dataset.round;
-      renderTournament(tournament.id);
+      rerenderCurrentTournamentView();
     });
   });
   document.querySelectorAll("[data-group-matchday]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedMatchdayByTournament[matchdayStateKey(tournament.id, selectedRound)] = button.dataset.groupMatchday;
       saveLocalAppState();
-      renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
+      rerenderCurrentTournamentView();
     });
   });
   setupTournamentRoundSwipe(tournament, tournamentTabs, selectedView, activeRoundIndex);
@@ -4205,7 +4254,7 @@ function renderTournament(id, options = {}) {
     button.addEventListener("click", () => {
       if (button.disabled) return;
       state.quickPicks[button.dataset.quickPick] = button.dataset.outcome;
-      renderTournament(tournament.id);
+      rerenderCurrentTournamentView();
     });
   });
   document.querySelectorAll("[data-advance-round]").forEach((button) => {
@@ -4237,6 +4286,10 @@ function markInlinePredictionSelection(button) {
   if (error) error.remove();
 }
 
+function renderTournamentInCurrentMode(tournament) {
+  renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
+}
+
 function startInlinePredictionEdit(tournament, round, matchId) {
   const matches = getTournamentPredictionSourceMatches(tournament, round);
   const match = matches.find((item) => item.id === matchId);
@@ -4245,7 +4298,7 @@ function startInlinePredictionEdit(tournament, round, matchId) {
   state.editingPredictions[key] = true;
   state.quickPicks[key] = getPredictionOutcome(state.predictions[key] || {});
   delete state.predictionErrors[key];
-  renderTournament(tournament.id);
+  renderTournamentInCurrentMode(tournament);
 }
 
 function saveInlinePredictionAuto(tournament, round, matchId, outcome, button = null) {
@@ -4260,7 +4313,7 @@ function saveInlinePredictionAuto(tournament, round, matchId, outcome, button = 
 
   if (requiresInlinePredictionDetails(rule, outcome)) {
     if (button) markInlinePredictionSelection(button);
-    renderTournament(tournament.id);
+    renderTournamentInCurrentMode(tournament);
     return;
   }
 
@@ -4272,7 +4325,7 @@ function saveInlinePredictionAuto(tournament, round, matchId, outcome, button = 
   const validation = validatePrediction(tournament, round, key, next);
   if (validation) {
     state.predictionErrors[key] = validation;
-    renderTournament(tournament.id);
+    renderTournamentInCurrentMode(tournament);
     return;
   }
 
@@ -4282,7 +4335,7 @@ function saveInlinePredictionAuto(tournament, round, matchId, outcome, button = 
   delete state.predictionErrors[key];
   if (button) markInlinePredictionSelection(button);
   queueTournamentPersist(tournament);
-  renderTournament(tournament.id);
+  renderTournamentInCurrentMode(tournament);
 }
 
 function saveInlinePredictionDetails(tournament, round, matchId) {
@@ -4296,7 +4349,7 @@ function saveInlinePredictionDetails(tournament, round, matchId) {
   const outcome = state.quickPicks[key] || getPredictionOutcome(state.predictions[key] || {});
   if (!outcome) {
     state.predictionErrors[key] = "اختر الفائز من البطاقة أولاً.";
-    renderTournament(tournament.id);
+    renderTournamentInCurrentMode(tournament);
     return;
   }
 
@@ -4311,7 +4364,7 @@ function saveInlinePredictionDetails(tournament, round, matchId) {
     const minPercent = Number(rule.minPercent || 20);
     if (winnerPercent < minPercent || winnerPercent > 100 - minPercent) {
       state.predictionErrors[key] = `النسبة يجب أن تكون بين ${minPercent}% و ${100 - minPercent}%.`;
-      renderTournament(tournament.id);
+      renderTournamentInCurrentMode(tournament);
       return;
     }
     next = {
@@ -4326,7 +4379,7 @@ function saveInlinePredictionDetails(tournament, round, matchId) {
   const validation = validatePrediction(tournament, round, key, next);
   if (validation) {
     state.predictionErrors[key] = validation;
-    renderTournament(tournament.id);
+    renderTournamentInCurrentMode(tournament);
     return;
   }
 
@@ -4335,7 +4388,7 @@ function saveInlinePredictionDetails(tournament, round, matchId) {
   delete state.editingPredictions[key];
   delete state.predictionErrors[key];
   queueTournamentPersist(tournament);
-  renderTournament(tournament.id);
+  renderTournamentInCurrentMode(tournament);
 }
 
 function playerTournamentSummaryCard(tournament, activeRound) {

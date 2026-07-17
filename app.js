@@ -5312,12 +5312,16 @@ function renderTournamentManageSection(tournament, section) {
 }
 
 function scheduleActiveTabIntoView(containerSelector, activeSelector) {
-  window.requestAnimationFrame(() => {
+  const alignActiveTab = () => {
     const container = document.querySelector(containerSelector);
     const active = container?.querySelector(activeSelector);
     if (!container || !active) return;
     active.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
     updateScrollableSegmentIndicator(container, active);
+  };
+  window.requestAnimationFrame(() => {
+    alignActiveTab();
+    window.setTimeout(alignActiveTab, 80);
   });
 }
 
@@ -6134,12 +6138,15 @@ function bindRulesSwipe(tournament) {
   let startX = 0;
   let startY = 0;
   let isHorizontal = false;
+  let ignoreSwipe = false;
   pane.addEventListener("pointerdown", (event) => {
+    ignoreSwipe = isInteractiveTarget(event.target) || Boolean(closestElement(event.target, ".rules-round-tabs"));
     startX = event.clientX;
     startY = event.clientY;
     isHorizontal = false;
   });
   pane.addEventListener("pointermove", (event) => {
+    if (ignoreSwipe) return;
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
     if (Math.abs(deltaX) > 16 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
@@ -6147,6 +6154,10 @@ function bindRulesSwipe(tournament) {
     }
   });
   pane.addEventListener("pointerup", (event) => {
+    if (ignoreSwipe) {
+      ignoreSwipe = false;
+      return;
+    }
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
     if (!isHorizontal || Math.abs(deltaX) < 48 || Math.abs(deltaY) > Math.abs(deltaX)) return;

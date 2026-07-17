@@ -5905,6 +5905,7 @@ function ownerRulesPage(tournament) {
         ${tournamentRounds.map((round) => `
           <button class="championship-segment-btn round-segment-btn ${round.id === selectedRound?.id ? "active" : ""}" type="button" role="tab" aria-selected="${round.id === selectedRound?.id}" data-rules-round-tab="${round.id}">
             <strong>${round.label}</strong>
+            ${isPointRuleRoundSaved(tournament, round.id) ? "" : `<i class="incomplete-dot tab-incomplete-dot" aria-hidden="true"></i>`}
           </button>
         `).join("")}
         <span class="championship-segment-indicator" aria-hidden="true"></span>

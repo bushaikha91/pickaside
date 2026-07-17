@@ -1853,6 +1853,14 @@ body.auth-screen .app-shell {
   min-width: 112px;
 }
 
+.rules-round-tabs .tab-incomplete-dot {
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 9px;
+  width: 7px;
+  height: 7px;
+}
+
 .rules-round-tabs .round-segment-btn strong {
   font-size: 12px;
 }

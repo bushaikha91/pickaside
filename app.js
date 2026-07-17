@@ -6439,10 +6439,9 @@ function ownerPrizesPage(tournament) {
   const extraPrizes = prizes.filter((prize) => prize.awardId !== "prediction-champion");
   return `
     <section class="card panel stack manage-detail-card">
-      <div class="toggle-row wide prize-toggle-row">
-        <div>
+      <div class="toggle-row wide prize-toggle-row compact-toggle-row">
+        <div class="compact-toggle-copy">
           <strong>تفعيل الجوائز</strong>
-          <div class="muted">يعكس اختيارك في إنشاء البطولة. عند التفعيل تصبح إضافة الجوائز مطلوبة قبل تفعيل البطولة.</div>
         </div>
         <button type="button" class="switch ${tournament.hasPrizes ? "on" : ""}" id="manage-prizes-switch" aria-pressed="${tournament.hasPrizes ? "true" : "false"}"><span></span></button>
       </div>
@@ -6452,7 +6451,6 @@ function ownerPrizesPage(tournament) {
     <section class="card panel stack manage-detail-card">
       <div class="prize-section-block">
         <h3 class="subsection-title">الجائزة الرئيسية</h3>
-        <p class="muted">تظهر تلقائياً عند تفعيل الجوائز وهي جائزة بطل التوقعات.</p>
         ${mainPredictionPrizeCard(mainPrize)}
       </div>
       <div class="prize-section-divider" aria-hidden="true"></div>
@@ -6466,7 +6464,6 @@ function ownerPrizesPage(tournament) {
     ` : `
     <section class="card panel stack manage-detail-card">
       <h2 class="section-title">الجوائز غير مفعلة</h2>
-      <p class="muted">لن تكون الجوائز مطلوبة عند تفعيل البطولة، ولن تظهر للمشاركين. يمكنك تفعيلها من السويتش أعلاه في أي وقت قبل بدء البطولة.</p>
     </section>
     `}
   `;

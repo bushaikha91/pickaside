@@ -4902,6 +4902,10 @@ function renderTournamentManage(id, section) {
   if (!tournament) return renderNotFoundPage("البطولة غير موجودة", "/create-tournament");
   if (!isTournamentOwner(tournament)) return renderTournament(tournament.id);
   if (section) return renderTournamentManageSection(tournament, section);
+  const statusText = tournament.cancelled ? "ملغية" : (tournament.active ? "نشطة" : "لم تبدأ");
+  const introText = tournament.cancelled
+    ? "تم إلغاء البطولة ولن تكون متاحة للمشاركة أو التوقعات."
+    : (tournament.active ? "البطولة مفعلة وتظهر للمشاركين." : "استكمل بيانات البطولة ثم فعّلها لتظهر للجميع.");
 
   app.innerHTML = `
     ${templateTopbar("إدارة البطولة")}
@@ -4909,10 +4913,11 @@ function renderTournamentManage(id, section) {
       <section class="card panel stack manage-intro-card">
         <div>
           <h1 class="section-title">${tournament.name}</h1>
-          <p class="muted">${tournament.active ? "البطولة مفعلة وتظهر للمشاركين." : "استكمل بيانات البطولة ثم فعّلها لتظهر للجميع."}</p>
+          <p class="muted">${introText}</p>
         </div>
-        <span class="championship-status-text">${tournament.active ? "نشطة" : "لم تبدأ"}</span>
-        ${!tournament.active ? ownerActivationPanel(tournament) : ""}
+        <span class="championship-status-text">${statusText}</span>
+        ${tournament.cancelled && tournament.cancelReason ? `<div class="notice danger-notice">سبب الإلغاء: ${tournament.cancelReason}</div>` : ""}
+        ${!tournament.active && !tournament.cancelled ? ownerActivationPanel(tournament) : ""}
       </section>
 
       <section class="owner-action-list">
@@ -4968,6 +4973,7 @@ function getTournamentReadiness(tournament) {
 
 function activateTournament(tournamentId) {
   const tournament = getTournamentById(tournamentId);
+  if (!tournament || tournament.cancelled) return;
   const readiness = getTournamentReadiness(tournament);
   if (!readiness.ready) {
     activationMissingModal(readiness.missing);
@@ -7329,6 +7335,14 @@ function variablePercentRuleExample(rule) {
 }
 
 function ownerDangerPage(tournament) {
+  if (tournament.cancelled) {
+    return `
+      <section class="card panel stack manage-detail-card">
+        <div class="notice danger-notice">تم إلغاء البطولة.</div>
+        <p class="muted">السبب الظاهر للمشاركين: ${tournament.cancelReason || "لم يتم تحديد سبب."}</p>
+      </section>
+    `;
+  }
   return `
     <section class="card panel stack manage-detail-card">
       <div class="notice danger-notice">هذه الخيارات تؤثر على البطولة والمشاركين. تستخدم فقط عند الحاجة.</div>
@@ -7340,6 +7354,10 @@ function ownerDangerPage(tournament) {
 }
 
 function toggleJoinWindow(tournament) {
+  if (!tournament || tournament.cancelled) {
+    if (tournament) renderTournamentManageSection(tournament, "danger");
+    return;
+  }
   tournament.joinClosed = !tournament.joinClosed;
   queueTournamentPersist(tournament);
   renderTournamentManageSection(tournament, "danger");
@@ -7374,12 +7392,17 @@ function cancelTournamentWithReason(tournament) {
 function confirmTournamentCancellation(tournament) {
   const reason = document.querySelector("#cancel-tournament-reason")?.value.trim();
   const error = document.querySelector("#cancel-tournament-error");
+  const confirmButton = document.querySelector("#confirm-cancel-tournament");
   if (!reason) {
     if (error) {
       error.textContent = "اكتب سبب الإلغاء قبل تنفيذ الإجراء.";
       error.classList.add("form-error-inline");
     }
     return;
+  }
+  if (confirmButton) {
+    confirmButton.disabled = true;
+    confirmButton.textContent = "جار الإلغاء...";
   }
   tournament.active = false;
   tournament.draft = false;
@@ -7406,7 +7429,7 @@ function confirmTournamentCancellation(tournament) {
   });
   queueTournamentPersist(tournament);
   closeModal();
-  navigate("/challenges/history");
+  navigate(tournamentPath(tournament, "/manage"));
 }
 
 function getTournamentRounds(tournament) {

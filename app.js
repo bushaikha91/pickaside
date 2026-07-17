@@ -1684,7 +1684,7 @@ function loadLocalAppState() {
   }
   if (!saved || typeof saved !== "object") {
     if (tournamentBackups.length) {
-      state.tournaments = mergeTournamentSnapshots(tournamentBackups, state.tournaments);
+      state.tournaments = mergeTournamentSnapshots(tournamentBackups, state.tournaments).map(normalizeTournamentData).filter(Boolean);
     }
     return;
   }
@@ -1692,7 +1692,7 @@ function loadLocalAppState() {
   if (saved.theme) state.theme = saved.theme;
   if (saved.currentUser) state.currentUser = { ...state.currentUser, ...saved.currentUser };
   if (Array.isArray(saved.tournaments) || tournamentBackups.length) {
-    state.tournaments = mergeTournamentSnapshots([...(saved.tournaments || []), ...tournamentBackups], state.tournaments);
+    state.tournaments = mergeTournamentSnapshots([...(saved.tournaments || []), ...tournamentBackups], state.tournaments).map(normalizeTournamentData).filter(Boolean);
   }
   if (saved.predictions && typeof saved.predictions === "object") state.predictions = { ...state.predictions, ...saved.predictions };
   if (saved.quickPicks && typeof saved.quickPicks === "object") state.quickPicks = { ...state.quickPicks, ...saved.quickPicks };
@@ -1788,20 +1788,26 @@ function mergeBackendTournaments(backendTournaments) {
   const localById = new Map(state.tournaments.map((tournament) => [tournament.id, tournament]));
   const mergedBackend = backendTournaments.map((backendTournament) => {
     const localTournament = localById.get(backendTournament.id);
-    if (localTournament) {
-      return {
-        ...backendTournament,
-        ...localTournament,
-        backendSynced: localTournament.backendSynced !== false,
-        backendSyncError: localTournament.backendSyncError || ""
-      };
-    }
-    return backendTournament;
+    if (!localTournament) return normalizeTournamentData(backendTournament);
+    return normalizeTournamentData(mergeBackendTournamentWithLocal(backendTournament, localTournament));
   });
   const backendIds = new Set(backendTournaments.map((tournament) => tournament.id));
-  const localOnly = state.tournaments.filter((tournament) => !backendIds.has(tournament.id));
-  state.tournaments = [...mergedBackend, ...localOnly];
+  const localOnly = state.tournaments.filter((tournament) => !backendIds.has(tournament.id)).map(normalizeTournamentData).filter(Boolean);
+  state.tournaments = [...mergedBackend, ...localOnly].filter(Boolean);
   saveLocalAppState();
+}
+
+function mergeBackendTournamentWithLocal(backendTournament, localTournament) {
+  const localUnsynced = localTournament.backendSynced === false || Boolean(localTournament.backendSyncError);
+  return {
+    ...localTournament,
+    ...backendTournament,
+    predictions: localTournament.predictions || backendTournament.predictions,
+    quickPicks: localTournament.quickPicks || backendTournament.quickPicks,
+    editingPredictions: localTournament.editingPredictions || backendTournament.editingPredictions,
+    backendSynced: !localUnsynced,
+    backendSyncError: localUnsynced ? localTournament.backendSyncError || "" : ""
+  };
 }
 
 function dbTournamentToApp(row, participation, ownerProfile) {
@@ -3183,6 +3189,32 @@ function isApiCompetitionTournament(tournament) {
 
 function isManualTournament(tournament) {
   return Boolean(tournament?.manual || tournament?.sourceMode === "manual" || tournament?.fixturesStatus === "manual");
+}
+
+function normalizeTournamentData(tournament) {
+  if (!tournament || !tournament.id) return null;
+  tournament.sourceMode = tournament.sourceMode || (tournament.manual ? "manual" : "official");
+  tournament.manual = Boolean(tournament.manual || tournament.sourceMode === "manual" || tournament.fixturesStatus === "manual");
+  tournament.matchesByRound = tournament.matchesByRound || emptyMatchesByRound();
+  tournament.participants = Array.isArray(tournament.participants) ? tournament.participants : [];
+  if (tournament.joined && !tournament.participants.includes(state.currentUser.name)) {
+    tournament.participants = [state.currentUser.name, ...tournament.participants];
+  }
+  const availableRounds = roundOptionsFromMatches(tournament.matchesByRound);
+  if (!Array.isArray(tournament.roundIds) || !tournament.roundIds.length) {
+    tournament.roundIds = inferCompetitionRoundOptions(tournament, availableRounds).map((round) => round.id);
+  }
+  if (!tournament.roundIds.length) tournament.roundIds = ["group", "round32", "round16", "quarter", "semi", "final"];
+  if (!tournament.startingRound || !rounds.some((round) => round.id === tournament.startingRound)) {
+    tournament.startingRound = tournament.roundIds[0] || "group";
+  }
+  if (!tournament.currentRound || !rounds.some((round) => round.id === tournament.currentRound)) {
+    tournament.currentRound = tournament.startingRound;
+  }
+  if (!tournament.roundIds.includes(tournament.currentRound)) {
+    tournament.roundIds = [tournament.currentRound, ...tournament.roundIds.filter((roundId) => roundId !== tournament.currentRound)];
+  }
+  return normalizeManualTournamentData(tournament);
 }
 
 function normalizeManualTournamentData(tournament) {
@@ -4634,7 +4666,7 @@ function ownerTournamentTopbar(tournament) {
 
 function getTournamentById(id) {
   const tournament = state.tournaments.find((item) => item.id === id) || null;
-  return tournament ? normalizeManualTournamentData(tournament) : null;
+  return tournament ? normalizeTournamentData(tournament) : null;
 }
 
 function ownerTournamentActionRow(action, label, icon, route = "", incomplete = false) {

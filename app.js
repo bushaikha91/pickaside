@@ -3385,6 +3385,7 @@ function renderChampionshipsPage() {
       </div>
     </section>
   `;
+  scheduleScrollableTabsIntoView();
 
   document.querySelectorAll("[data-championship-tab]").forEach((button) => {
     button.addEventListener("click", () => setChampionshipsTab(button.dataset.championshipTab));
@@ -3427,7 +3428,7 @@ function setupChampionshipsSwipe() {
   let pressedInteractive = false;
 
   slider.addEventListener("pointerdown", (event) => {
-    pressedInteractive = isInteractiveTarget(event.target);
+    pressedInteractive = isInteractiveTarget(event.target) || isScrollableTabGestureTarget(event.target);
     pressedCardRoute = pressedInteractive ? "" : event.target.closest("[data-card-route]")?.dataset.cardRoute || "";
     if (pressedInteractive) return;
     isDragging = true;
@@ -4252,6 +4253,7 @@ function renderTournament(id, options = {}) {
       `}
     </section>
   `;
+  scheduleScrollableTabsIntoView();
 
   document.querySelectorAll("[data-round]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -4518,7 +4520,6 @@ function setupTournamentRoundSwipe(tournament, tournamentRounds, selectedRound, 
     isDragging = true;
     startX = event.clientX;
     startY = event.clientY;
-    segment.setPointerCapture(event.pointerId);
   });
 
   segment.addEventListener("pointerup", (event) => {
@@ -4534,17 +4535,6 @@ function setupTournamentRoundSwipe(tournament, tournamentRounds, selectedRound, 
       return;
     }
     pressedRound = "";
-    if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY)) return;
-
-    const currentIndex = Math.max(0, tournamentRounds.findIndex((round) => round.id === selectedRound));
-    const direction = deltaX < 0 ? 1 : -1;
-    const nextIndex = Math.min(tournamentRounds.length - 1, Math.max(0, currentIndex + direction));
-    const nextRound = tournamentRounds[nextIndex];
-    if (!nextRound) return;
-    const nextGlobalIndex = rounds.findIndex((round) => round.id === nextRound.id);
-    if (nextRound.locked || nextGlobalIndex > activeRoundIndex) return;
-    state.selectedRound = nextRound.id;
-    renderTournament(tournament.id, { forcePlayer: state.route.endsWith("/player") });
   });
 
   segment.addEventListener("pointercancel", () => {
@@ -5073,6 +5063,7 @@ function renderTournamentManageSection(tournament, section) {
     </section>
   `;
   if (section === "rules") scheduleActiveTabIntoView(".rules-round-tabs", "[data-rules-round-tab].active");
+  scheduleScrollableTabsIntoView();
 
   document.querySelectorAll("[data-request-action]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -5323,6 +5314,19 @@ function scheduleActiveTabIntoView(containerSelector, activeSelector) {
     alignActiveTab();
     window.setTimeout(alignActiveTab, 80);
   });
+}
+
+function scheduleScrollableTabsIntoView() {
+  [
+    [".round-segment", ".round-segment-btn.active"],
+    [".voting-role-tabs", ".voting-role-tab.active"],
+    [".live-championship-segment", ".live-championship-tab.active"],
+    [".public-filter-segment", ".public-filter-btn.active"]
+  ].forEach(([containerSelector, activeSelector]) => scheduleActiveTabIntoView(containerSelector, activeSelector));
+}
+
+function isScrollableTabGestureTarget(target) {
+  return Boolean(closestElement(target, ".championship-segment, .voting-role-tabs, .round-segment"));
 }
 
 function updateScrollableSegmentIndicator(container, active) {
@@ -6102,7 +6106,7 @@ function bindVotingSwipe(tournament) {
   let isHorizontal = false;
   let ignoreSwipe = false;
   pane.addEventListener("pointerdown", (event) => {
-    ignoreSwipe = isInteractiveTarget(event.target) || Boolean(closestElement(event.target, "[data-rules-round-tab]"));
+    ignoreSwipe = isInteractiveTarget(event.target) || isScrollableTabGestureTarget(event.target);
     startX = event.clientX;
     startY = event.clientY;
     isHorizontal = false;
@@ -6140,7 +6144,7 @@ function bindRulesSwipe(tournament) {
   let isHorizontal = false;
   let ignoreSwipe = false;
   pane.addEventListener("pointerdown", (event) => {
-    ignoreSwipe = isInteractiveTarget(event.target) || Boolean(closestElement(event.target, ".rules-round-tabs"));
+    ignoreSwipe = isInteractiveTarget(event.target) || isScrollableTabGestureTarget(event.target);
     startX = event.clientX;
     startY = event.clientY;
     isHorizontal = false;
@@ -8997,6 +9001,7 @@ function renderLive() {
       `}
     </section>
   `;
+  scheduleScrollableTabsIntoView();
 
   document.querySelectorAll("[data-live-tournament]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -9087,7 +9092,7 @@ function setupLiveTournamentSwipe(tournaments) {
   let isDragging = false;
 
   slider.addEventListener("pointerdown", (event) => {
-    if (isInteractiveTarget(event.target)) return;
+    if (isInteractiveTarget(event.target) || isScrollableTabGestureTarget(event.target)) return;
     isDragging = true;
     startX = event.clientX;
     startY = event.clientY;

@@ -5072,6 +5072,7 @@ function renderTournamentManageSection(tournament, section) {
       ${ownerManageSectionContent(tournament, section)}
     </section>
   `;
+  if (section === "rules") scheduleActiveTabIntoView(".rules-round-tabs", "[data-rules-round-tab].active");
 
   document.querySelectorAll("[data-request-action]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -5308,6 +5309,23 @@ function renderTournamentManageSection(tournament, section) {
   document.querySelectorAll("[data-delete-manual-match]").forEach((button) => {
     button.addEventListener("click", () => deleteManualTournamentMatch(tournament, button.dataset.manualMatchRound, button.dataset.deleteManualMatch));
   });
+}
+
+function scheduleActiveTabIntoView(containerSelector, activeSelector) {
+  window.requestAnimationFrame(() => {
+    const container = document.querySelector(containerSelector);
+    const active = container?.querySelector(activeSelector);
+    if (!container || !active) return;
+    active.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
+    updateScrollableSegmentIndicator(container, active);
+  });
+}
+
+function updateScrollableSegmentIndicator(container, active) {
+  const indicator = container.querySelector(".championship-segment-indicator");
+  if (!indicator || !active) return;
+  indicator.style.width = `${active.offsetWidth}px`;
+  indicator.style.transform = `translateX(${active.offsetLeft}px)`;
 }
 
 function currentManageSection() {

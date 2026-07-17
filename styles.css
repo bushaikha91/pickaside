@@ -1844,6 +1844,11 @@ body.auth-screen .app-shell {
   box-shadow: none;
 }
 
+.rules-round-tabs .championship-segment-indicator {
+  inset-inline-start: 0;
+  width: 0;
+}
+
 .rules-round-tabs .round-segment-btn {
   min-width: 112px;
 }

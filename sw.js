@@ -1,4 +1,4 @@
-const CACHE_NAME = "pick-a-side-20260717-cardtap1";
+const CACHE_NAME = "pick-a-side-20260717-cardtouch1";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -3,6 +3,8 @@ const modalRoot = document.querySelector("#modal-root");
 let mainChromeScrollHandler = null;
 let liveAutoRefreshTimer = null;
 let localStateLoaded = false;
+let cardTouchStart = null;
+let lastTouchCardNavigationAt = 0;
 
 const LOCAL_STATE_KEY = "pickaside_local_state_v1";
 const LOCAL_TOURNAMENT_KEY_PREFIX = "pickaside_tournament_v1:";
@@ -778,6 +780,11 @@ window.addEventListener("hashchange", () => {
 });
 
 document.body.addEventListener("click", (event) => {
+  if (Date.now() - lastTouchCardNavigationAt < 500 && closestElement(event.target, "[data-card-route]")) {
+    event.preventDefault();
+    return;
+  }
+
   const backButton = closestElement(event.target, "[data-back]");
   if (backButton) {
     event.preventDefault();
@@ -902,6 +909,37 @@ document.body.addEventListener("click", (event) => {
     navigate(cardRoute.dataset.cardRoute);
   }
 });
+
+document.body.addEventListener("touchstart", (event) => {
+  if (event.touches.length !== 1) {
+    cardTouchStart = null;
+    return;
+  }
+  const cardRoute = closestElement(event.target, "[data-card-route]");
+  if (!cardRoute || isInteractiveTarget(event.target)) {
+    cardTouchStart = null;
+    return;
+  }
+  const touch = event.touches[0];
+  cardTouchStart = {
+    x: touch.clientX,
+    y: touch.clientY,
+    route: cardRoute.dataset.cardRoute
+  };
+}, { passive: true });
+
+document.body.addEventListener("touchend", (event) => {
+  if (!cardTouchStart) return;
+  const touch = event.changedTouches[0];
+  const absX = Math.abs(touch.clientX - cardTouchStart.x);
+  const absY = Math.abs(touch.clientY - cardTouchStart.y);
+  const route = cardTouchStart.route;
+  cardTouchStart = null;
+  if (!route || absX > 34 || absY > 34) return;
+  event.preventDefault();
+  lastTouchCardNavigationAt = Date.now();
+  navigate(route);
+}, { passive: false });
 
 document.body.addEventListener("keydown", (event) => {
   if (!["Enter", " "].includes(event.key)) return;

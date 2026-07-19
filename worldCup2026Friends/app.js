@@ -1079,7 +1079,7 @@ function standingsMatrixView(options = {}) {
               </div>
               <div class="match-score-group summary-group">
                 <div class="matrix-cell summary-head">س/ج صحيح</div>
-                <div class="matrix-cell summary-head">س/ج خطأ</div>
+                <div class="matrix-cell summary-head">نسبة س/ج</div>
                 <div class="matrix-cell summary-head">نقاط س/ج</div>
               </div>
               <div class="match-score-group summary-group">
@@ -1102,8 +1102,8 @@ function standingsMatrixView(options = {}) {
                   <div class="matrix-cell summary-cell percent-total">${correctPercent(row)}</div>
                 </div>
                 <div class="match-score-group summary-group">
-                  <div class="matrix-cell summary-cell correct-total">${Number(row.trivia_correct) || 0}</div>
-                  <div class="matrix-cell summary-cell wrong-total">${Number(row.trivia_wrong) || 0}</div>
+                  <div class="matrix-cell summary-cell correct-total">${triviaCorrectTotal(row)}</div>
+                  <div class="matrix-cell summary-cell percent-total">${triviaCorrectPercent(row)}</div>
                   <div class="matrix-cell summary-cell percent-total">${roundPoints(Number(row.trivia_points) || 0)}</div>
                 </div>
                 <div class="match-score-group summary-group">
@@ -1160,6 +1160,19 @@ function correctPercent(row) {
   const total = (row.correct_predictions || 0) + (row.wrong_predictions || 0);
   if (!total) return "0%";
   return `${Math.round((row.correct_predictions / total) * 100)}%`;
+}
+
+function triviaCorrectTotal(row) {
+  const correct = Number(row.trivia_correct) || 0;
+  const total = correct + (Number(row.trivia_wrong) || 0);
+  return `${correct}/${total}`;
+}
+
+function triviaCorrectPercent(row) {
+  const correct = Number(row.trivia_correct) || 0;
+  const total = correct + (Number(row.trivia_wrong) || 0);
+  if (!total) return "0%";
+  return `${Math.round((correct / total) * 100)}%`;
 }
 
 function signedPoints(value) {

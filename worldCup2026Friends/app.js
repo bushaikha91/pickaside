@@ -1054,7 +1054,6 @@ function participantStandingsListView() {
 
 function standingsMatrixView(options = {}) {
   const allowDetails = !!options.allowDetails;
-  const showAdminCorrections = state.currentUser?.role === "organizer";
   const settledMatches = sortMatches(state.matches.filter(match => match.winner && !isHiddenRound(match.round_id)));
   return `
     ${state.standings.length ? `
@@ -1087,7 +1086,6 @@ function standingsMatrixView(options = {}) {
                 <div class="matrix-cell summary-head">التنبيهات</div>
                 <div class="matrix-cell summary-head">الإنذارات</div>
                 <div class="matrix-cell summary-head">خصم النقاط</div>
-                ${showAdminCorrections ? `<div class="matrix-cell summary-head">تصحيح إداري</div>` : ""}
               </div>
             </div>
             ${state.standings.map(row => `
@@ -1112,7 +1110,6 @@ function standingsMatrixView(options = {}) {
                   <div class="matrix-cell summary-cell wrong-total">${Number(row.notices_count) || 0}</div>
                   <div class="matrix-cell summary-cell wrong-total">${Number(row.warnings_count) || 0}</div>
                   <div class="matrix-cell summary-cell wrong-total">${roundPoints(Number(row.penalty_points) || 0)}</div>
-                  ${showAdminCorrections ? `<div class="matrix-cell summary-cell percent-total">${signedPoints(Number(row.admin_correction_points) || 0)}</div>` : ""}
                 </div>
               </div>
             `).join("")}

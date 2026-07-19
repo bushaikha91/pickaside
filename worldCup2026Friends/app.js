@@ -270,7 +270,7 @@ function appTemplate() {
       <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
       <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ترشيحات البطل</button>
       <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">س/ج</button>
-      <button class="tab ${activeTab === "discipline" ? "active" : ""}" data-tab="discipline">الإنذارات</button>
+      <button class="tab ${activeTab === "discipline" ? "active" : ""}" data-tab="discipline">الإجراءات</button>
       <button class="tab ${activeTab === "admin-decisions" ? "active" : ""}" data-tab="admin-decisions">القرارات الإدارية</button>
     `
     : `
@@ -451,7 +451,7 @@ function disciplinaryActionsView() {
   return `
     <div class="stack disciplinary-view">
       <div class="section-title">
-        <h2>إدارة الإنذارات</h2>
+        <h2>إدارة الإجراءات</h2>
       </div>
       <form class="panel stack disciplinary-form" id="disciplinaryActionForm">
         <label class="field">
@@ -466,6 +466,7 @@ function disciplinaryActionsView() {
           <select name="actionType" required>
             <option value="warning">إنذار مع خصم</option>
             <option value="notice">تنبيه بدون خصم</option>
+            <option value="correction">تصحيح نقاط إداري</option>
           </select>
         </label>
         <label class="field">
@@ -473,13 +474,13 @@ function disciplinaryActionsView() {
           <input name="title" required placeholder="مثال: مخالفة لوائح البطولة" />
         </label>
         <label class="field">
-          <span>قيمة الخصم</span>
-          <input name="pointsDeducted" type="number" min="0" step="1" inputmode="decimal" placeholder="مثال: 200" />
+          <span>قيمة النقاط</span>
+          <input name="pointsDeducted" type="number" step="1" inputmode="decimal" placeholder="مثال: 200" />
         </label>
         <button class="primary-btn" type="submit">حفظ الإجراء</button>
       </form>
       <div class="match-list">
-        ${actions.length ? actions.map(disciplinaryActionCard).join("") : emptyView("لا توجد إنذارات مسجلة حتى الآن.")}
+        ${actions.length ? actions.map(disciplinaryActionCard).join("") : emptyView("لا توجد إجراءات مسجلة حتى الآن.")}
       </div>
     </div>
   `;
@@ -487,11 +488,18 @@ function disciplinaryActionsView() {
 
 function disciplinaryActionCard(action) {
   const participant = action.participant || state.participants.find(user => user.id === action.participant_id) || {};
+  const points = Number(action.points_deducted) || 0;
+  const label = action.action_type === "notice"
+    ? "تنبيه"
+    : action.action_type === "correction"
+      ? `تصحيح ${signedPoints(points)}`
+      : `خصم ${roundPoints(points)}`;
+  const chipClass = action.action_type === "notice" ? "pending" : action.action_type === "correction" && points > 0 ? "approved" : "rejected";
   return `
     <article class="match-card admin-decision-card">
       <div class="match-card-top">
         <strong>${escapeHtml(action.title || "إنذار إداري")}</strong>
-        <span class="status-chip ${action.action_type === "notice" ? "pending" : "rejected"}">${action.action_type === "notice" ? "تنبيه" : `خصم ${roundPoints(Number(action.points_deducted) || 0)}`}</span>
+        <span class="status-chip ${chipClass}">${label}</span>
       </div>
       <div class="leader-row compact-row">
         ${avatarTile(participant, "avatar-mini")}
@@ -1046,6 +1054,7 @@ function participantStandingsListView() {
 
 function standingsMatrixView(options = {}) {
   const allowDetails = !!options.allowDetails;
+  const showAdminCorrections = state.currentUser?.role === "organizer";
   const settledMatches = sortMatches(state.matches.filter(match => match.winner && !isHiddenRound(match.round_id)));
   return `
     ${state.standings.length ? `
@@ -1078,6 +1087,7 @@ function standingsMatrixView(options = {}) {
                 <div class="matrix-cell summary-head">التنبيهات</div>
                 <div class="matrix-cell summary-head">الإنذارات</div>
                 <div class="matrix-cell summary-head">خصم النقاط</div>
+                ${showAdminCorrections ? `<div class="matrix-cell summary-head">تصحيح إداري</div>` : ""}
               </div>
             </div>
             ${state.standings.map(row => `
@@ -1102,6 +1112,7 @@ function standingsMatrixView(options = {}) {
                   <div class="matrix-cell summary-cell wrong-total">${Number(row.notices_count) || 0}</div>
                   <div class="matrix-cell summary-cell wrong-total">${Number(row.warnings_count) || 0}</div>
                   <div class="matrix-cell summary-cell wrong-total">${roundPoints(Number(row.penalty_points) || 0)}</div>
+                  ${showAdminCorrections ? `<div class="matrix-cell summary-cell percent-total">${signedPoints(Number(row.admin_correction_points) || 0)}</div>` : ""}
                 </div>
               </div>
             `).join("")}
@@ -1152,6 +1163,12 @@ function correctPercent(row) {
   const total = (row.correct_predictions || 0) + (row.wrong_predictions || 0);
   if (!total) return "0%";
   return `${Math.round((row.correct_predictions / total) * 100)}%`;
+}
+
+function signedPoints(value) {
+  const points = roundPoints(Number(value) || 0);
+  if (points > 0) return `+${points}`;
+  return `${points}`;
 }
 
 function rankTrendView(userId) {
@@ -3658,7 +3675,12 @@ function bindApp() {
           pointsDeducted: form.elements.pointsDeducted.value
         })
       });
-      state.notice = form.elements.actionType.value === "notice" ? "تم حفظ التنبيه." : "تم حفظ الإنذار وتطبيق الخصم.";
+      const savedActionType = form.elements.actionType.value;
+      state.notice = savedActionType === "notice"
+        ? "تم حفظ التنبيه."
+        : savedActionType === "correction"
+          ? "تم حفظ تصحيح النقاط."
+          : "تم حفظ الإنذار وتطبيق الخصم.";
       form.reset();
       await loadData({ silent: true });
     } catch (error) {

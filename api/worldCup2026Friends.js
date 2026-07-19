@@ -1031,10 +1031,12 @@ async function saveDisciplinaryAction(req, res) {
   const participantId = clean(body.participantId);
   const title = clean(body.title);
   const pointsDeducted = Number(body.pointsDeducted);
-  const actionType = clean(body.actionType) === "notice" ? "notice" : "warning";
+  const requestedActionType = clean(body.actionType);
+  const actionType = ["notice", "warning", "correction"].includes(requestedActionType) ? requestedActionType : "warning";
   if (!participantId) throw httpError(400, "اختر المتسابق");
   if (!title) throw httpError(400, "عنوان التنبيه أو الإنذار مطلوب");
   if (actionType === "warning" && (!Number.isFinite(pointsDeducted) || pointsDeducted < 0)) throw httpError(400, "قيمة الخصم غير صحيحة");
+  if (actionType === "correction" && (!Number.isFinite(pointsDeducted) || pointsDeducted === 0)) throw httpError(400, "قيمة تصحيح النقاط غير صحيحة");
   const [participant] = await supabase(`worldcup2026friends_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant&limit=1`);
   if (!participant) throw httpError(404, "المتسابق غير موجود");
   try {
@@ -1318,7 +1320,8 @@ async function calculateTournament() {
     trivia_points: 0,
     notices_count: 0,
     warnings_count: 0,
-    penalty_points: 0
+    penalty_points: 0,
+    admin_correction_points: 0
   }]));
   const triviaResultsByRound = groupTriviaResultsByRound(triviaResults);
 
@@ -1368,6 +1371,12 @@ function applyDisciplinaryActionsToStats(stats, actions) {
     if (!row) continue;
     if (action.action_type === "notice") {
       row.notices_count += 1;
+      continue;
+    }
+    if (action.action_type === "correction") {
+      const correction = Number(action.points_deducted) || 0;
+      row.admin_correction_points += correction;
+      row.points += correction;
       continue;
     }
     if (action.action_type === "warning") row.warnings_count += 1;

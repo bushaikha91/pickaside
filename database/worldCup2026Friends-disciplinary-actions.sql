@@ -38,32 +38,8 @@ grant all on table public.worldcup2026friends_disciplinary_actions to anon;
 grant all on table public.worldcup2026friends_disciplinary_actions to authenticated;
 grant all on table public.worldcup2026friends_disciplinary_actions to service_role;
 
-insert into public.worldcup2026friends_disciplinary_actions (
-  participant_id,
-  action_key,
-  action_type,
-  title,
-  points_deducted,
-  reason
-)
-select
-  u.id,
-  'omar_abdullah_warning_200_20260719',
-  'warning',
-  'إنذار إداري',
-  200,
-  'إنذار إداري وخصم 200 نقطة'
-from public.worldcup2026friends_users u
-where u.role = 'participant'
-  and regexp_replace(u.name, '\s+', '', 'g') like '%عمرعبدالله%'
-on conflict (action_key) do update
-set
-  participant_id = excluded.participant_id,
-  action_type = excluded.action_type,
-  title = excluded.title,
-  points_deducted = excluded.points_deducted,
-  reason = excluded.reason,
-  updated_at = now();
+delete from public.worldcup2026friends_disciplinary_actions
+where action_key = 'omar_abdullah_warning_200_20260719';
 
 notify pgrst, 'reload schema';
 select 'worldCup2026Friends_disciplinary_actions_ready' as status;

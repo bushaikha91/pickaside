@@ -1012,6 +1012,10 @@ function standingsMatrixView(options = {}) {
                 <div class="matrix-cell summary-head">س/ج خطأ</div>
                 <div class="matrix-cell summary-head">نقاط س/ج</div>
               </div>
+              <div class="match-score-group summary-group">
+                <div class="matrix-cell summary-head">الإنذارات</div>
+                <div class="matrix-cell summary-head">خصم النقاط</div>
+              </div>
             </div>
             ${state.standings.map(row => `
               <div class="standings-middle-row">
@@ -1030,6 +1034,10 @@ function standingsMatrixView(options = {}) {
                   <div class="matrix-cell summary-cell correct-total">${Number(row.trivia_correct) || 0}</div>
                   <div class="matrix-cell summary-cell wrong-total">${Number(row.trivia_wrong) || 0}</div>
                   <div class="matrix-cell summary-cell percent-total">${roundPoints(Number(row.trivia_points) || 0)}</div>
+                </div>
+                <div class="match-score-group summary-group">
+                  <div class="matrix-cell summary-cell wrong-total">${Number(row.warnings_count) || 0}</div>
+                  <div class="matrix-cell summary-cell wrong-total">${roundPoints(Number(row.penalty_points) || 0)}</div>
                 </div>
               </div>
             `).join("")}

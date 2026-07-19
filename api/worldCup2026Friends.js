@@ -162,6 +162,15 @@ async function fetchAdminDecisions() {
   }
 }
 
+async function fetchDisciplinaryActions() {
+  try {
+    return await supabase("worldcup2026friends_disciplinary_actions?select=participant_id,action_type,points_deducted");
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    return [];
+  }
+}
+
 async function fetchStandingUsers() {
   try {
     return await supabase("worldcup2026friends_users?role=eq.participant&participant_status=eq.approved&select=id,name,avatar_url");
@@ -1247,11 +1256,12 @@ function triviaSlotKey(roundId, questionRound, difficulty) {
 }
 
 async function calculateTournament() {
-  const [users, matches, predictions, triviaResults] = await Promise.all([
+  const [users, matches, predictions, triviaResults, disciplinaryActions] = await Promise.all([
     fetchStandingUsers(),
     supabase("worldcup2026friends_matches?select=id,round_id,winner,starts_at,team_a,team_b"),
     fetchAllPredictions(),
-    fetchTriviaResults()
+    fetchTriviaResults(),
+    fetchDisciplinaryActions()
   ]);
 
   const predictionByUserMatch = new Map(predictions.map(item => [`${item.user_id}:${item.match_id}`, item]));
@@ -1266,7 +1276,9 @@ async function calculateTournament() {
     wrong_predictions: 0,
     trivia_correct: 0,
     trivia_wrong: 0,
-    trivia_points: 0
+    trivia_points: 0,
+    warnings_count: 0,
+    penalty_points: 0
   }]));
   const triviaResultsByRound = groupTriviaResultsByRound(triviaResults);
 
@@ -1288,6 +1300,7 @@ async function calculateTournament() {
     applyTriviaResultsToStats(stats, triviaResultsByRound.get(roundId) || []);
   }
   applyTriviaResultsToStats(stats, triviaResultsByRound.get("unmatched") || []);
+  applyDisciplinaryActionsToStats(stats, disciplinaryActions);
 
   return {
     predictions,
@@ -1306,6 +1319,17 @@ async function fetchAllPredictions() {
     if (!isOptionalColumnError(error)) throw error;
     return (await supabase("worldcup2026friends_predictions?select=user_id,match_id,winner"))
       .map(item => ({ ...item, is_joker: false, winner_percent: null }));
+  }
+}
+
+function applyDisciplinaryActionsToStats(stats, actions) {
+  for (const action of actions || []) {
+    const row = stats.get(action.participant_id);
+    if (!row) continue;
+    if (action.action_type === "warning") row.warnings_count += 1;
+    const deduction = Math.max(0, Number(action.points_deducted) || 0);
+    row.penalty_points += deduction;
+    row.points -= deduction;
   }
 }
 

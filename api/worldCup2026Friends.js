@@ -55,6 +55,7 @@ module.exports = async function handler(req, res) {
     if (action === "trivia-expire" && req.method === "POST") return await expireTriviaQuestion(req, res);
     if (action === "admin-decision" && req.method === "POST") return await saveAdminDecision(req, res);
     if (action === "admin-decision-delete" && req.method === "POST") return await deleteAdminDecision(req, res);
+    if (action === "disciplinary-action" && req.method === "POST") return await saveDisciplinaryAction(req, res);
 
     res.setHeader("Allow", "GET, POST, OPTIONS");
     return res.status(405).json({ error: "Method or action not allowed" });
@@ -70,7 +71,7 @@ async function sendState(req, res) {
   const isApprovedParticipant = user?.role === "participant" && user?.participant_status === "approved";
   const tournament = await calculateTournament();
 
-  const [matches, predictions, participants, organizers, championData, triviaQuestionData, triviaSettings, allTriviaAssignments, adminDecisions] = await Promise.all([
+  const [matches, predictions, participants, organizers, championData, triviaQuestionData, triviaSettings, allTriviaAssignments, adminDecisions, disciplinaryActions] = await Promise.all([
     isOrganizer || isApprovedParticipant ? supabase("worldcup2026friends_matches?select=*&order=winner.asc.nullsfirst&order=starts_at.asc") : [],
     userId && (isOrganizer || isApprovedParticipant) ? fetchUserPredictions(userId) : [],
     isOrganizer ? fetchParticipants() : [],
@@ -79,7 +80,8 @@ async function sendState(req, res) {
     isOrganizer ? fetchInitialTriviaQuestions() : { questions: [], pages: {} },
     isOrganizer || isApprovedParticipant ? fetchTriviaSettings() : [],
     isOrganizer ? fetchAllTriviaAssignments() : [],
-    isOrganizer || isApprovedParticipant ? fetchAdminDecisions() : []
+    isOrganizer || isApprovedParticipant ? fetchAdminDecisions() : [],
+    isOrganizer ? fetchDisciplinaryActions({ detailed: true }) : []
   ]);
   const triviaAssignments = isApprovedParticipant ? await ensureTriviaAssignments(userId) : [];
 
@@ -104,6 +106,7 @@ async function sendState(req, res) {
     triviaAssignments,
     allTriviaAssignments,
     adminDecisions,
+    disciplinaryActions,
     serverNow: new Date().toISOString()
   });
 }
@@ -162,9 +165,12 @@ async function fetchAdminDecisions() {
   }
 }
 
-async function fetchDisciplinaryActions() {
+async function fetchDisciplinaryActions(options = {}) {
   try {
-    return await supabase("worldcup2026friends_disciplinary_actions?select=participant_id,action_type,points_deducted");
+    const select = options.detailed
+      ? "id,participant_id,action_type,title,points_deducted,reason,created_at,updated_at,participant:worldcup2026friends_users(id,name,avatar_url)"
+      : "participant_id,action_type,points_deducted";
+    return await supabase(`worldcup2026friends_disciplinary_actions?select=${select}&order=created_at.desc`);
   } catch (error) {
     if (!isOptionalColumnError(error)) throw error;
     return [];
@@ -1016,6 +1022,38 @@ async function deleteAdminDecision(req, res) {
     }
     if (!isOptionalColumnError(error)) throw error;
     throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث جدول القرارات الإدارية");
+  }
+}
+
+async function saveDisciplinaryAction(req, res) {
+  const body = await readBody(req);
+  await requireOrganizer(body.userId);
+  const participantId = clean(body.participantId);
+  const title = clean(body.title);
+  const pointsDeducted = Number(body.pointsDeducted);
+  if (!participantId) throw httpError(400, "اختر المتسابق");
+  if (!title) throw httpError(400, "عنوان الإنذار مطلوب");
+  if (!Number.isFinite(pointsDeducted) || pointsDeducted < 0) throw httpError(400, "قيمة الخصم غير صحيحة");
+  const [participant] = await supabase(`worldcup2026friends_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant&limit=1`);
+  if (!participant) throw httpError(404, "المتسابق غير موجود");
+  try {
+    const [action] = await supabase("worldcup2026friends_disciplinary_actions", {
+      method: "POST",
+      prefer: "return=representation",
+      body: JSON.stringify({
+        participant_id: participantId,
+        action_type: "warning",
+        title,
+        points_deducted: Math.round(pointsDeducted * 100) / 100,
+        reason: title,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+    });
+    return res.status(200).json({ action });
+  } catch (error) {
+    if (!isOptionalColumnError(error)) throw error;
+    throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث جدول الإنذارات. شغل ملف database/worldCup2026Friends-disciplinary-actions.sql في Supabase مرة واحدة.");
   }
 }
 

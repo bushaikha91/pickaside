@@ -85,6 +85,7 @@ const state = {
   allTriviaAssignments: [],
   triviaSettings: [],
   adminDecisions: [],
+  disciplinaryActions: [],
   eliminated: false,
   eliminationMessage: ELIMINATED_PARTICIPANT_MESSAGE,
   rankMovement: {},
@@ -269,6 +270,7 @@ function appTemplate() {
       <button class="tab ${activeTab === "participants" ? "active" : ""}" data-tab="participants">الطلبات</button>
       <button class="tab ${activeTab === "champions" ? "active" : ""}" data-tab="champions">ترشيحات البطل</button>
       <button class="tab ${activeTab === "trivia" ? "active" : ""}" data-tab="trivia">س/ج</button>
+      <button class="tab ${activeTab === "discipline" ? "active" : ""}" data-tab="discipline">الإنذارات</button>
       <button class="tab ${activeTab === "admin-decisions" ? "active" : ""}" data-tab="admin-decisions">القرارات الإدارية</button>
     `
     : `
@@ -342,6 +344,7 @@ function currentView() {
   if (activeTab === "home" && state.currentUser.role === "participant") return participantHomeView();
   if (activeTab === "participants" && state.currentUser.role === "organizer") return participantsView();
   if (activeTab === "champions" && state.currentUser.role === "organizer") return championPicksView();
+  if (activeTab === "discipline" && state.currentUser.role === "organizer") return disciplinaryActionsView();
   if (activeTab === "admin-decisions" && state.currentUser.role === "organizer") return adminDecisionsView();
   if (state.currentUser.role === "organizer") return manageView();
   return participantMatchesView();
@@ -439,6 +442,58 @@ function adminDecisionModal() {
         </form>
       </section>
     </div>
+  `;
+}
+
+function disciplinaryActionsView() {
+  const approved = state.participants.filter(user => user.participant_status === "approved");
+  const actions = state.disciplinaryActions || [];
+  return `
+    <div class="stack disciplinary-view">
+      <div class="section-title">
+        <h2>إدارة الإنذارات</h2>
+      </div>
+      <form class="panel stack disciplinary-form" id="disciplinaryActionForm">
+        <label class="field">
+          <span>المتسابق</span>
+          <select name="participantId" required>
+            <option value="">اختر المتسابق</option>
+            ${approved.map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>عنوان الإنذار</span>
+          <input name="title" required placeholder="مثال: مخالفة لوائح البطولة" />
+        </label>
+        <label class="field">
+          <span>قيمة الخصم</span>
+          <input name="pointsDeducted" required type="number" min="0" step="1" inputmode="decimal" placeholder="مثال: 200" />
+        </label>
+        <button class="primary-btn" type="submit">حفظ الإنذار</button>
+      </form>
+      <div class="match-list">
+        ${actions.length ? actions.map(disciplinaryActionCard).join("") : emptyView("لا توجد إنذارات مسجلة حتى الآن.")}
+      </div>
+    </div>
+  `;
+}
+
+function disciplinaryActionCard(action) {
+  const participant = action.participant || state.participants.find(user => user.id === action.participant_id) || {};
+  return `
+    <article class="match-card admin-decision-card">
+      <div class="match-card-top">
+        <strong>${escapeHtml(action.title || "إنذار إداري")}</strong>
+        <span class="status-chip rejected">خصم ${roundPoints(Number(action.points_deducted) || 0)}</span>
+      </div>
+      <div class="leader-row compact-row">
+        ${avatarTile(participant, "avatar-mini")}
+        <div>
+          <strong>${escapeHtml(participant.name || "متسابق")}</strong>
+          <span class="small">${formatDate(action.updated_at || action.created_at)}</span>
+        </div>
+      </div>
+    </article>
   `;
 }
 
@@ -3578,6 +3633,32 @@ function bindApp() {
     }
   });
 
+  document.querySelector("#disciplinaryActionForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    if (button) button.disabled = true;
+    try {
+      await api("disciplinary-action", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: state.currentUser.id,
+          participantId: form.elements.participantId.value,
+          title: form.elements.title.value.trim(),
+          pointsDeducted: form.elements.pointsDeducted.value
+        })
+      });
+      state.notice = "تم حفظ الإنذار وتطبيق الخصم.";
+      form.reset();
+      await loadData({ silent: true });
+    } catch (error) {
+      state.error = error.message || "تعذر حفظ الإنذار";
+      render();
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+
   document.querySelector("[data-voter-modal-close]")?.addEventListener("click", event => {
     if (event.target === event.currentTarget) {
       state.voterModalMatch = null;
@@ -4694,6 +4775,7 @@ function applyStatePayload(payload = {}) {
   state.allTriviaAssignments = payload.allTriviaAssignments || [];
   state.triviaSettings = payload.triviaSettings || [];
   state.adminDecisions = payload.adminDecisions || [];
+  state.disciplinaryActions = payload.disciplinaryActions || [];
   state.eliminated = !!payload.eliminated;
   state.eliminationMessage = payload.eliminationMessage || ELIMINATED_PARTICIPANT_MESSAGE;
   state.participants = payload.participants || [];
@@ -4745,6 +4827,7 @@ function stateCachePayload() {
     allTriviaAssignments: state.allTriviaAssignments,
     triviaSettings: state.triviaSettings,
     adminDecisions: state.adminDecisions,
+    disciplinaryActions: state.disciplinaryActions,
     participants: state.participants,
     organizers: state.organizers,
     serverNow: new Date(Date.now() + state.serverNowOffsetMs).toISOString()
@@ -4766,7 +4849,7 @@ function defaultTabForUser(user) {
 
 function allowedTabsForUser(user) {
   const sharedTabs = ["standings", "laws", "trivia"];
-  if (user?.role === "organizer") return ["manage", "participants", "champions", "admin-decisions", ...sharedTabs];
+  if (user?.role === "organizer") return ["manage", "participants", "champions", "discipline", "admin-decisions", ...sharedTabs];
   return ["home", "matches", ...sharedTabs];
 }
 

@@ -5,6 +5,7 @@ create table if not exists public.worldcup2026friends_disciplinary_actions (
   participant_id uuid not null references public.worldcup2026friends_users(id) on delete cascade,
   action_key text unique,
   action_type text not null default 'warning' check (action_type in ('warning', 'penalty')),
+  title text not null default 'إنذار إداري',
   points_deducted numeric not null default 0,
   reason text,
   created_at timestamptz not null default now(),
@@ -16,6 +17,9 @@ alter table public.worldcup2026friends_disciplinary_actions
 
 alter table public.worldcup2026friends_disciplinary_actions
   add column if not exists points_deducted numeric not null default 0;
+
+alter table public.worldcup2026friends_disciplinary_actions
+  add column if not exists title text not null default 'إنذار إداري';
 
 alter table public.worldcup2026friends_disciplinary_actions
   add column if not exists reason text;
@@ -31,6 +35,7 @@ insert into public.worldcup2026friends_disciplinary_actions (
   participant_id,
   action_key,
   action_type,
+  title,
   points_deducted,
   reason
 )
@@ -38,6 +43,7 @@ select
   u.id,
   'omar_abdullah_warning_200_20260719',
   'warning',
+  'إنذار إداري',
   200,
   'إنذار إداري وخصم 200 نقطة'
 from public.worldcup2026friends_users u
@@ -47,6 +53,7 @@ on conflict (action_key) do update
 set
   participant_id = excluded.participant_id,
   action_type = excluded.action_type,
+  title = excluded.title,
   points_deducted = excluded.points_deducted,
   reason = excluded.reason,
   updated_at = now();

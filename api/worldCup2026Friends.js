@@ -14,6 +14,7 @@ const ROUND_RULES = {
 const ROUND_ORDER = ["r32", "r16", "qf", "sf", "final"];
 const JOKER_ROUNDS = new Set(["r16", "qf"]);
 const JOKER_LIMITS = { r16: 2, qf: 1 };
+const FINAL_TRIVIA_CLOSE_BEFORE_MS = 30 * 60 * 1000;
 const ELIMINATED_PARTICIPANT_MESSAGE = "\u0648\u0635\u0644 \u0631\u0635\u064a\u062f\u0643 \u0625\u0644\u0649 0 \u0646\u0642\u0637\u0629\u060c \u0644\u0630\u0644\u0643 \u062a\u0645 \u0625\u0642\u0635\u0627\u0624\u0643 \u0645\u0646 \u0627\u0644\u0645\u0633\u0627\u0628\u0642\u0629 \u0648\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0627\u0644\u062a\u0635\u0648\u064a\u062a \u0623\u0648 \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0629 \u0641\u064a \u0646\u0633\u062e\u0629 \u0627\u0644\u0631\u0628\u0639.";
 const ROUND_MATCH_LIMITS = {
   r32: 16,
@@ -1072,7 +1073,7 @@ async function startTriviaQuestion(req, res) {
   if (!assignment) throw httpError(404, "?????? ??? ?????");
   if (assignment.started_at || assignment.answered_at) return res.status(200).json({ assignment, serverNow: new Date().toISOString() });
   const setting = await fetchTriviaRoundForAssignment(assignment);
-  enforceTriviaRoundOpen(setting);
+  await enforceTriviaRoundOpen(setting);
   const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, { method: "PATCH", body: JSON.stringify({ started_at: new Date().toISOString() }), prefer: "return=representation" });
   return res.status(200).json({ assignment: updated, serverNow: new Date().toISOString() });
 }
@@ -1095,7 +1096,7 @@ async function answerTriviaQuestion(req, res) {
   const correctOption = normalizeTriviaOption(question.correct_option);
   const isCorrect = !expired && selected === correctOption;
   const setting = await fetchTriviaRoundForAssignment(assignment);
-  enforceTriviaRoundOpen(setting);
+  await enforceTriviaRoundOpen(setting);
   const awardedPoints = isCorrect ? triviaPointsForDifficulty(setting, assignment.difficulty || question.difficulty) : 0;
   const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, {
     method: "PATCH",
@@ -1169,12 +1170,25 @@ async function fetchTriviaRoundForAssignment(assignment) {
   }
 }
 
-function enforceTriviaRoundOpen(setting) {
+async function enforceTriviaRoundOpen(setting) {
   if (setting?.closed_at) throw httpError(403, "تم إغلاق جولة س/ج لهذا الدور بعد اعتماد آخر مباراة.");
+  const finalCloseAt = await finalTriviaCloseAt(setting);
+  if (finalCloseAt && finalCloseAt.getTime() <= Date.now()) {
+    throw httpError(403, `تم إغلاق جولات س/ج للنهائي قبل بداية المباراة النهائية بـ30 دقيقة.`);
+  }
   if (!setting?.opens_at) return;
   const opensAt = new Date(setting.opens_at);
   if (Number.isNaN(opensAt.getTime()) || opensAt.getTime() <= Date.now()) return;
   throw httpError(403, `الجولة تفتح في ${formatDubaiDateTime(opensAt)}`);
+}
+
+async function finalTriviaCloseAt(setting) {
+  if (normalizeRoundId(setting?.round_id) !== "final") return null;
+  const [finalMatch] = await supabase("worldcup2026friends_matches?round_id=eq.final&starts_at=not.is.null&select=starts_at&order=starts_at.asc&limit=1");
+  if (!finalMatch?.starts_at) return null;
+  const startsAt = new Date(finalMatch.starts_at);
+  if (Number.isNaN(startsAt.getTime())) return null;
+  return new Date(startsAt.getTime() - FINAL_TRIVIA_CLOSE_BEFORE_MS);
 }
 
 function formatDubaiDateTime(value) {

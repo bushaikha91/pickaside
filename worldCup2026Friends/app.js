@@ -1644,6 +1644,16 @@ function triviaRoundOpenState(setting) {
       value: Number.isNaN(closedDate.getTime()) ? "" : closedDate.toISOString()
     };
   }
+  const finalCloseAt = finalTriviaCloseAt(setting);
+  if (finalCloseAt && finalCloseAt.getTime() <= serverNowMs()) {
+    return {
+      locked: true,
+      closed: true,
+      finalClosed: true,
+      label: formatDate(finalCloseAt.toISOString()),
+      value: finalCloseAt.toISOString()
+    };
+  }
   const value = setting?.opens_at || setting?.opensAt || "";
   if (!value) return { locked: false, label: "الآن", value: "" };
   const date = new Date(value);
@@ -1655,8 +1665,18 @@ function triviaRoundOpenState(setting) {
   };
 }
 
+function finalTriviaCloseAt(setting) {
+  if (normalizeRoundId(setting?.round_id) !== "final") return null;
+  const finalMatch = sortMatches(state.matches.filter(match => normalizeRoundId(match.round_id) === "final" && match.starts_at))[0];
+  if (!finalMatch?.starts_at) return null;
+  const startsAt = new Date(finalMatch.starts_at);
+  if (Number.isNaN(startsAt.getTime())) return null;
+  return new Date(startsAt.getTime() - 30 * 60 * 1000);
+}
+
 function triviaRoundOpenLabel(setting) {
   const openState = triviaRoundOpenState(setting);
+  if (openState.finalClosed) return `مغلقة قبل النهائي منذ ${openState.label}`;
   if (openState.closed) return `مغلقة منذ ${openState.label}`;
   if (!openState.value) return "مفتوحة الآن";
   return `${openState.locked ? "تفتح في" : "مفتوحة من"} ${openState.label}`;
@@ -1767,7 +1787,7 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
-  const locked = openState.locked && !started && !allDone;
+  const locked = openState.locked && !allDone;
   const statusClass = allDone ? "approved" : locked ? "rejected" : started ? "pending" : "";
   const statusText = allDone ? "مكتمل" : locked ? "مقفلة" : started ? "قيد اللعب" : "جديدة";
   const detailText = allDone ? `${correct}/3 صحيح | ${points} نقطة` : locked ? `تفتح ${openState.label}` : started ? `${completed.length}/3 مكتمل` : "جاهزة للبدء";
@@ -1850,7 +1870,7 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
-  const locked = openState.locked && !started && !allDone;
+  const locked = openState.locked && !allDone;
   const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "بدء الجولة";
   const buttonClass = allDone ? "primary-btn trivia-result-btn" : "primary-btn";
   const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
@@ -1892,7 +1912,7 @@ function triviaRoundCard(roundNumber, assignments, displayRoundId = activeRound)
   const active = assignments.find(item => !triviaAssignmentComplete(item));
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
-  const locked = openState.locked && !started && !allDone;
+  const locked = openState.locked && !allDone;
   return `
     <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
       <div class="section-title">
@@ -1917,7 +1937,7 @@ function triviaRoundLockedView(openState) {
     return `
       <div class="trivia-round-lock">
         <strong>الجولة مغلقة</strong>
-        <span class="small">تم إغلاقها بعد اعتماد آخر مباراة في هذا الدور.</span>
+        <span class="small">${openState.finalClosed ? "تم إغلاق جولات النهائي قبل بداية المباراة النهائية بـ30 دقيقة." : "تم إغلاقها بعد اعتماد آخر مباراة في هذا الدور."}</span>
       </div>
     `;
   }

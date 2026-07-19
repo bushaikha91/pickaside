@@ -1789,7 +1789,7 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
-  const locked = openState.locked && !allDone;
+  const locked = openState.locked && !started && !allDone;
   const statusClass = allDone ? "approved" : locked ? "rejected" : started ? "pending" : "";
   const statusText = allDone ? "مكتمل" : locked ? "مقفلة" : started ? "قيد اللعب" : "جديدة";
   const detailText = allDone ? `${correct}/3 صحيح | ${points} نقطة` : locked ? `تفتح ${openState.label}` : started ? `${completed.length}/3 مكتمل` : "جاهزة للبدء";
@@ -1872,7 +1872,7 @@ function triviaRoundSummaryCard(roundNumber, assignments) {
   const points = completed.reduce((sum, item) => sum + (Number(item.points_awarded) || 0), 0);
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
-  const locked = openState.locked && !allDone;
+  const locked = openState.locked && !started && !allDone;
   const buttonText = allDone ? "عرض النتيجة" : locked ? "مقفلة الآن" : started ? "متابعة الجولة" : "بدء الجولة";
   const buttonClass = allDone ? "primary-btn trivia-result-btn" : "primary-btn";
   const buttonAttrs = locked ? "disabled" : `data-trivia-round-open="${triviaRoundKey(activeRound, roundNumber)}"`;
@@ -1914,7 +1914,7 @@ function triviaRoundCard(roundNumber, assignments, displayRoundId = activeRound)
   const active = assignments.find(item => !triviaAssignmentComplete(item));
   const started = assignments.some(item => item.started_at || item.answered_at);
   const allDone = assignments.length > 0 && completed.length === assignments.length;
-  const locked = openState.locked && !allDone;
+  const locked = openState.locked && !started && !allDone;
   return `
     <article class="panel stack trivia-card trivia-round-card ${allDone ? "correct" : ""}">
       <div class="section-title">

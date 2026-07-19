@@ -1097,7 +1097,7 @@ async function answerTriviaQuestion(req, res) {
   const correctOption = normalizeTriviaOption(question.correct_option);
   const isCorrect = !expired && selected === correctOption;
   const setting = await fetchTriviaRoundForAssignment(assignment);
-  await enforceTriviaRoundOpen(setting);
+  await enforceTriviaRoundOpen(setting, { startedAt: assignment.started_at, allowStartedBeforeClose: true });
   const awardedPoints = isCorrect ? triviaPointsForDifficulty(setting, assignment.difficulty || question.difficulty) : 0;
   const [updated] = await supabase(`worldcup2026friends_trivia_assignments?id=eq.${encodeURIComponent(assignmentId)}`, {
     method: "PATCH",
@@ -1171,20 +1171,34 @@ async function fetchTriviaRoundForAssignment(assignment) {
   }
 }
 
-async function enforceTriviaRoundOpen(setting) {
-  if (setting?.closed_at) throw httpError(403, "تم إغلاق جولة س/ج لهذا الدور بعد اعتماد آخر مباراة.");
+async function enforceTriviaRoundOpen(setting, options = {}) {
+  const startedAt = parseDateOrNull(options.startedAt);
+  const allowStartedBeforeClose = !!options.allowStartedBeforeClose;
+  const storedClosedAt = parseDateOrNull(setting?.closed_at);
+  if (storedClosedAt) {
+    if (allowStartedBeforeClose && startedAt && startedAt.getTime() < storedClosedAt.getTime()) return;
+    throw httpError(403, "تم إغلاق جولة س/ج لهذا الدور بعد اعتماد آخر مباراة.");
+  }
   const completedRoundCloseAt = await completedMatchRoundCloseAt(setting);
   if (completedRoundCloseAt) {
+    if (allowStartedBeforeClose && startedAt && startedAt.getTime() < completedRoundCloseAt.getTime()) return;
     throw httpError(403, "تم إغلاق جولة س/ج لهذا الدور بعد اعتماد آخر مباراة.");
   }
   const finalCloseAt = await finalTriviaCloseAt(setting);
   if (finalCloseAt && finalCloseAt.getTime() <= Date.now()) {
+    if (allowStartedBeforeClose && startedAt && startedAt.getTime() < finalCloseAt.getTime()) return;
     throw httpError(403, `تم إغلاق جولات س/ج للنهائي قبل بداية المباراة النهائية بـ30 دقيقة.`);
   }
   if (!setting?.opens_at) return;
   const opensAt = new Date(setting.opens_at);
   if (Number.isNaN(opensAt.getTime()) || opensAt.getTime() <= Date.now()) return;
   throw httpError(403, `الجولة تفتح في ${formatDubaiDateTime(opensAt)}`);
+}
+
+function parseDateOrNull(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 async function completedMatchRoundCloseAt(setting) {

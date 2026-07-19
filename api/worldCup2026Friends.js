@@ -1055,6 +1055,9 @@ async function saveDisciplinaryAction(req, res) {
     });
     return res.status(200).json({ action });
   } catch (error) {
+    if (isRlsPolicyError(error)) {
+      throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث صلاحيات جدول الإنذارات. شغل ملف database/worldCup2026Friends-disciplinary-actions.sql في Supabase مرة واحدة.");
+    }
     if (!isOptionalColumnError(error)) throw error;
     throw httpError(503, "قاعدة بيانات Friends تحتاج تحديث جدول الإنذارات. شغل ملف database/worldCup2026Friends-disciplinary-actions.sql في Supabase مرة واحدة.");
   }

@@ -1641,7 +1641,7 @@ function triviaRoundOpenState(setting) {
     return {
       locked: true,
       closed: true,
-      finalClosed: reason === "final_before_kickoff",
+      finalClosed: reason === "final_vote_closed",
       label: Number.isNaN(closedDate.getTime()) ? "بعد اعتماد آخر مباراة في الدور" : formatDate(closedValue),
       value: Number.isNaN(closedDate.getTime()) ? "" : closedDate.toISOString()
     };
@@ -1669,16 +1669,16 @@ function triviaRoundOpenState(setting) {
 
 function finalTriviaCloseAt(setting) {
   if (normalizeRoundId(setting?.round_id) !== "final") return null;
-  const finalMatch = sortMatches(state.matches.filter(match => normalizeRoundId(match.round_id) === "final" && match.starts_at))[0];
-  if (!finalMatch?.starts_at) return null;
-  const startsAt = new Date(finalMatch.starts_at);
-  if (Number.isNaN(startsAt.getTime())) return null;
-  return new Date(startsAt.getTime() - 30 * 60 * 1000);
+  const finalMatch = sortMatches(state.matches.filter(match => normalizeRoundId(match.round_id) === "final" && match.vote_ends_at))[0];
+  if (!finalMatch?.vote_ends_at) return null;
+  const voteEndsAt = new Date(finalMatch.vote_ends_at);
+  if (Number.isNaN(voteEndsAt.getTime())) return null;
+  return voteEndsAt;
 }
 
 function triviaRoundOpenLabel(setting) {
   const openState = triviaRoundOpenState(setting);
-  if (openState.finalClosed) return `مغلقة قبل النهائي منذ ${openState.label}`;
+  if (openState.finalClosed) return `مغلقة مع انتهاء التصويت منذ ${openState.label}`;
   if (openState.closed) return `مغلقة منذ ${openState.label}`;
   if (!openState.value) return "مفتوحة الآن";
   return `${openState.locked ? "تفتح في" : "مفتوحة من"} ${openState.label}`;
@@ -1939,7 +1939,7 @@ function triviaRoundLockedView(openState) {
     return `
       <div class="trivia-round-lock">
         <strong>الجولة مغلقة</strong>
-        <span class="small">${openState.finalClosed ? "تم إغلاق جولات النهائي قبل بداية المباراة النهائية بـ30 دقيقة." : "تم إغلاقها بعد اعتماد آخر مباراة في هذا الدور."}</span>
+        <span class="small">${openState.finalClosed ? "تم إغلاق جولات النهائي مع انتهاء وقت التصويت على المباراة النهائية." : "تم إغلاقها بعد اعتماد آخر مباراة في هذا الدور."}</span>
       </div>
     `;
   }

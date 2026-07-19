@@ -14,7 +14,6 @@ const ROUND_RULES = {
 const ROUND_ORDER = ["r32", "r16", "qf", "sf", "final"];
 const JOKER_ROUNDS = new Set(["r16", "qf"]);
 const JOKER_LIMITS = { r16: 2, qf: 1 };
-const FINAL_TRIVIA_CLOSE_BEFORE_MS = 30 * 60 * 1000;
 const ELIMINATED_PARTICIPANT_MESSAGE = "\u0648\u0635\u0644 \u0631\u0635\u064a\u062f\u0643 \u0625\u0644\u0649 0 \u0646\u0642\u0637\u0629\u060c \u0644\u0630\u0644\u0643 \u062a\u0645 \u0625\u0642\u0635\u0627\u0624\u0643 \u0645\u0646 \u0627\u0644\u0645\u0633\u0627\u0628\u0642\u0629 \u0648\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0627\u0644\u062a\u0635\u0648\u064a\u062a \u0623\u0648 \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0629 \u0641\u064a \u0646\u0633\u062e\u0629 \u0627\u0644\u0631\u0628\u0639.";
 const ROUND_MATCH_LIMITS = {
   r32: 16,
@@ -1187,7 +1186,7 @@ async function enforceTriviaRoundOpen(setting, options = {}) {
   const finalCloseAt = await finalTriviaCloseAt(setting);
   if (finalCloseAt && finalCloseAt.getTime() <= Date.now()) {
     if (allowStartedBeforeClose && startedAt && startedAt.getTime() < finalCloseAt.getTime()) return;
-    throw httpError(403, `تم إغلاق جولات س/ج للنهائي قبل بداية المباراة النهائية بـ30 دقيقة.`);
+    throw httpError(403, "تم إغلاق جولات س/ج للنهائي مع انتهاء وقت التصويت على المباراة النهائية.");
   }
   if (!setting?.opens_at) return;
   const opensAt = new Date(setting.opens_at);
@@ -1213,11 +1212,8 @@ async function completedMatchRoundCloseAt(setting) {
 
 async function finalTriviaCloseAt(setting) {
   if (normalizeRoundId(setting?.round_id) !== "final") return null;
-  const [finalMatch] = await supabase("worldcup2026friends_matches?round_id=eq.final&starts_at=not.is.null&select=starts_at&order=starts_at.asc&limit=1");
-  if (!finalMatch?.starts_at) return null;
-  const startsAt = new Date(finalMatch.starts_at);
-  if (Number.isNaN(startsAt.getTime())) return null;
-  return new Date(startsAt.getTime() - FINAL_TRIVIA_CLOSE_BEFORE_MS);
+  const [finalMatch] = await supabase("worldcup2026friends_matches?round_id=eq.final&vote_ends_at=not.is.null&select=vote_ends_at&order=vote_ends_at.asc&limit=1");
+  return parseDateOrNull(finalMatch?.vote_ends_at);
 }
 
 function enrichTriviaSettingsWithEffectiveClosures(settings, matches) {
@@ -1237,7 +1233,7 @@ function enrichTriviaSettingsWithEffectiveClosures(settings, matches) {
       return {
         ...setting,
         effective_closed_at: finalCloseAt.toISOString(),
-        effective_closed_reason: "final_before_kickoff"
+        effective_closed_reason: "final_vote_closed"
       };
     }
     return setting;
@@ -1264,12 +1260,9 @@ function completedMatchRoundCloseDate(matches) {
 function finalTriviaCloseAtFromMatches(setting, matches) {
   if (normalizeRoundId(setting?.round_id) !== "final") return null;
   const finalMatch = (matches || [])
-    .filter(match => normalizeRoundId(match.round_id) === "final" && match.starts_at)
-    .sort((a, b) => new Date(a.starts_at || 0) - new Date(b.starts_at || 0))[0];
-  if (!finalMatch?.starts_at) return null;
-  const startsAt = new Date(finalMatch.starts_at);
-  if (Number.isNaN(startsAt.getTime())) return null;
-  return new Date(startsAt.getTime() - FINAL_TRIVIA_CLOSE_BEFORE_MS);
+    .filter(match => normalizeRoundId(match.round_id) === "final" && match.vote_ends_at)
+    .sort((a, b) => new Date(a.vote_ends_at || 0) - new Date(b.vote_ends_at || 0))[0];
+  return parseDateOrNull(finalMatch?.vote_ends_at);
 }
 
 function formatDubaiDateTime(value) {

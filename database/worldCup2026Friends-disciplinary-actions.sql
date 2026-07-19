@@ -4,7 +4,7 @@ create table if not exists public.worldcup2026friends_disciplinary_actions (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.worldcup2026friends_users(id) on delete cascade,
   action_key text unique,
-  action_type text not null default 'warning' check (action_type in ('warning', 'penalty')),
+  action_type text not null default 'warning' check (action_type in ('warning', 'notice', 'penalty')),
   title text not null default 'إنذار إداري',
   points_deducted numeric not null default 0,
   reason text,
@@ -14,6 +14,13 @@ create table if not exists public.worldcup2026friends_disciplinary_actions (
 
 alter table public.worldcup2026friends_disciplinary_actions
   add column if not exists action_key text unique;
+
+alter table public.worldcup2026friends_disciplinary_actions
+  drop constraint if exists worldcup2026friends_disciplinary_actions_action_type_check;
+
+alter table public.worldcup2026friends_disciplinary_actions
+  add constraint worldcup2026friends_disciplinary_actions_action_type_check
+  check (action_type in ('warning', 'notice', 'penalty'));
 
 alter table public.worldcup2026friends_disciplinary_actions
   add column if not exists points_deducted numeric not null default 0;

@@ -1031,9 +1031,10 @@ async function saveDisciplinaryAction(req, res) {
   const participantId = clean(body.participantId);
   const title = clean(body.title);
   const pointsDeducted = Number(body.pointsDeducted);
+  const actionType = clean(body.actionType) === "notice" ? "notice" : "warning";
   if (!participantId) throw httpError(400, "اختر المتسابق");
-  if (!title) throw httpError(400, "عنوان الإنذار مطلوب");
-  if (!Number.isFinite(pointsDeducted) || pointsDeducted < 0) throw httpError(400, "قيمة الخصم غير صحيحة");
+  if (!title) throw httpError(400, "عنوان التنبيه أو الإنذار مطلوب");
+  if (actionType === "warning" && (!Number.isFinite(pointsDeducted) || pointsDeducted < 0)) throw httpError(400, "قيمة الخصم غير صحيحة");
   const [participant] = await supabase(`worldcup2026friends_users?id=eq.${encodeURIComponent(participantId)}&role=eq.participant&limit=1`);
   if (!participant) throw httpError(404, "المتسابق غير موجود");
   try {
@@ -1042,9 +1043,9 @@ async function saveDisciplinaryAction(req, res) {
       prefer: "return=representation",
       body: JSON.stringify({
         participant_id: participantId,
-        action_type: "warning",
+        action_type: actionType,
         title,
-        points_deducted: Math.round(pointsDeducted * 100) / 100,
+        points_deducted: actionType === "notice" ? 0 : Math.round(pointsDeducted * 100) / 100,
         reason: title,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -1315,6 +1316,7 @@ async function calculateTournament() {
     trivia_correct: 0,
     trivia_wrong: 0,
     trivia_points: 0,
+    notices_count: 0,
     warnings_count: 0,
     penalty_points: 0
   }]));
@@ -1364,6 +1366,10 @@ function applyDisciplinaryActionsToStats(stats, actions) {
   for (const action of actions || []) {
     const row = stats.get(action.participant_id);
     if (!row) continue;
+    if (action.action_type === "notice") {
+      row.notices_count += 1;
+      continue;
+    }
     if (action.action_type === "warning") row.warnings_count += 1;
     const deduction = Math.max(0, Number(action.points_deducted) || 0);
     row.penalty_points += deduction;

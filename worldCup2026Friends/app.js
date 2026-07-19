@@ -462,14 +462,21 @@ function disciplinaryActionsView() {
           </select>
         </label>
         <label class="field">
-          <span>عنوان الإنذار</span>
+          <span>نوع الإجراء</span>
+          <select name="actionType" required>
+            <option value="warning">إنذار مع خصم</option>
+            <option value="notice">تنبيه بدون خصم</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>العنوان</span>
           <input name="title" required placeholder="مثال: مخالفة لوائح البطولة" />
         </label>
         <label class="field">
           <span>قيمة الخصم</span>
-          <input name="pointsDeducted" required type="number" min="0" step="1" inputmode="decimal" placeholder="مثال: 200" />
+          <input name="pointsDeducted" type="number" min="0" step="1" inputmode="decimal" placeholder="مثال: 200" />
         </label>
-        <button class="primary-btn" type="submit">حفظ الإنذار</button>
+        <button class="primary-btn" type="submit">حفظ الإجراء</button>
       </form>
       <div class="match-list">
         ${actions.length ? actions.map(disciplinaryActionCard).join("") : emptyView("لا توجد إنذارات مسجلة حتى الآن.")}
@@ -484,7 +491,7 @@ function disciplinaryActionCard(action) {
     <article class="match-card admin-decision-card">
       <div class="match-card-top">
         <strong>${escapeHtml(action.title || "إنذار إداري")}</strong>
-        <span class="status-chip rejected">خصم ${roundPoints(Number(action.points_deducted) || 0)}</span>
+        <span class="status-chip ${action.action_type === "notice" ? "pending" : "rejected"}">${action.action_type === "notice" ? "تنبيه" : `خصم ${roundPoints(Number(action.points_deducted) || 0)}`}</span>
       </div>
       <div class="leader-row compact-row">
         ${avatarTile(participant, "avatar-mini")}
@@ -1068,6 +1075,7 @@ function standingsMatrixView(options = {}) {
                 <div class="matrix-cell summary-head">نقاط س/ج</div>
               </div>
               <div class="match-score-group summary-group">
+                <div class="matrix-cell summary-head">التنبيهات</div>
                 <div class="matrix-cell summary-head">الإنذارات</div>
                 <div class="matrix-cell summary-head">خصم النقاط</div>
               </div>
@@ -1091,6 +1099,7 @@ function standingsMatrixView(options = {}) {
                   <div class="matrix-cell summary-cell percent-total">${roundPoints(Number(row.trivia_points) || 0)}</div>
                 </div>
                 <div class="match-score-group summary-group">
+                  <div class="matrix-cell summary-cell wrong-total">${Number(row.notices_count) || 0}</div>
                   <div class="matrix-cell summary-cell wrong-total">${Number(row.warnings_count) || 0}</div>
                   <div class="matrix-cell summary-cell wrong-total">${roundPoints(Number(row.penalty_points) || 0)}</div>
                 </div>
@@ -3644,11 +3653,12 @@ function bindApp() {
         body: JSON.stringify({
           userId: state.currentUser.id,
           participantId: form.elements.participantId.value,
+          actionType: form.elements.actionType.value,
           title: form.elements.title.value.trim(),
           pointsDeducted: form.elements.pointsDeducted.value
         })
       });
-      state.notice = "تم حفظ الإنذار وتطبيق الخصم.";
+      state.notice = form.elements.actionType.value === "notice" ? "تم حفظ التنبيه." : "تم حفظ الإنذار وتطبيق الخصم.";
       form.reset();
       await loadData({ silent: true });
     } catch (error) {

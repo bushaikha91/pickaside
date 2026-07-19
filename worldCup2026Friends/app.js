@@ -1634,12 +1634,14 @@ function triviaRoundSetting(roundId, questionRound = 1) {
 }
 
 function triviaRoundOpenState(setting) {
-  const closedValue = setting?.closed_at || setting?.closedAt || "";
+  const closedValue = setting?.closed_at || setting?.closedAt || setting?.effective_closed_at || setting?.effectiveClosedAt || "";
   if (closedValue) {
     const closedDate = new Date(closedValue);
+    const reason = setting?.effective_closed_reason || setting?.effectiveClosedReason || "";
     return {
       locked: true,
       closed: true,
+      finalClosed: reason === "final_before_kickoff",
       label: Number.isNaN(closedDate.getTime()) ? "بعد اعتماد آخر مباراة في الدور" : formatDate(closedValue),
       value: Number.isNaN(closedDate.getTime()) ? "" : closedDate.toISOString()
     };

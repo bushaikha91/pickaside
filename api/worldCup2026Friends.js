@@ -1268,35 +1268,26 @@ async function calculateTournament() {
     trivia_wrong: 0,
     trivia_points: 0
   }]));
+  const triviaResultsByRound = groupTriviaResultsByRound(triviaResults);
 
   for (const roundId of ROUND_ORDER) {
     const rule = ROUND_RULES[roundId];
     const roundMatches = matches
       .filter(match => normalizeRoundId(match.round_id) === roundId)
       .sort((a, b) => new Date(a.starts_at || 0) - new Date(b.starts_at || 0));
-    if (!rule || !roundMatches.length) continue;
 
-    if (rule.type === "fixed") {
-      applyFixedRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints, matchStakes);
-    } else if (rule.type === "bankroll") {
-      applyBankrollRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints, matchStakes);
-    } else if (rule.type === "final") {
-      applyFinalRound(users, stats, predictionByUserMatch, roundMatches, matchPoints, matchStakes);
+    if (rule && roundMatches.length) {
+      if (rule.type === "fixed") {
+        applyFixedRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints, matchStakes);
+      } else if (rule.type === "bankroll") {
+        applyBankrollRound(users, stats, predictionByUserMatch, roundMatches, rule, matchPoints, matchStakes);
+      } else if (rule.type === "final") {
+        applyFinalRound(users, stats, predictionByUserMatch, roundMatches, matchPoints, matchStakes);
+      }
     }
+    applyTriviaResultsToStats(stats, triviaResultsByRound.get(roundId) || []);
   }
-
-  for (const result of triviaResults) {
-    const row = stats.get(result.participant_id);
-    if (!row) continue;
-    if (result.is_correct) {
-      const points = Number(result.points_awarded || 0);
-      row.trivia_correct += 1;
-      row.trivia_points += points;
-      row.points += points;
-    } else {
-      row.trivia_wrong += 1;
-    }
-  }
+  applyTriviaResultsToStats(stats, triviaResultsByRound.get("unmatched") || []);
 
   return {
     predictions,
@@ -1502,6 +1493,32 @@ function matchPointRow(points, correct, isJoker) {
     correct,
     is_joker: !!isJoker
   };
+}
+
+function groupTriviaResultsByRound(triviaResults) {
+  const grouped = new Map();
+  for (const result of triviaResults || []) {
+    const roundId = normalizeRoundId(result.round_id);
+    const key = ROUND_ORDER.includes(roundId) ? roundId : "unmatched";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(result);
+  }
+  return grouped;
+}
+
+function applyTriviaResultsToStats(stats, results) {
+  for (const result of results || []) {
+    const row = stats.get(result.participant_id);
+    if (!row) continue;
+    if (result.is_correct) {
+      const points = Number(result.points_awarded || 0);
+      row.trivia_correct += 1;
+      row.trivia_points += points;
+      row.points += points;
+    } else {
+      row.trivia_wrong += 1;
+    }
+  }
 }
 
 async function enforceRoundMatchLimit(roundId, matchId = "") {

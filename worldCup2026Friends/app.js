@@ -3200,7 +3200,7 @@ function voteResultTeamView(name, flagUrl) {
 function voteResultRow(row, match) {
   const picked = row.prediction?.winner || "لم يصوت";
   const percentText = row.prediction && isCustomPercentMatch(match)
-    ? ` | ${winnerPercentValue(row.prediction)}%`
+    ? ` | ${winnerPercentValue(row.prediction, match)}%`
     : "";
   const pickedClass = row.prediction
     ? row.prediction.winner === match.team_a ? "team-a" : "team-b"
